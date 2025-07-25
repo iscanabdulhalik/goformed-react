@@ -65,13 +65,24 @@ const HowWrapper = styled.section`
 `;
 
 const SectionTitle = styled(motion.h2)`
-  /* ... */
+  text-align: center;
+  margin-bottom: 1rem;
 `;
 const SectionSubtitle = styled(motion.p)`
-  /* ... */
+  text-align: center;
+  max-width: 550px;
+  margin: 0 auto 4rem auto;
+  color: ${({ theme }) => theme.colors.textSecondary};
 `;
 const Grid = styled.div`
-  /* ... */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+
+  @media (max-width: 992px) {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
 `;
 
 const StepCard = styled(motion.div)`
@@ -116,14 +127,14 @@ const StepNumber = styled.span`
   color: #fff;
   font-size: 1rem;
   font-weight: 700;
-  font-family: "Poppins", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   border: 3px solid #fff;
 `;
 
 const StepTitle = styled.h3`
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
-  font-family: "Lora", serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
 `;
 
 const steps = [

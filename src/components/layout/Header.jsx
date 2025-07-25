@@ -11,7 +11,7 @@ const StyledHeader = styled.header`
   width: 100%;
   padding: 1.5rem 0;
   z-index: 1000;
-  background-color: #ffffff;
+  background-color: #fdfbf7; // Arka plan rengi krem yapıldı
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
@@ -92,8 +92,6 @@ const Header = () => {
             <img src={goformedLogo} alt="GoFormed Logo" />
           </Logo>
           <NavLinks>
-            {/* --- İŞTE DÜZELTME BURADA --- */}
-            {/* 'href' özelliklerinden baştaki '/' kaldırıldı. */}
             <AnchorLink href="#">Home</AnchorLink>
             <AnchorLink href="#pricing">Pricing</AnchorLink>
             <AnchorLink href="#about">About</AnchorLink>

@@ -1,4 +1,3 @@
-// src/pages/RegisterPage.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
@@ -7,6 +6,7 @@ import Button from "../components/common/Button";
 import {
   AuthLayout,
   ImageColumn,
+  ImageContainer,
   FormColumn,
   AuthCard,
   Form,
@@ -50,31 +50,34 @@ const RegisterPage = () => {
   };
 
   const pageVariants = {
-    initial: { opacity: 0 },
-    in: { opacity: 1 },
-    out: { opacity: 0 },
+    initial: { opacity: 0, scale: 0.95 },
+    in: { opacity: 1, scale: 1 },
+    out: { opacity: 0, scale: 0.95 },
   };
 
   const pageTransition = {
-    duration: 0.7,
+    duration: 0.5,
     ease: "easeInOut",
   };
 
   return (
     <AuthLayout>
-      <ImageColumn
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-      />
+      <ImageColumn>
+        {/* GÜNCELLENDİ: Animasyon dairesel görselin kendisine uygulandı */}
+        <ImageContainer
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+        />
+      </ImageColumn>
       <FormColumn
         initial="initial"
         animate="in"
         exit="out"
         variants={pageVariants}
-        transition={pageTransition}
+        transition={{ ...pageTransition, delay: 0.2 }}
       >
         <AuthCard>
           <h1>Create an Account</h1>

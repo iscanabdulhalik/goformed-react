@@ -1,20 +1,19 @@
 export const theme = {
   colors: {
-    // Arka planı çok hafif kırık bir beyaza çekiyoruz.
-    background: "#f9f9f9", 
+    background: "#f9f9f9",
     text: "#1a1a1a",
     textSecondary: "#555",
-    // Ana rengimiz olan altını daha canlı tutuyoruz.
-    primary: "#b5946e", 
+    primary: "#b5946e",
     primaryHover: "#a5845e",
-    // Kenarlıklar ve gölgelerle derinlik katacağız.
     border: "#eaeaea",
     cardBackground: "#ffffff",
     success: "#20c997",
+    accent: "#1a1a1a", // Yeni panel rengi olarak siyah belirlendi
+    accentHover: "#333333", // Hover için koyu gri
   },
   fonts: {
-    heading: "'Poppins', sans-serif",
-    body: "'Inter', sans-serif",
+    heading: "'Plus Jakarta Sans', sans-serif",
+    body: "'Figtree', sans-serif",
   },
   fontSizes: {
     small: "14px",

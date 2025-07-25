@@ -1,28 +1,61 @@
-// src/pages/AuthStyles.js
+// src/pages/AuthStyles.jsx
 import styled from "styled-components";
 import { motion } from "framer-motion";
+
+// Yeni arka plan görselini import ediyoruz
+import loginPageBg from "../assets/images/login-bg.jpg";
+// Sol taraftaki dairesel görsel için asset
+import authColumnImage from "../assets/images/auth-image.jpg";
 
 export const AuthLayout = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 100vh;
-  background-color: #fff;
+
+  /* GÜNCELLENDİ: Arka plan artık bir JPG görseli */
+  background: url(${loginPageBg}) no-repeat center center/cover;
+  /* Görselin üzerine hafif bir overlay ekleyerek okunabilirliği artırabiliriz */
+  position: relative;
+
+  /* Bu overlay, hem arka planı biraz karartır hem de formun daha çok öne çıkmasını sağlar */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.5); /* Açık renk bir overlay */
+    backdrop-filter: blur(8px); /* Modern blur efekti */
+    -webkit-backdrop-filter: blur(8px);
+  }
 
   @media (max-width: 992px) {
     grid-template-columns: 1fr;
   }
 `;
 
-export const ImageColumn = styled(motion.div)`
-  background: url("https://images.unsplash.com/photo-1559163499-4138189d26aa?q=80&w=2940&auto=format&fit=crop")
-    no-repeat center center/cover;
+// Sütunların ve formun, overlay'in üzerinde kalması için position: relative ve z-index ekliyoruz
+export const ImageColumn = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 2;
 
   @media (max-width: 992px) {
     display: none;
   }
+`;
+
+export const ImageContainer = styled(motion.div)`
+  width: 700px;
+  height: 800px;
+  border-radius: 3%;
+  background: url(${authColumnImage}) no-repeat center center/cover;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 `;
 
 export const FormColumn = styled(motion.div)`
@@ -30,12 +63,20 @@ export const FormColumn = styled(motion.div)`
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  position: relative;
+  z-index: 2;
 `;
 
+// Form kartının arkasına yarı saydam bir arka plan ekleyerek okunabilirliği artırıyoruz
 export const AuthCard = styled.div`
   width: 100%;
   max-width: 420px;
   text-align: center;
+  background: rgba(255, 255, 255, 0.8); /* Yarı saydam beyaz kart */
+  padding: 3rem 2.5rem;
+  border-radius: ${({ theme }) => theme.borderRadius};
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.9);
 
   h1 {
     font-size: 2.2rem;
@@ -64,6 +105,7 @@ export const Input = styled.input`
   border-radius: ${({ theme }) => theme.borderRadius};
   font-size: 1rem;
   transition: border-color 0.3s, box-shadow 0.3s;
+  background-color: #fff; /* Inputlar opak kalmalı */
 
   &:focus {
     outline: none;

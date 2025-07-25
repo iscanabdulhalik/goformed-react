@@ -1,4 +1,4 @@
-// src/components/sections/HeroSection.jsx
+import heroImage from "../../assets/images/founder-portrait.jpg"; // Yeni görseli import et
 import React from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
@@ -6,9 +6,10 @@ import Container from "../../components/common/Container";
 import { ButtonLink } from "../../components/common/Button";
 
 const HeroWrapper = styled.section`
-  padding-top: 12rem;
-  padding-bottom: 8rem;
-  background-color: ${({ theme }) => theme.colors.background};
+  padding-top: 0.5rem; /* Üst boşluk azaltıldı */
+  padding-bottom: 0.25rem; /* Alt boşluk ayarlandı */
+  /* Arka plan rengi header ile uyumlu hale getirildi */
+  background-color: #fdfbf7;
 `;
 
 const HeroGrid = styled.div`
@@ -29,7 +30,7 @@ const HeroContent = styled(motion.div)`
     font-weight: 800;
     line-height: 1.2;
     margin-bottom: 1.5rem;
-    font-family: "Poppins", sans-serif;
+    font-family: "Plus Jakarta Sans", sans-serif;
   }
   p {
     font-size: 1.2rem;
@@ -105,10 +106,7 @@ const HeroSection = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <img
-              src="https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?q=80&w=2787&auto=format&fit=crop"
-              alt="Global Business Dashboard"
-            />
+            <img src={heroImage} alt="Global Business Entrepreneur" />
           </HeroImageWrapper>
         </HeroGrid>
       </Container>

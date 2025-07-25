@@ -2,8 +2,8 @@ import React from "react";
 import styled from "styled-components";
 import { motion } from "framer-motion";
 import Container from "../common/Container";
-// Görseldeki gibi bir portre fotoğrafı (örnek)
-import portraitImage from "../../assets/images/founder-portrait.jpg";
+import AnimatedNumber from "../common/AnimatedNumber"; // Animasyonlu sayı bileşenini import et
+import businnesMan from "../../assets/images/businessman.png"; // Yeni görseli import et
 
 const AboutWrapper = styled.section`
   padding: 6rem 0;
@@ -25,7 +25,7 @@ const SectionGrid = styled.div`
 
 const TextContent = styled(motion.div)`
   h1 {
-    font-family: "Lora", serif;
+    font-family: "Plus Jakarta Sans", serif;
     font-size: 4rem;
     line-height: 1.2;
     margin-bottom: 2rem;
@@ -46,7 +46,7 @@ const StatsGrid = styled.div`
 
 const StatItem = styled.div`
   strong {
-    font-family: "Poppins", sans-serif;
+    font-family: "Plus Jakarta Sans", sans-serif;
     font-size: 2.5rem;
     font-weight: 700;
   }
@@ -90,11 +90,15 @@ const AboutSection = () => {
             </h1>
             <StatsGrid>
               <StatItem>
-                <strong>2900+</strong>
+                <strong>
+                  <AnimatedNumber value={2900} />+
+                </strong>
                 <p>Companies formed</p>
               </StatItem>
               <StatItem>
-                <strong>150+</strong>
+                <strong>
+                  <AnimatedNumber value={150} />+
+                </strong>
                 <p>Countries served</p>
               </StatItem>
             </StatsGrid>
@@ -102,12 +106,7 @@ const AboutSection = () => {
           <ImageContent>
             <div className="background-shape"></div>
             {/* Bu görseli kendi projenizdeki bir görselle değiştirmelisiniz */}
-            <img
-              src={
-                "https://pngimg.com/uploads/businessman/businessman_PNG6565.png"
-              }
-              alt="GoFormed Founder"
-            />
+            <img src={businnesMan} alt="GoFormed Founder" />
           </ImageContent>
         </SectionGrid>
       </Container>
