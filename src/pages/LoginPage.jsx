@@ -1,23 +1,17 @@
-// src/pages/LoginPage.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../firebase";
-import Button from "../components/common/Button";
+import { auth, googleProvider } from "@/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AuthLayout,
-  ImageColumn,
-  ImageContainer, // GÜNCELLENDİ: Yeni bileşeni import et
-  FormColumn,
-  AuthCard,
-  Form,
-  Input,
-  OrSeparator,
-  FinePrint,
-  ErrorMessage,
-} from "./AuthStyles";
+  AuthContent,
+  AuthImage,
+} from "@/components/layout/AuthLayout";
 
-const LoginPage = () => {
+export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,102 +19,94 @@ const LoginPage = () => {
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
-    setError("");
-    if (!email || !password) {
-      setError("Please fill in all fields.");
-      return;
-    }
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate("/dashboard");
     } catch (err) {
       setError("Failed to sign in. Please check your credentials.");
-      console.error(err);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setError("");
     try {
       await signInWithPopup(auth, googleProvider);
       navigate("/dashboard");
     } catch (err) {
       setError("Failed to sign in with Google.");
-      console.error(err);
     }
-  };
-
-  const pageVariants = {
-    initial: { opacity: 0, scale: 0.95 },
-    in: { opacity: 1, scale: 1 },
-    out: { opacity: 0, scale: 0.95 },
-  };
-
-  const pageTransition = {
-    duration: 0.5,
-    ease: "easeInOut",
   };
 
   return (
     <AuthLayout>
-      <ImageColumn>
-        {/* GÜNCELLENDİ: Animasyon dairesel görselin kendisine uygulandı */}
-        <ImageContainer
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-        />
-      </ImageColumn>
-      <FormColumn
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={{ ...pageTransition, delay: 0.2 }}
-      >
-        <AuthCard>
-          <h1>Welcome Back</h1>
-          <p>Please enter your details to sign in.</p>
+      <AuthImage />
+      <AuthContent>
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          <div className="flex flex-col space-y-2 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Welcome Back
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Enter your email and password to sign in.
+            </p>
+          </div>
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-
-          <Form onSubmit={handleEmailLogin}>
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button type="submit" $primary style={{ width: "100%" }}>
+          <form onSubmit={handleEmailLogin} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            )}
+            <Button type="submit" className="w-full">
               Sign In
             </Button>
-          </Form>
+          </form>
 
-          <OrSeparator>OR</OrSeparator>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
 
-          <Button
-            onClick={handleGoogleLogin}
-            $secondary
-            style={{ width: "100%" }}
-          >
+          <Button variant="outline" onClick={handleGoogleLogin}>
             Sign In with Google
           </Button>
 
-          <FinePrint>
-            Don't have an account? <Link to="/register">Sign up</Link>
-          </FinePrint>
-        </AuthCard>
-      </FormColumn>
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Sign up
+            </Link>
+          </p>
+        </div>
+      </AuthContent>
     </AuthLayout>
   );
-};
-
-export default LoginPage;
+}

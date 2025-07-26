@@ -1,117 +1,42 @@
 import React from "react";
-import styled from "styled-components";
-import { motion } from "framer-motion";
-import Container from "../common/Container";
-import AnimatedNumber from "../common/AnimatedNumber"; // Animasyonlu sayı bileşenini import et
-import businnesMan from "../../assets/images/businessman.png"; // Yeni görseli import et
+import businessmanImage from "@/assets/images/businessman.png";
 
-const AboutWrapper = styled.section`
-  padding: 6rem 0;
-  background-color: #ffffff;
-  scroll-margin-top: 100px;
-`;
-
-const SectionGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4rem;
-  align-items: center;
-
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-`;
-
-const TextContent = styled(motion.div)`
-  h1 {
-    font-family: "Plus Jakarta Sans", serif;
-    font-size: 4rem;
-    line-height: 1.2;
-    margin-bottom: 2rem;
-  }
-  .highlight {
-    color: ${({ theme }) => theme.colors.primary};
-  }
-`;
-
-const StatsGrid = styled.div`
-  display: flex;
-  gap: 3rem;
-  margin-top: 2.5rem;
-  @media (max-width: 992px) {
-    justify-content: center;
-  }
-`;
-
-const StatItem = styled.div`
-  strong {
-    font-family: "Plus Jakarta Sans", sans-serif;
-    font-size: 2.5rem;
-    font-weight: 700;
-  }
-  p {
-    color: ${({ theme }) => theme.colors.textSecondary};
-  }
-`;
-
-const ImageContent = styled(motion.div)`
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  .background-shape {
-    position: absolute;
-    width: 85%;
-    height: 95%;
-    background-color: ${({ theme }) =>
-      theme.colors.primary.replace(")", ", 0.1)")};
-    border-radius: ${({ theme }) => theme.borderRadius};
-    z-index: 0;
-  }
-
-  img {
-    position: relative;
-    z-index: 1;
-    max-width: 400px;
-  }
-`;
-
-const AboutSection = () => {
+export default function AboutSection() {
   return (
-    <AboutWrapper id="about">
-      <Container>
-        <SectionGrid>
-          <TextContent>
-            <h1>
-              Get to Know <br />
-              <span className="highlight">GoFormed</span>
-            </h1>
-            <StatsGrid>
-              <StatItem>
-                <strong>
-                  <AnimatedNumber value={2900} />+
-                </strong>
-                <p>Companies formed</p>
-              </StatItem>
-              <StatItem>
-                <strong>
-                  <AnimatedNumber value={150} />+
-                </strong>
-                <p>Countries served</p>
-              </StatItem>
-            </StatsGrid>
-          </TextContent>
-          <ImageContent>
-            <div className="background-shape"></div>
-            {/* Bu görseli kendi projenizdeki bir görselle değiştirmelisiniz */}
-            <img src={businnesMan} alt="GoFormed Founder" />
-          </ImageContent>
-        </SectionGrid>
-      </Container>
-    </AboutWrapper>
+    <section id="about" className="w-full py-24 sm:py-32">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-muted/50 border rounded-lg py-12 px-6">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-center justify-items-center">
+            <div className="space-y-6 text-center md:text-left max-w-lg">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
+                Get to Know <br />
+                <span className="text-primary">GoFormed</span>
+              </h2>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                We are dedicated to helping entrepreneurs from all over the
+                world to establish and grow their businesses in the UK.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center md:justify-start gap-8 pt-4">
+                <div className="text-center md:text-left">
+                  <h3 className="text-4xl font-bold text-primary">2900+</h3>
+                  <p className="text-muted-foreground">Companies formed</p>
+                </div>
+                <div className="text-center md:text-left">
+                  <h3 className="text-4xl font-bold text-primary">150+</h3>
+                  <p className="text-muted-foreground">Countries served</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-center md:justify-end w-full">
+              <img
+                src={businessmanImage}
+                alt="About us - Professional businessman"
+                className="w-full max-w-sm lg:max-w-md h-auto object-cover rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
-};
-
-export default AboutSection;
+}

@@ -1,68 +1,89 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* src/index.css */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@import "tailwindcss";
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  /* -- YENİLENMİŞ KREM TEMA -- */
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Playfair Display", serif; /* Yeni Başlık Fontu */
+
+  --color-background: oklch(99% 0.01 90); /* Çok Açık Krem */
+  --color-foreground: oklch(20% 0.08 40); /* Daha Yumuşak Koyu Kahve */
+
+  --color-card: oklch(100% 0 0);
+  --color-card-foreground: oklch(20% 0.08 40);
+
+  --color-popover: oklch(100% 0 0);
+  --color-popover-foreground: oklch(20% 0.08 40);
+
+  --color-primary: oklch(50% 0.16 30); /* Daha Canlı Ana Kahve */
+  --color-primary-foreground: oklch(99% 0.01 90);
+
+  /* İkincil rengi daha belirgin bir vurgu için kullanacağız */
+  --color-secondary: oklch(65% 0.18 85); /* Zengin Altın/Hardal */
+  --color-secondary-foreground: oklch(20% 0.08 40);
+
+  --color-muted: oklch(96% 0.015 90); /* Daha açık sessiz arkaplan */
+  --color-muted-foreground: oklch(55% 0.05 45);
+
+  --color-accent: oklch(96% 0.015 90);
+  --color-accent-foreground: oklch(25% 0.1 40);
+
+  --color-destructive: oklch(60% 0.22 15);
+  --color-destructive-foreground: oklch(98% 0.02 0);
+
+  --color-border: oklch(92% 0.02 90);
+  --color-input: oklch(92% 0.02 90);
+  --color-ring: oklch(55% 0.16 35);
+
+  --radius: 0.75rem;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Custom Keyframes */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
-a:hover {
-  color: #535bf2;
+
+/* Custom Animation Class */
+.animate-scroll-left {
+  animation: scroll-left 30s linear infinite;
+}
+
+/* Base stiller */
+* {
+  border-color: var(--color-border);
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans); /* Varsayılan font */
+  font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Başlıklara yeni fontu uygulama */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Metinler için Gradient Sınıfı */
+.text-gradient {
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-secondary)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

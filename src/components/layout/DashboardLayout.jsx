@@ -1,25 +1,11 @@
 import React, { useState, useCallback } from "react";
-import styled from "styled-components";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 const SIDEBAR_WIDTH_DEFAULT = 260;
-const SIDEBAR_WIDTH_COLLAPSED = 88; // İkonların rahat sığacağı genişlik
+const SIDEBAR_WIDTH_COLLAPSED = 88;
 
-const DashboardWrapper = styled.div`
-  display: flex;
-  background-color: ${({ theme }) => theme.colors.background};
-`;
-
-const MainContent = styled.main`
-  flex-grow: 1;
-  padding: 2.5rem 3rem;
-  width: 100%;
-  margin-left: ${({ $sidebarwidth }) => `${$sidebarwidth}px`};
-  transition: margin-left 0.3s ease-in-out;
-`;
-
-const DashboardLayout = () => {
+export default function DashboardLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleCollapse = useCallback(() => {
@@ -31,17 +17,18 @@ const DashboardLayout = () => {
     : SIDEBAR_WIDTH_DEFAULT;
 
   return (
-    <DashboardWrapper>
+    <div className="relative min-h-screen flex">
       <Sidebar
         isCollapsed={isCollapsed}
         toggleCollapse={toggleCollapse}
         width={currentSidebarWidth}
       />
-      <MainContent $sidebarwidth={currentSidebarWidth}>
+      <main
+        className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 transition-all duration-300"
+        style={{ marginLeft: `${currentSidebarWidth}px` }}
+      >
         <Outlet />
-      </MainContent>
-    </DashboardWrapper>
+      </main>
+    </div>
   );
-};
-
-export default DashboardLayout;
+}

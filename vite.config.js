@@ -7,22 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  // react() içine babel ayarını ekliyoruz
-  plugins: [
-    react({
-      babel: {
-        plugins: [
-          [
-            "babel-plugin-styled-components",
-            {
-              displayName: true,
-              fileName: false,
-            },
-          ],
-        ],
-      },
-    }),
-  ],
+  plugins: [react({})],
   base: "/goformed-react/",
   resolve: {
     alias: {

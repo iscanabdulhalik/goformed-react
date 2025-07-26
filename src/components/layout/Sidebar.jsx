@@ -1,271 +1,111 @@
 import React from "react";
-import styled from "styled-components";
 import { NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../../firebase";
+import { auth } from "@/firebase";
 import {
   FaTachometerAlt,
   FaStore,
   FaListAlt,
   FaCog,
   FaSignOutAlt,
-  FaTimes,
-  FaBars,
+  FaAngleLeft,
+  FaAngleRight,
 } from "react-icons/fa";
-import goformedLogo from "../../assets/logos/goformed.png";
-
-const SidebarWrapper = styled.aside`
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: ${({ width }) => `${width}px`};
-  background-color: #ffffff;
-  border-right: 1px solid ${({ theme }) => theme.colors.border};
-  z-index: 100;
-  transition: width 0.3s ease-in-out;
-  overflow: hidden;
-
-  display: flex;
-  flex-direction: column;
-  padding: 2rem 1rem;
-`;
-
-const SidebarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 2rem;
-  min-height: 35px;
-  position: relative;
-`;
-
-const Logo = styled.img`
-  height: 35px;
-  display: block;
-  opacity: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "1")};
-  transform: ${({ $isCollapsed }) => ($isCollapsed ? "scale(0)" : "scale(1)")};
-  transition: all 0.3s ease-in-out;
-`;
-
-const ToggleButton = styled.button`
-  background: #f8f9fa;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  transition: all 0.2s ease;
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  z-index: 100;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.primary};
-    color: white;
-    transform: scale(1.05);
-  }
-
-  svg {
-    font-size: 16px;
-  }
-`;
-
-const NavigationArea = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-`;
-
-const NavList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  flex: 1;
-`;
-
-const NavItem = styled.li`
-  margin-bottom: 0.5rem;
-`;
-
-const StyledNavLink = styled(NavLink)`
-  display: flex;
-  align-items: center;
-  padding: 0.8rem 1rem;
-  border-radius: 8px;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-weight: 500;
-  transition: all 0.2s ease-in-out;
-  text-decoration: none;
-  width: 100%;
-  justify-content: ${({ $isCollapsed }) =>
-    $isCollapsed ? "center" : "flex-start"};
-
-  .icon {
-    font-size: 1.2rem;
-    flex-shrink: 0;
-    margin-right: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "1rem")};
-  }
-
-  .text {
-    white-space: nowrap;
-    overflow: hidden;
-    opacity: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "1")};
-    width: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "auto")};
-    transition: all 0.3s ease-in-out;
-  }
-
-  &.active {
-    background-color: ${({ theme }) => theme.colors.primary};
-    color: #ffffff;
-  }
-
-  &:hover:not(.active) {
-    background-color: ${({ theme }) => theme.colors.background};
-    color: ${({ theme }) => theme.colors.text};
-  }
-`;
-
-const LogoutSection = styled.div`
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  flex-shrink: 0;
-`;
-
-const LogoutButton = styled.button`
-  display: flex;
-  align-items: center;
-  padding: 0.8rem 1rem;
-  border-radius: 8px;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-weight: 500;
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  justify-content: ${({ $isCollapsed }) =>
-    $isCollapsed ? "center" : "flex-start"};
-
-  .icon {
-    font-size: 1.2rem;
-    flex-shrink: 0;
-    margin-right: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "1rem")};
-  }
-
-  .text {
-    white-space: nowrap;
-    overflow: hidden;
-    opacity: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "1")};
-    width: ${({ $isCollapsed }) => ($isCollapsed ? "0" : "auto")};
-    transition: all 0.3s ease-in-out;
-  }
-
-  &:hover {
-    color: #dc3545;
-    background-color: rgba(220, 53, 69, 0.1);
-  }
-`;
-
-const CollapsedClickArea = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  z-index: 1;
-`;
-
-const ContentArea = styled.div`
-  position: relative;
-  z-index: 2;
-`;
+import goformedLogo from "@/assets/logos/goformed.png";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
-  { to: "/dashboard", text: "Dashboard", icon: <FaTachometerAlt /> },
-  { to: "/dashboard/marketplace", text: "Marketplace", icon: <FaStore /> },
-  { to: "/dashboard/orders", text: "Orders", icon: <FaListAlt /> },
-  { to: "/dashboard/settings", text: "Settings", icon: <FaCog /> },
+  { to: "/dashboard", text: "Dashboard", icon: FaTachometerAlt },
+  { to: "/dashboard/marketplace", text: "Marketplace", icon: FaStore },
+  { to: "/dashboard/orders", text: "Orders", icon: FaListAlt },
+  { to: "/dashboard/settings", text: "Settings", icon: FaCog },
 ];
 
-const Sidebar = ({ isCollapsed, toggleCollapse, expandSidebar, width }) => {
+export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    signOut(auth)
-      .then(() => {
-        navigate("/login");
-      })
-      .catch((error) => {
-        console.error("Logout error:", error);
-      });
-  };
-
-  const handleSidebarClick = () => {
-    if (isCollapsed) {
-      expandSidebar();
-    }
+    signOut(auth).then(() => navigate("/login"));
   };
 
   return (
-    <SidebarWrapper width={width} $isCollapsed={isCollapsed}>
-      {isCollapsed && <CollapsedClickArea onClick={handleSidebarClick} />}
+    <aside
+      className={cn(
+        "fixed top-0 left-0 h-screen bg-card text-card-foreground border-r flex flex-col z-50 transition-all duration-300",
+        isCollapsed ? "items-center" : ""
+      )}
+      style={{ width: `${width}px` }}
+    >
+      {/* Toggle Butonu, her zaman görünür ve kenarda */}
+      <Button
+        onClick={toggleCollapse}
+        variant="outline"
+        size="icon"
+        className="absolute top-1/2 -translate-y-1/2 rounded-full h-7 w-7 z-50"
+        style={{ left: `${width - 14}px` }}
+      >
+        {isCollapsed ? (
+          <FaAngleRight className="h-4 w-4" />
+        ) : (
+          <FaAngleLeft className="h-4 w-4" />
+        )}
+      </Button>
 
-      <ContentArea $isCollapsed={isCollapsed}>
-        {/* Header Section */}
-        <SidebarHeader $isCollapsed={isCollapsed}>
-          <Logo
-            src={goformedLogo}
-            alt="GoFormed Logo"
-            $isCollapsed={isCollapsed}
-          />
-          <ToggleButton onClick={toggleCollapse}>
-            {isCollapsed ? <FaBars /> : <FaTimes />}
-          </ToggleButton>
-        </SidebarHeader>
+      {/* Logo Alanı */}
+      <div className="flex items-center h-20 border-b w-full px-6 flex-shrink-0">
+        <img
+          src={goformedLogo}
+          alt="GoFormed"
+          className={cn(
+            "h-8 transition-all duration-300",
+            isCollapsed && "mx-auto" // Daraltılmış halde ortala
+          )}
+        />
+      </div>
 
-        {/* Navigation Area */}
-        <NavigationArea>
-          <NavList>
-            {menuItems.map((item) => (
-              <NavItem key={item.to}>
-                <StyledNavLink
-                  to={item.to}
-                  end={item.to === "/dashboard"}
-                  $isCollapsed={isCollapsed}
-                >
-                  <span className="icon">{item.icon}</span>
-                  <span className="text">{item.text}</span>
-                </StyledNavLink>
-              </NavItem>
-            ))}
-          </NavList>
+      {/* Navigasyon Alanı */}
+      <nav className="flex-1 px-4 py-4 space-y-1 w-full">
+        {menuItems.map((item) => (
+          <SidebarLink key={item.text} item={item} isCollapsed={isCollapsed} />
+        ))}
+      </nav>
 
-          {/* Logout Section */}
-          <LogoutSection>
-            <LogoutButton
-              onClick={handleLogout}
-              $isCollapsed={isCollapsed}
-              title="Çıkış Yap"
-            >
-              <span className="icon">
-                <FaSignOutAlt />
-              </span>
-              <span className="text">Log Out</span>
-            </LogoutButton>
-          </LogoutSection>
-        </NavigationArea>
-      </ContentArea>
-    </SidebarWrapper>
+      {/* Çıkış Alanı */}
+      <div className="mt-auto p-4 border-t w-full">
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full",
+            isCollapsed ? "justify-center" : "justify-start"
+          )}
+          onClick={handleLogout}
+        >
+          <FaSignOutAlt className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
+          {!isCollapsed && "Log Out"}
+        </Button>
+      </div>
+    </aside>
   );
-};
+}
 
-export default Sidebar;
+function SidebarLink({ item, isCollapsed }) {
+  const Icon = item.icon;
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === "/dashboard"}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          isActive &&
+            "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+          isCollapsed && "justify-center"
+        )
+      }
+    >
+      <Icon className={cn("h-5 w-5 flex-shrink-0", !isCollapsed && "mr-3")} />
+      {!isCollapsed && <span className="truncate">{item.text}</span>}
+    </NavLink>
+  );
+}

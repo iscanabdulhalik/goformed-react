@@ -1,110 +1,56 @@
+// src/components/layout/Header.jsx
+
 import React from "react";
-import styled from "styled-components";
-import { Link } from "react-router-dom";
-import Container from "../common/Container";
-import { ButtonLink } from "../common/Button";
-import goformedLogo from "../../assets/logos/goformed.png";
+import { Link, NavLink } from "react-router-dom";
+import goformedLogo from "@/assets/logos/goformed.png";
+import { Button } from "@/components/ui/button";
 
-// Header'ın stilleri, istediğiniz gibi sabit, beyaz ve temiz.
-const StyledHeader = styled.header`
-  position: relative;
-  width: 100%;
-  padding: 1.5rem 0;
-  z-index: 1000;
-  background-color: #fdfbf7; // Arka plan rengi krem yapıldı
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-`;
+const navLinks = [
+  { href: "#", text: "Home" },
+  { href: "#pricing", text: "Pricing" },
+  { href: "#about", text: "About" },
+  { href: "#contact", text: "Contact us" },
+];
 
-const Nav = styled.nav`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const Logo = styled(Link)`
-  img {
-    height: 35px;
-  }
-`;
-
-const NavLinks = styled.div`
-  display: flex;
-  gap: 3rem;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-
-  @media (max-width: 992px) {
-    display: none;
-  }
-`;
-
-// Sayfa içi bölümlere giden linkler için standart <a> etiketi.
-const AnchorLink = styled.a`
-  font-family: "Inter", sans-serif;
-  font-weight: 500;
-  font-size: 1rem;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  transition: color 0.2s ease;
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.text};
-  }
-`;
-
-// Başka sayfalara giden linkler için react-router Link bileşeni.
-const PageLink = styled(Link)`
-  font-family: "Inter", sans-serif;
-  font-weight: 500;
-  font-size: 1rem;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  transition: color 0.2s ease;
-  &:hover {
-    color: ${({ theme }) => theme.colors.text};
-  }
-`;
-
-const AuthButtons = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-`;
-
-const StartButton = styled(ButtonLink)`
-  background-color: #1a1a1a;
-  color: #ffffff;
-  border-color: #1a1a1a;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-
-  &:hover {
-    background-color: #333;
-    border-color: #333;
-  }
-`;
-
-const Header = () => {
+export default function Header() {
   return (
-    <StyledHeader>
-      <Container>
-        <Nav>
-          <Logo to="/">
-            <img src={goformedLogo} alt="GoFormed Logo" />
-          </Logo>
-          <NavLinks>
-            <AnchorLink href="#">Home</AnchorLink>
-            <AnchorLink href="#pricing">Pricing</AnchorLink>
-            <AnchorLink href="#about">About</AnchorLink>
-            <AnchorLink href="#contact">Contact us</AnchorLink>
-          </NavLinks>
-          <AuthButtons>
-            <PageLink to="/login">Sign In</PageLink>
-            <StartButton to="/register">Start My Business</StartButton>
-          </AuthButtons>
-        </Nav>
-      </Container>
-    </StyledHeader>
-  );
-};
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center">
+        {/* Sol Sütun: Logo */}
+        <div className="flex-1 flex justify-start">
+          <Link to="/" className="flex items-center space-x-2 pl-32">
+            <img src={goformedLogo} alt="GoFormed Logo" className="h-8" />
+          </Link>
+        </div>
 
-export default Header;
+        {/* Orta Sütun: Navigasyon Linkleri */}
+        <nav className="hidden md:flex flex-1 justify-center">
+          <div className="flex items-center space-x-6 text-sm font-medium">
+            {navLinks.map((link) => (
+              <a
+                key={link.text}
+                href={link.href}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {link.text}
+              </a>
+            ))}
+          </div>
+        </nav>
+
+        {/* Sağ Sütun: Butonlar */}
+        <div className="hidden md:flex flex-1 items-center justify-end space-x-4">
+          <NavLink
+            to="/login"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Sign In
+          </NavLink>
+          <Button asChild>
+            <Link to="/register">Start My Business</Link>
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}

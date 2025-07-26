@@ -1,145 +1,62 @@
 import React from "react";
-import styled from "styled-components";
-import { FaListAlt, FaPlus, FaSearch } from "react-icons/fa";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { FaPlus, FaSearch } from "react-icons/fa";
 
-// Ortak Bileşenler
-import DashboardHeader from "../components/common/DashboardHeader";
-import Button from "../components/common/Button";
-
-//--- STYLED COMPONENTS ---//
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-`;
-
-const SearchWrapper = styled.div`
-  position: relative;
-  .icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: ${({ theme }) => theme.colors.textSecondary};
-  }
-`;
-
-const SearchInput = styled.input`
-  padding: 0.8rem 1rem 0.8rem 2.8rem;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 8px;
-  width: 320px;
-  font-size: 1rem;
-  background-color: ${({ theme }) => theme.colors.background};
-  color: ${({ theme }) => theme.colors.text};
-  transition: border-color 0.2s, box-shadow 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.colors.primary};
-    box-shadow: 0 0 0 3px
-      ${({ theme }) => theme.colors.primary.replace(")", ", 0.2)")};
-  }
-`;
-
-const NewOrderButton = styled(Button)`
-  /* Temanın birincil rengini kullanıyoruz */
-  background-color: ${({ theme }) => theme.colors.primary};
-  color: #fff;
-  border: 1px solid ${({ theme }) => theme.colors.primary};
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.colors.primaryHover};
-    border-color: ${({ theme }) => theme.colors.primaryHover};
-  }
-`;
-
-const TableWrapper = styled.div`
-  background: #fff;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius};
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-`;
-
-const StyledTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-
-  th,
-  td {
-    padding: 1.2rem 1.5rem;
-    text-align: left;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  }
-
-  th {
-    /* Tablo başlığını daha yumuşak hale getiriyoruz */
-    background-color: #fcfcfc;
-    color: ${({ theme }) => theme.colors.textSecondary};
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  tr:last-child td {
-    border-bottom: none;
-  }
-`;
-
-const NoDataCell = styled.td`
-  text-align: center !important;
-  padding: 5rem 1rem !important;
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-//--- COMPONENT ---//
-
-const OrdersPage = () => {
+export default function OrdersPage() {
   return (
-    <div>
-      <DashboardHeader
-        title="Orders list"
-        subtitle="Manage your orders"
-        icon={<FaListAlt />}
-      />
-      <Toolbar>
-        <SearchWrapper>
-          <FaSearch className="icon" />
-          <SearchInput placeholder="Search by item or order number..." />
-        </SearchWrapper>
-        <NewOrderButton>
-          <FaPlus /> New order
-        </NewOrderButton>
-      </Toolbar>
-      <TableWrapper>
-        <StyledTable>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Order number</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th>Updated at</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <NoDataCell colSpan="6">No data available in table</NoDataCell>
-            </tr>
-          </tbody>
-        </StyledTable>
-      </TableWrapper>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Orders List</h1>
+          <p className="text-muted-foreground">
+            Manage and track your service orders.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search orders..." className="pl-9" />
+          </div>
+          <Button className="flex-shrink-0">
+            <FaPlus className="mr-2 h-4 w-4" /> New Order
+          </Button>
+        </div>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[200px]">Item</TableHead>
+                <TableHead>Order number</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Updated at</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No orders found.
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default OrdersPage;
+}

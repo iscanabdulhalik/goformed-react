@@ -1,117 +1,60 @@
-import heroImage from "../../assets/images/founder-portrait.jpg"; // Yeni görseli import et
 import React from "react";
-import styled from "styled-components";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import Container from "../../components/common/Container";
-import { ButtonLink } from "../../components/common/Button";
+import { Button } from "@/components/ui/button";
+import heroImage from "@/assets/images/founder-portrait.jpg";
 
-const HeroWrapper = styled.section`
-  padding-top: 0.5rem; /* Üst boşluk azaltıldı */
-  padding-bottom: 0.25rem; /* Alt boşluk ayarlandı */
-  /* Arka plan rengi header ile uyumlu hale getirildi */
-  background-color: #fdfbf7;
-`;
-
-const HeroGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  gap: 4rem;
-
-  @media (max-width: 992px) {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-`;
-
-const HeroContent = styled(motion.div)`
-  h1 {
-    font-size: 3.8rem;
-    font-weight: 800;
-    line-height: 1.2;
-    margin-bottom: 1.5rem;
-    font-family: "Plus Jakarta Sans", sans-serif;
-  }
-  p {
-    font-size: 1.2rem;
-    color: ${({ theme }) => theme.colors.textSecondary};
-    margin-bottom: 2.5rem;
-    max-width: 520px;
-    @media (max-width: 992px) {
-      margin-left: auto;
-      margin-right: auto;
-    }
-  }
-`;
-
-const HeroImageWrapper = styled(motion.div)`
-  img {
-    width: 100%;
-    max-width: 550px;
-    border-radius: ${({ theme }) => theme.borderRadius};
-    box-shadow: ${({ theme }) => theme.shadow};
-  }
-`;
-
-// Animasyon varyantları
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2, // Çocuk elemanların animasyonunu geciktirir
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeInOut" },
-  },
-};
-
-const HeroSection = () => {
+export default function HeroSection() {
   return (
-    <HeroWrapper>
-      <Container>
-        <HeroGrid>
-          <HeroContent
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+    <section className="w-full min-h-screen flex items-center justify-center pt-10 pb-20 md:pt-16 md:pb-32">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 items-center justify-items-center gap-10 lg:gap-16">
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+            className="text-center lg:text-left space-y-6 max-w-lg lg:max-w-none"
           >
-            <motion.h1 variants={itemVariants}>
-              Your UK Business, Launched Globally.
-            </motion.h1>
-            <motion.p variants={itemVariants}>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+              Your UK Business, <br /> Launched{" "}
+              <span className="text-primary">Globally.</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0">
               GoFormed provides entrepreneurs worldwide with a seamless platform
               to incorporate in the UK, manage compliance, and access global
               financial tools.
-            </motion.p>
-            <motion.div variants={itemVariants}>
-              <ButtonLink
-                to="/register"
-                $primary
-                style={{ padding: "1rem 2rem", fontSize: "1.1rem" }}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link to="/register">Launch My Company</Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="w-full sm:w-auto"
               >
-                Launch My Company
-              </ButtonLink>
-            </motion.div>
-          </HeroContent>
-          <HeroImageWrapper
+                <a href="#features">Learn More</a>
+              </Button>
+            </div>
+          </motion.div>
+
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}
+            className="flex justify-center lg:justify-end w-full"
           >
-            <img src={heroImage} alt="Global Business Entrepreneur" />
-          </HeroImageWrapper>
-        </HeroGrid>
-      </Container>
-    </HeroWrapper>
+            <div className="relative">
+              <img
+                src={heroImage}
+                alt="Global Business Entrepreneur"
+                className="rounded-lg w-[90%] max-w-md lg:max-w-lg shadow-2xl object-cover"
+              />
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
   );
-};
-
-export default HeroSection;
+}

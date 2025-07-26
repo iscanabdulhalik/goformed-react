@@ -1,74 +1,13 @@
-import React, { useState } from "react";
-import styled from "styled-components";
-import { FaPlus, FaMinus } from "react-icons/fa";
-import Container from "../common/Container";
+// src/components/sections/FaqSection.jsx
 
-const FaqWrapper = styled.section`
-  padding: 6rem 0;
-  background-color: ${({ theme }) => theme.colors.background};
-  scroll-margin-top: 100px; /* HEADER BOŞLUĞU */
-`;
+import React from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
-const SectionTitle = styled.h2`
-  text-align: center;
-  font-size: 2.8rem;
-  margin-bottom: 4rem;
-`;
-
-const FaqContainer = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
-`;
-
-const FaqItemWrapper = styled.div`
-  background-color: #fff;
-  margin-bottom: 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius};
-  box-shadow: ${({ theme }) => theme.shadow};
-  transition: all 0.3s ease;
-`;
-
-// Soru stilini güncelledik: Renk artık temadan geliyor ve daha okunaklı
-const Question = styled.button`
-  width: 100%;
-  background: transparent;
-  border: none;
-  padding: 1.5rem;
-  text-align: left;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-size: 1.25rem;
-  font-weight: 600;
-  font-family: "Lora", sans-serif;
-  color: ${({ theme }) => theme.colors.text};
-
-  .icon {
-    color: ${({ theme }) => theme.colors.primary};
-    font-size: 1.2rem;
-    flex-shrink: 0; // İkonun küçülmesini engeller
-  }
-`;
-
-const Answer = styled.div`
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.4s ease-in-out, padding 0.4s ease;
-  font-family: "Inter", sans-serif;
-  font-size: 1.05rem;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  line-height: 1.8;
-  padding: 0 1.5rem; // Açıldığında padding olacak
-
-  &.open {
-    max-height: 300px;
-    padding: 0 1.5rem 1.5rem 1.5rem;
-  }
-`;
-
-// Veriyi belirttiğiniz siteden aldım ve güncelledim
 const faqData = [
   {
     question: "Who is GoFormed for?",
@@ -97,42 +36,39 @@ const faqData = [
   },
 ];
 
-const FaqItem = ({ item, isOpen, onClick }) => (
-  <FaqItemWrapper>
-    <Question onClick={onClick}>
-      <span>{item.question}</span>
-      <span className="icon">{isOpen ? <FaMinus /> : <FaPlus />}</span>
-    </Question>
-    <Answer className={isOpen ? "open" : ""}>
-      <p>{item.answer}</p>
-    </Answer>
-  </FaqItemWrapper>
-);
-
-const FaqSection = ({ id }) => {
-  const [openIndex, setOpenIndex] = useState(null);
-
-  const handleToggle = (index) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
+export default function FaqSection() {
   return (
-    <FaqWrapper id={id}>
-      <Container>
-        <SectionTitle>Frequently Asked Questions</SectionTitle>
-        <FaqContainer>
-          {faqData.map((item, index) => (
-            <FaqItem
-              key={index}
-              item={item}
-              isOpen={openIndex === index}
-              onClick={() => handleToggle(index)}
-            />
-          ))}
-        </FaqContainer>
-      </Container>
-    </FaqWrapper>
-  );
-};
+    <section id="faq" className="w-full py-24 sm:py-32">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Frequently Asked Questions
+          </h2>
+          <p className="max-w-3xl mx-auto text-xl text-muted-foreground mt-4 mb-12">
+            Find answers to the most common questions about forming and managing
+            your UK company.
+          </p>
+        </div>
 
-export default FaqSection;
+        <Accordion
+          type="single"
+          collapsible
+          className="w-full max-w-3xl mx-auto"
+        >
+          {faqData.map((faq, index) => (
+            <AccordionItem key={index} value={`item-${index}`}>
+              <AccordionTrigger className="text-left text-lg">
+                {faq.question}
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="text-base text-muted-foreground leading-relaxed">
+                  {faq.answer}
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </section>
+  );
+}
