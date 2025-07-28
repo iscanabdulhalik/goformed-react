@@ -1,3 +1,5 @@
+// src/components/sections/PricingSection.jsx
+
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -10,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check } from "lucide-react"; // Yeni ikon
+import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const plans = {
@@ -28,7 +30,7 @@ const plans = {
     },
     {
       name: "Pro Builder",
-      price: "£299",
+      price: "£499",
       desc: "The complete solution for growing businesses and agencies.",
       features: [
         "Everything in Entrepreneur Package",
@@ -41,7 +43,7 @@ const plans = {
   resident: [
     {
       name: "Entrepreneur",
-      price: "£149",
+      price: "£12",
       desc: "The essential package for UK residents starting a new venture.",
       features: [
         "UK Limited Company Registration",
@@ -52,7 +54,7 @@ const plans = {
     },
     {
       name: "Pro Builder",
-      price: "£249",
+      price: "£99",
       desc: "For ambitious UK founders who need more on day one.",
       features: [
         "Everything in Entrepreneur Package",
@@ -77,11 +79,11 @@ const PlanCard = ({ plan, isPopular }) => {
   return (
     <Card
       className={`relative flex flex-col h-full transition-all duration-300 ${
-        isPopular ? "border-secondary shadow-lg" : "border-border"
+        isPopular ? "border-primary shadow-lg" : "border-border"
       }`}
     >
       {isPopular && (
-        <div className="absolute top-0 right-4 -translate-y-1/2 bg-gradient-to-r from-secondary to-yellow-400 text-white px-3 py-1 text-sm font-bold rounded-full shadow-md">
+        <div className="absolute top-0 right-4 -translate-y-1/2 bg-gradient-to-r from-primary to-purple-500 text-white px-3 py-1 text-sm font-bold rounded-full shadow-md">
           Most Popular
         </div>
       )}
@@ -112,7 +114,7 @@ const PlanCard = ({ plan, isPopular }) => {
               variants={itemVariants}
               className="flex items-center gap-3"
             >
-              <Check className="text-green-500 h-5 w-5" />
+              <Check className="text-secondary h-5 w-5" />
               <span>{feature}</span>
             </motion.li>
           ))}
@@ -133,7 +135,20 @@ const PlanCard = ({ plan, isPopular }) => {
 };
 
 const tabContentVariants = {
-  /* ... aynı ... */
+  initial: (direction) => ({
+    x: direction === "right" ? 100 : -100,
+    opacity: 0,
+  }),
+  animate: {
+    x: 0,
+    opacity: 1,
+    transition: { duration: 0.4, ease: "easeInOut" },
+  },
+  exit: (direction) => ({
+    x: direction === "right" ? -100 : 100,
+    opacity: 0,
+    transition: { duration: 0.3, ease: "easeInOut" },
+  }),
 };
 
 export default function PricingSection() {

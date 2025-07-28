@@ -1,4 +1,7 @@
+// src/components/sections/TrustedBySection.jsx
+
 import React from "react";
+import { motion } from "framer-motion";
 import StripeLogo from "@/assets/logos/stripe.svg";
 import WiseLogo from "@/assets/logos/wise.svg";
 import MercuryLogo from "@/assets/logos/mercury.svg";
@@ -19,6 +22,23 @@ const partners = [
   { name: "Slack", logo: SlackLogo },
 ];
 
+// Animasyonun kesintisiz olması için partner listesini ikiye katlıyoruz
+const doubledPartners = [...partners, ...partners];
+
+const marqueeVariants = {
+  animate: {
+    x: [0, -1344], // 8 logo * (128px genişlik + 32px*2 boşluk) = 1536. Bu değeri logolarınızın boyutuna göre ayarlayabilirsiniz.
+    transition: {
+      x: {
+        repeat: Infinity,
+        repeatType: "loop",
+        duration: 40, // Animasyon süresi
+        ease: "linear",
+      },
+    },
+  },
+};
+
 export default function TrustedBySection() {
   return (
     <section className="w-full py-16 sm:py-20">
@@ -30,41 +50,27 @@ export default function TrustedBySection() {
           className="w-full overflow-hidden"
           style={{
             maskImage:
-              "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
+              "linear-gradient(to right, transparent, black 20%, black 80%, transparent)",
           }}
         >
-          <div className="flex w-[200%] animate-scroll-left">
-            {/* Orijinal logo listesi */}
-            <ul className="flex items-center w-1/2 [&_li]:mx-9">
-              {partners.map((partner) => (
-                <li key={partner.name}>
-                  <img
-                    src={partner.logo}
-                    alt={`${partner.name} Logo`}
-                    className="h-8 sm:h-10 lg:h-12 w-auto grayscale opacity-60 transition-all duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-110"
-                  />
-                </li>
-              ))}
-            </ul>
-
-            {/* Klonlanmış logo listesi */}
-            <ul
-              className="flex items-center w-1/2 [&_li]:mx-6"
-              aria-hidden="true"
-            >
-              {partners.map((partner) => (
-                <li key={partner.name + "-clone"}>
-                  <img
-                    src={partner.logo}
-                    alt={`${partner.name} Logo`}
-                    className="h-8 sm:h-10 lg:h-12 w-auto grayscale opacity-60 transition-all duration-300 hover:grayscale-0 hover:opacity-100 hover:scale-110"
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
+          <motion.div
+            className="flex"
+            variants={marqueeVariants}
+            animate="animate"
+          >
+            {doubledPartners.map((partner, index) => (
+              <div
+                key={`${partner.name}-${index}`}
+                className="flex-shrink-0 flex justify-center items-center w-48" // Her logoya sabit bir alan veriyoruz
+              >
+                <img
+                  src={partner.logo}
+                  alt={`${partner.name} Logo`}
+                  className="h-12 grayscale opacity-60 transition-all hover:grayscale-0 hover:opacity-100"
+                />
+              </div>
+            ))}
+          </motion.div>
         </div>
       </div>
     </section>

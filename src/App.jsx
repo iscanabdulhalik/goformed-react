@@ -5,7 +5,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./firebase";
 
-// Sayfaları ve Layout'ları import ediyoruz
+// Sayfaları import ediyoruz
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -13,23 +13,25 @@ import DashboardPage from "./pages/DashboardPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import SettingsPage from "./pages/SettingsPage";
+import FinishLoginPage from "./pages/FinishLoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+
+// Layout'ları ve Loader'ı import ediyoruz
 import Layout from "./components/layout/Layout";
 import DashboardLayout from "./components/layout/DashboardLayout";
-
-// 1. YENİ LOADER BİLEŞENİNİ İMPORT EDİYORUZ
 import Loader from "./components/ui/Loader";
 
 const App = () => {
   const [user, loading] = useAuthState(auth);
 
-  // 2. YÜKLEME DURUMUNDA YENİ LOADER'I GÖSTERİYORUZ
+  // Firebase kullanıcı durumunu kontrol ederken yükleme animasyonunu göster
   if (loading) {
     return <Loader />;
   }
 
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Herkesin Erişebileceği Genel Rotalar */}
       <Route
         path="/"
         element={
@@ -47,7 +49,11 @@ const App = () => {
         element={user ? <Navigate to="/dashboard" /> : <RegisterPage />}
       />
 
-      {/* Protected Dashboard Routes */}
+      {/* Kimlik Doğrulama Yardımcı Rotaları */}
+      <Route path="/finish-login" element={<FinishLoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Sadece Giriş Yapmış Kullanıcıların Erişebileceği Korumalı Rotalar */}
       <Route
         path="/dashboard"
         element={user ? <DashboardLayout /> : <Navigate to="/login" />}
@@ -56,7 +62,11 @@ const App = () => {
         <Route path="marketplace" element={<MarketplacePage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        {/* Gelecekte eklenecek diğer dashboard sayfaları buraya gelebilir */}
       </Route>
+
+      {/* Tanımlanmayan diğer tüm yollar için ana sayfaya yönlendirme (isteğe bağlı) */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 };

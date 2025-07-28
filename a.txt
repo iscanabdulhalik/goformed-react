@@ -1,0 +1,4 @@
+anasayfa goformedun ecomeerce sayfasıyla aynı olcak ama aboutgoformed kısmına kada olan yerler tasarım olarak değişecek geri kalanlar aynı oalcak main sayfamız ecomerce olcak
+check yout company kısmı var 
+
+choose your oackage kısmında her bir pakete göre maile atıcak ve pakete göre once sirket ismini validate etmesi gerekiyor sirket ismi kabul edilirse otomatik scroll ediliyor ve detay gösdte butonı çıkıyor butona basarsa da isim ve mail çıkıyor 

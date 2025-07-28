@@ -3,55 +3,50 @@
 @import "tailwindcss";
 
 @theme {
-  /* -- YENİLENMİŞ KREM TEMA -- */
+  /* -- YENİ TEMA: BEYAZ / YEŞİL / MOR -- */
   --font-sans: "Inter", sans-serif;
-  --font-serif: "Playfair Display", serif; /* Yeni Başlık Fontu */
+  --font-serif: "Playfair Display", serif;
 
-  --color-background: oklch(99% 0.01 90); /* Çok Açık Krem */
-  --color-foreground: oklch(20% 0.08 40); /* Daha Yumuşak Koyu Kahve */
+  /* Ana Renkler */
+  --color-background: oklch(100% 0 0); /* Saf Beyaz */
+  --color-foreground: oklch(
+    20% 0.03 270
+  ); /* Çok Koyu, Hafif Morumsu Gri (Metin) */
 
+  /* Kart ve Popover Renkleri */
   --color-card: oklch(100% 0 0);
-  --color-card-foreground: oklch(20% 0.08 40);
+  --color-card-foreground: oklch(20% 0.03 270);
 
   --color-popover: oklch(100% 0 0);
-  --color-popover-foreground: oklch(20% 0.08 40);
+  --color-popover-foreground: oklch(20% 0.03 270);
 
-  --color-primary: oklch(50% 0.16 30); /* Daha Canlı Ana Kahve */
-  --color-primary-foreground: oklch(99% 0.01 90);
+  /* Eylem ve Vurgu Renkleri */
+  --color-primary: oklch(55% 0.22 285); /* Canlı MOR (Ana Butonlar) */
+  --color-primary-foreground: oklch(100% 0 0); /* Beyaz (Buton İçi Metin) */
 
-  /* İkincil rengi daha belirgin bir vurgu için kullanacağız */
-  --color-secondary: oklch(65% 0.18 85); /* Zengin Altın/Hardal */
-  --color-secondary-foreground: oklch(20% 0.08 40);
+  --color-secondary: oklch(
+    68% 0.2 155
+  ); /* Canlı YEŞİL (İkincil Vurgular, İkonlar) */
+  --color-secondary-foreground: oklch(
+    15% 0.1 155
+  ); /* Koyu Yeşil (Yeşil Üzeri Metin) */
 
-  --color-muted: oklch(96% 0.015 90); /* Daha açık sessiz arkaplan */
-  --color-muted-foreground: oklch(55% 0.05 45);
+  /* Sessiz ve Nötr Renkler */
+  --color-muted: oklch(97.5% 0.005 280); /* Çok Açık, Hafif Morumsu Gri */
+  --color-muted-foreground: oklch(60% 0.03 275);
 
-  --color-accent: oklch(96% 0.015 90);
-  --color-accent-foreground: oklch(25% 0.1 40);
+  --color-accent: oklch(97.5% 0.005 280);
+  --color-accent-foreground: oklch(25% 0.05 275);
 
-  --color-destructive: oklch(60% 0.22 15);
-  --color-destructive-foreground: oklch(98% 0.02 0);
+  /* Diğer Renkler */
+  --color-destructive: oklch(65% 0.25 25); /* Kırmızı */
+  --color-destructive-foreground: oklch(100% 0 0);
 
-  --color-border: oklch(92% 0.02 90);
-  --color-input: oklch(92% 0.02 90);
-  --color-ring: oklch(55% 0.16 35);
+  --color-border: oklch(94% 0.01 280); /* Sınır Çizgileri */
+  --color-input: oklch(94% 0.01 280);
+  --color-ring: oklch(60% 0.24 285); /* Odaklanma Halkası (Mor) */
 
   --radius: 0.75rem;
-}
-
-/* Custom Keyframes */
-@keyframes scroll-left {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-/* Custom Animation Class */
-.animate-scroll-left {
-  animation: scroll-left 30s linear infinite;
 }
 
 /* Base stiller */
@@ -62,11 +57,10 @@
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family: var(--font-sans); /* Varsayılan font */
+  font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* Başlıklara yeni fontu uygulama */
 h1,
 h2,
 h3,
@@ -76,14 +70,13 @@ h6 {
   font-family: var(--font-serif);
 }
 
-/* Metinler için Gradient Sınıfı */
+/* Yeni renk paletine uygun Gradient Sınıfı */
 .text-gradient {
   background: linear-gradient(
     to right,
     var(--color-primary),
     var(--color-secondary)
   );
-  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

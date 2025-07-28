@@ -1,3 +1,5 @@
+// src/pages/HomePage.jsx
+
 import React from "react";
 import HeroSection from "../components/sections/HeroSection";
 import TrustedBySection from "../components/sections/TrustedBySection";
@@ -7,6 +9,8 @@ import PricingSection from "../components/sections/PricingSection";
 import FaqSection from "../components/sections/FaqSection";
 import ContactSection from "../components/sections/ContactSection";
 import SocialProofSection from "../components/sections/SocialProofSection";
+import WhyUsSection from "../components/sections/WhyUsSection";
+import CompanyFormationFlow from "../components/sections/CompanyFormationFlow";
 
 const HomePage = () => {
   return (
@@ -14,9 +18,10 @@ const HomePage = () => {
       <HeroSection />
       <TrustedBySection />
       <ServicesSection />
+      <WhyUsSection />
       <HowItWorksSection />
       <SocialProofSection />
-      <PricingSection />
+      <CompanyFormationFlow />
       <FaqSection />
       <ContactSection />
     </>

@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Package, FileText, Rocket } from "lucide-react"; // Yeni ikonlar
+import { Package, FileText, Rocket } from "lucide-react";
 
 const steps = [
   {
@@ -36,7 +36,7 @@ const cardVariants = {
 
 export default function HowItWorksSection() {
   return (
-    <section className="w-full py-24 sm:py-32 bg-muted/50">
+    <section id="services" className="w-full py-24 sm:py-32 bg-muted/50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-3xl md:text-4xl font-bold">
           Launch in <span className="text-gradient">3 Simple</span> Steps
