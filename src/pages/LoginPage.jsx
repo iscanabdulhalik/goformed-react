@@ -1,3 +1,4 @@
+// src/pages/LoginPage.jsx - Redirect URL fix
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -18,6 +19,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
 
+  // Production veya development URL'ini al
+  const getRedirectURL = () => {
+    const baseUrl = import.meta.env.PROD
+      ? window.location.origin // Production'da mevcut domain
+      : "http://localhost:5173"; // Development'da localhost
+
+    return `${baseUrl}/dashboard`;
+  };
+
   const handlePasswordlessLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -27,9 +37,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          // Kullanıcı e-postadaki linke tıkladıktan sonra bu adrese yönlendirilir.
-          // Supabase, bu linkteki token'ı yakalayıp oturumu otomatik olarak başlatır.
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: getRedirectURL(),
         },
       });
 
@@ -47,9 +55,11 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
+        options: {
+          redirectTo: getRedirectURL(),
+        },
       });
       if (error) throw error;
-      // Kullanıcı Google penceresinden geri yönlendirildiğinde Supabase oturumu otomatik yönetir.
     } catch (err) {
       setError(err.error_description || err.message);
     }

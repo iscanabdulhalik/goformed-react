@@ -1,3 +1,4 @@
+// src/App.jsx - URL hash parameters fix
 import React, { useState, useEffect } from "react";
 import {
   Routes,
@@ -34,6 +35,49 @@ const App = () => {
   const [initialized, setInitialized] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // URL hash parametrelerini handle et (Supabase auth callback için)
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      const tokenType = hashParams.get("token_type");
+
+      if (accessToken && tokenType === "bearer") {
+        console.log("🔑 Processing auth callback...");
+
+        try {
+          // Supabase session'ı set et
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error("Auth callback error:", error);
+          } else {
+            console.log("✅ Auth callback successful");
+            // URL'den hash parametrelerini temizle
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+            // Dashboard'a yönlendir
+            navigate("/dashboard", { replace: true });
+          }
+        } catch (error) {
+          console.error("Session setting error:", error);
+        }
+      }
+    };
+
+    // Sayfa yüklendiğinde auth callback'i kontrol et
+    if (window.location.hash.includes("access_token")) {
+      handleAuthCallback();
+    }
+  }, [navigate]);
 
   // Kullanıcı aktivitesini takip et
   useEffect(() => {

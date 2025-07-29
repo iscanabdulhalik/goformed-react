@@ -1,3 +1,4 @@
+// src/pages/RegisterPage.jsx - Redirect URL fix
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -19,6 +20,15 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
 
+  // Production veya development URL'ini al
+  const getRedirectURL = () => {
+    const baseUrl = import.meta.env.PROD
+      ? window.location.origin // Production'da mevcut domain
+      : "http://localhost:5173"; // Development'da localhost
+
+    return `${baseUrl}/dashboard`;
+  };
+
   const handleEmailRegister = async (e) => {
     e.preventDefault();
     if (password.length < 6) {
@@ -33,8 +43,7 @@ export default function RegisterPage() {
         email: email,
         password: password,
         options: {
-          // Kullanıcıyı e-postadaki linke tıkladıktan sonra bu adrese yönlendir
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: getRedirectURL(),
         },
       });
 
@@ -52,6 +61,9 @@ export default function RegisterPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
+        options: {
+          redirectTo: getRedirectURL(),
+        },
       });
       if (error) throw error;
     } catch (err) {
