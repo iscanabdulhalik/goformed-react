@@ -1,5 +1,4 @@
-// src/components/sections/CompanyFormationFlow.jsx
-
+// src/components/sections/CompanyFormationFlow.jsx - Real API ile
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/supabase";
@@ -24,7 +23,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-// Merkezi dosyadan import ediyoruz, artık paketler burada tanımlı DEĞİL.
 import { ukPackages, globalPackages } from "@/lib/packages";
 
 const CompanyStatus = {
@@ -49,7 +47,6 @@ export default function CompanyFormationFlow() {
   const [packageError, setPackageError] = useState(false);
   const detailsFormRef = useRef(null);
 
-  // handleSelectPackage fonksiyonunu ekleyelim ki hata vermesin
   const handleSelectPackage = (pkg) => {
     if (!acceptedName) {
       setPackageError(true);
@@ -58,7 +55,7 @@ export default function CompanyFormationFlow() {
       return;
     }
     setSelectedPackage(pkg);
-    setStep(2); // Form adımına geç
+    setStep(2);
   };
 
   useEffect(() => {
@@ -77,24 +74,43 @@ export default function CompanyFormationFlow() {
     setCompanyStatus(CompanyStatus.LOADING);
 
     try {
-      const { data, error } = await supabase.rpc("check_company_name", {
-        company_name: name,
-        api_key: import.meta.env.VITE_COMPANIES_HOUSE_API_KEY,
-      });
+      const apiKey = import.meta.env.VITE_COMPANIES_HOUSE_API_KEY;
 
-      if (error) throw error;
+      if (!apiKey) {
+        throw new Error("Companies House API key not configured");
+      }
 
-      if (
-        data &&
-        data.items &&
-        data.items.length > 0 &&
-        data.items.some((item) => item.title.toUpperCase() === name)
-      ) {
+      console.log("Searching for company:", name);
+
+      // Supabase Edge Function çağrısı
+      const { data, error } = await supabase.functions.invoke(
+        "check-company-name",
+        {
+          body: {
+            companyName: name,
+            apiKey: apiKey,
+          },
+        }
+      );
+
+      if (error) {
+        console.error("Function error:", error);
+        throw error;
+      }
+
+      console.log("Companies House response:", data);
+
+      // Tam eşleşme kontrolü
+      const exactMatch = data.items?.find(
+        (item) => item.title.toUpperCase().trim() === name
+      );
+
+      if (exactMatch) {
         setCompanyStatus(CompanyStatus.UNAVAILABLE);
       } else {
         setCompanyStatus(CompanyStatus.AVAILABLE);
         setAcceptedName(name);
-        setPackageError(false); // Başarılı aramadan sonra hatayı temizle
+        setPackageError(false);
         setTimeout(() => {
           const pricingElement = document.getElementById("packages");
           pricingElement?.scrollIntoView({
@@ -124,24 +140,68 @@ export default function CompanyFormationFlow() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.functions.invoke(
-        "submit-formation-request",
-        {
-          body: {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        // Magic link gönder
+        const { error: authError } = await supabase.auth.signInWithOtp({
+          email: userDetails.email,
+          options: {
+            data: {
+              full_name: userDetails.fullName,
+            },
+          },
+        });
+
+        if (authError) throw authError;
+
+        // Pending request'i localStorage'a kaydet
+        localStorage.setItem(
+          "pendingRequest",
+          JSON.stringify({
             fullName: userDetails.fullName,
             email: userDetails.email,
             companyName: acceptedName,
             packageName: selectedPackage.name,
             selectedPackage: selectedPackage,
-          },
-        }
-      );
+          })
+        );
+
+        setStep(3);
+        return;
+      }
+
+      // Duplikasyon kontrolü
+      const { data: existingRequests } = await supabase
+        .from("company_requests")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("company_name", acceptedName);
+
+      if (existingRequests && existingRequests.length > 0) {
+        setFormError("You already have a request for this company name.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Request oluştur
+      const { error } = await supabase.from("company_requests").insert({
+        user_id: user.id,
+        company_name: acceptedName,
+        package_name: selectedPackage.name,
+        user_details: {
+          fullName: userDetails.fullName,
+          email: userDetails.email,
+        },
+      });
 
       if (error) throw error;
 
       setStep(3);
       window.scrollTo({
-        top: detailsFormRef.current.offsetTop - 150,
+        top: detailsFormRef.current?.offsetTop - 150 || 0,
         behavior: "smooth",
       });
     } catch (error) {
@@ -159,7 +219,7 @@ export default function CompanyFormationFlow() {
         return (
           <div className="flex items-center justify-center gap-2 text-gray-500">
             <Loader2 className="animate-spin h-4 w-4" />
-            Checking...
+            Checking with Companies House...
           </div>
         );
       case CompanyStatus.AVAILABLE:
@@ -170,26 +230,26 @@ export default function CompanyFormationFlow() {
         );
       case CompanyStatus.UNAVAILABLE:
         return (
-          <div className="font-semibold text-red-600">
-            ✖ "{name}" is already taken.
+          <div className="font-semibold text-red-600 text-center">
+            ✖ "{name}" is already registered with Companies House.
           </div>
         );
       case CompanyStatus.INVALID:
         return (
-          <div className="font-semibold text-red-600">
+          <div className="font-semibold text-red-600 text-center">
             ✖ Name must end with "LTD" or "LIMITED".
           </div>
         );
       case CompanyStatus.ERROR:
         return (
-          <div className="flex items-center justify-center gap-2 font-semibold text-red-600">
+          <div className="flex items-center justify-center gap-2 font-semibold text-orange-600">
             <AlertTriangle className="h-5 w-5" />
-            Could not verify.
+            Could not verify with Companies House. You can still proceed.
           </div>
         );
       default:
         return (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 text-center">
             End with <strong>LTD</strong> or <strong>LIMITED</strong>.
           </p>
         );
@@ -212,6 +272,9 @@ export default function CompanyFormationFlow() {
                 <h2 className="text-3xl md:text-4xl font-bold">
                   Check Your UK Company Name First
                 </h2>
+                <p className="text-gray-600 mb-8">
+                  We'll verify availability with Companies House in real-time
+                </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
                   <Input
                     type="text"
@@ -226,7 +289,10 @@ export default function CompanyFormationFlow() {
                     disabled={companyStatus === CompanyStatus.LOADING}
                     className="flex-shrink-0"
                   >
-                    <Search className="h-4 w-4 mr-2" /> Check
+                    <Search className="h-4 w-4 mr-2" />
+                    {companyStatus === CompanyStatus.LOADING
+                      ? "Checking..."
+                      : "Check"}
                   </Button>
                 </div>
                 <div className="h-8 mt-2 flex items-center justify-center">
@@ -269,6 +335,7 @@ export default function CompanyFormationFlow() {
             </motion.div>
           )}
         </AnimatePresence>
+
         <div ref={detailsFormRef}>
           <AnimatePresence>
             {step === 2 && (
@@ -285,6 +352,9 @@ export default function CompanyFormationFlow() {
                     <CardTitle className="text-2xl">
                       Secure Your Company Name
                     </CardTitle>
+                    <p className="text-gray-600">
+                      Complete your details to reserve "{acceptedName}"
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -340,6 +410,7 @@ export default function CompanyFormationFlow() {
                 </Card>
               </motion.div>
             )}
+
             {step === 3 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -370,29 +441,30 @@ export default function CompanyFormationFlow() {
                     </div>
                     <div className="flex justify-between items-center">
                       <strong className="text-gray-600">Package:</strong>{" "}
-                      <span>{selectedPackage.name}</span>
+                      <span>{selectedPackage?.name}</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-600 mb-2">
-                        What’s Included:
+                        What's Included:
                       </p>
                       <ul className="space-y-1 list-disc list-inside text-muted-foreground">
-                        {selectedPackage.features.map((f) => (
+                        {selectedPackage?.features.map((f) => (
                           <li key={f}>{f}</li>
                         ))}
                       </ul>
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold mt-6">What’s Next?</h3>
+                  <h3 className="text-xl font-bold mt-6">What's Next?</h3>
                   <p className="text-muted-foreground mt-2">
-                    To begin the 4-day formation process, please complete your
-                    secure payment via the link sent to your email.
+                    Click the link in your email to complete secure payment and
+                    begin the formation process.
                   </p>
                 </Card>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
+
         <div className="max-w-4xl mx-auto mt-28 text-center">
           <h4 className="inline-flex items-center justify-center gap-3 text-xl font-bold text-gray-800 mb-4">
             <ShieldCheck className="h-8 w-8 text-secondary" />

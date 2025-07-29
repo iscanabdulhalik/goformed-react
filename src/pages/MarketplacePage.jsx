@@ -1,5 +1,4 @@
-// src/pages/MarketplacePage.jsx
-
+// src/pages/MarketplacePage.jsx - Duplikasyon kontrolü ile
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -14,6 +13,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Check, Sparkles, Crown, Star } from "lucide-react";
 
-// Modern Package Card with advanced animations
+// PackageCard component (önceki versiyondan aynı)
 const PackageCard = ({ plan, onSelect, index }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -39,14 +39,14 @@ const PackageCard = ({ plan, onSelect, index }) => {
     }
   };
 
-  const getGradientClass = (badge) => {
+  const getBadgeColor = (badge) => {
     switch (badge) {
       case "Premium":
-        return "from-purple-600 via-purple-500 to-indigo-600";
+        return "bg-blue-600";
       case "Elite":
-        return "from-amber-500 via-orange-500 to-red-500";
+        return "bg-purple-600";
       default:
-        return "from-blue-500 via-cyan-500 to-teal-500";
+        return "bg-green-600";
     }
   };
 
@@ -54,131 +54,65 @@ const PackageCard = ({ plan, onSelect, index }) => {
 
   return (
     <div
-      className={`group relative transform transition-all duration-700 ease-out hover:scale-105 ${
-        isPremium ? "hover:scale-110" : ""
-      }`}
+      className="group transform transition-all duration-300 ease-out hover:scale-105"
       style={{
-        animationDelay: `${index * 150}ms`,
-        animation: "slideInUp 0.8s ease-out forwards",
+        animationDelay: `${index * 100}ms`,
+        animation: "slideInUp 0.6s ease-out forwards",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Glow Effect for Premium Plans */}
-      {isPremium && (
-        <div
-          className={`absolute -inset-1 bg-gradient-to-r ${getGradientClass(
-            plan.badge
-          )} rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-opacity duration-500`}
-        />
-      )}
-
       <Card
-        className={`relative h-full backdrop-blur-sm transition-all duration-500 overflow-hidden ${
+        className={`
+        relative h-full backdrop-blur-sm transition-all duration-300 overflow-hidden
+        ${
           isPremium
-            ? "bg-white/90 border-2 border-transparent bg-gradient-to-br from-white via-gray-50 to-gray-100 shadow-2xl"
-            : "bg-white/80 border border-gray-200 hover:border-gray-300 shadow-lg hover:shadow-xl"
-        }`}
+            ? "bg-white border-2 border-blue-200 shadow-lg hover:shadow-xl"
+            : "bg-white border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md"
+        }
+      `}
       >
-        {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-5">
+        <div className="absolute top-4 right-4 z-10">
           <div
-            className={`absolute inset-0 bg-gradient-to-br ${getGradientClass(
-              plan.badge
-            )} opacity-20`}
-          />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
-        </div>
-
-        {/* Premium Badge with Animation */}
-        <div
-          className={`absolute -top-1 -right-1 z-10 transform transition-all duration-500 ${
-            isHovered ? "scale-110 rotate-3" : "scale-100 rotate-0"
-          }`}
-        >
-          <div
-            className={`bg-gradient-to-r ${getGradientClass(
-              plan.badge
-            )} text-white px-4 py-2 text-xs font-bold rounded-full shadow-lg flex items-center gap-1`}
+            className={`
+            ${getBadgeColor(plan.badge)} text-white px-3 py-1 text-xs 
+            font-medium rounded-full shadow-sm flex items-center gap-1
+            transition-transform duration-300 ${isHovered ? "scale-105" : ""}
+          `}
           >
             {getBadgeIcon(plan.badge)}
             {plan.badge}
           </div>
         </div>
 
-        <CardHeader className="relative pb-4">
-          <CardTitle
-            className={`text-2xl font-bold mb-3 transition-all duration-300 ${
-              isHovered
-                ? "text-transparent bg-clip-text bg-gradient-to-r " +
-                  getGradientClass(plan.badge)
-                : "text-gray-800"
-            }`}
-          >
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl font-semibold mb-3 text-gray-900">
             {plan.name}
           </CardTitle>
-
-          {/* Animated Price Section */}
           <div className="space-y-2">
             <div className="flex items-baseline gap-3">
-              <span
-                className={`text-lg font-medium text-gray-400 line-through transition-all duration-300 ${
-                  isHovered ? "text-gray-500 transform -translate-y-1" : ""
-                }`}
-              >
+              <span className="text-base font-normal text-gray-400 line-through">
                 {plan.oldPrice}
               </span>
-              <span
-                className={`text-4xl font-extrabold transition-all duration-500 ${
-                  isHovered
-                    ? `text-transparent bg-clip-text bg-gradient-to-r ${getGradientClass(
-                        plan.badge
-                      )} transform scale-110`
-                    : "text-gray-900"
-                }`}
-              >
+              <span className="text-3xl font-bold text-gray-900">
                 {plan.price}
               </span>
             </div>
-            <p className="text-sm text-gray-600 font-medium">{plan.feeText}</p>
+            <p className="text-xs text-gray-500 font-normal">{plan.feeText}</p>
           </div>
         </CardHeader>
 
-        <CardContent className="relative flex-1 space-y-4">
-          {/* Features List with Staggered Animation */}
-          <ul className="space-y-4">
+        <CardContent className="flex-1 space-y-4">
+          <ul className="space-y-3">
             {plan.features.map((feature, featureIndex) => (
               <li
                 key={feature}
-                className={`flex items-start gap-3 transition-all duration-500 ${
-                  isHovered ? "transform translate-x-2" : ""
-                }`}
-                style={{
-                  transitionDelay: isHovered
-                    ? `${featureIndex * 100}ms`
-                    : "0ms",
-                }}
+                className="flex items-start gap-3 transition-transform duration-200"
               >
-                <div
-                  className={`relative p-1 rounded-full transition-all duration-300 ${
-                    isHovered
-                      ? `bg-gradient-to-r ${getGradientClass(
-                          plan.badge
-                        )} shadow-lg`
-                      : "bg-green-100"
-                  }`}
-                >
-                  <Check
-                    className={`h-4 w-4 transition-colors duration-300 ${
-                      isHovered ? "text-white" : "text-green-600"
-                    }`}
-                  />
+                <div className="flex-shrink-0 mt-0.5">
+                  <Check className="h-4 w-4 text-green-500" />
                 </div>
-                <span
-                  className={`text-sm font-medium transition-colors duration-300 ${
-                    isHovered ? "text-gray-800" : "text-gray-600"
-                  }`}
-                >
+                <span className="text-sm text-gray-600 font-normal leading-relaxed">
                   {feature}
                 </span>
               </li>
@@ -186,71 +120,29 @@ const PackageCard = ({ plan, onSelect, index }) => {
           </ul>
         </CardContent>
 
-        <CardFooter className="pt-6 relative">
+        <CardFooter className="pt-6">
           <Button
             variant="contained"
             onClick={() => onSelect(plan)}
             fullWidth
-            className={`!py-4 !font-bold !text-base !rounded-xl !transition-all !duration-500 !transform ${
-              isHovered ? "!scale-105 !shadow-2xl" : "!shadow-lg"
-            }`}
+            className="!py-3 !font-medium !text-base !rounded-lg !transition-all !duration-300"
             sx={{
-              background: isHovered
-                ? `linear-gradient(135deg, ${
-                    plan.badge === "Premium"
-                      ? "#8b5cf6, #6366f1"
-                      : plan.badge === "Elite"
-                      ? "#f59e0b, #ef4444"
-                      : "#06b6d4, #14b8a6"
-                  })`
-                : isPremium
-                ? `linear-gradient(135deg, ${
-                    plan.badge === "Premium"
-                      ? "#8b5cf6, #6366f1"
-                      : "#f59e0b, #ef4444"
-                  })`
-                : "#1976d2",
+              background: isPremium
+                ? "linear-gradient(135deg, #3b82f6, #6366f1)"
+                : "#1f2937",
               "&:hover": {
-                background: `linear-gradient(135deg, ${
-                  plan.badge === "Premium"
-                    ? "#7c3aed, #4f46e5"
-                    : plan.badge === "Elite"
-                    ? "#d97706, #dc2626"
-                    : "#0891b2, #059669"
-                })`,
-                transform: "translateY(-2px)",
-                boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+                background: isPremium
+                  ? "linear-gradient(135deg, #2563eb, #4f46e5)"
+                  : "#374151",
+                transform: "translateY(-1px)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
               },
             }}
           >
-            <span className="flex items-center gap-2">
-              {isPremium && <Sparkles className="w-4 h-4" />}
-              Choose Plan
-              {isPremium && <Sparkles className="w-4 h-4" />}
-            </span>
+            Choose Plan
           </Button>
         </CardFooter>
-
-        {/* Hover Overlay Effect */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/5 transition-opacity duration-500 pointer-events-none ${
-            isHovered ? "opacity-100" : "opacity-0"
-          }`}
-        />
       </Card>
-
-      <style jsx>{`
-        @keyframes slideInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 };
@@ -262,32 +154,70 @@ export default function MarketplacePage() {
   const [companyName, setCompanyName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSelectPackage = (plan) => {
     setSelectedPackage(plan);
     setIsModalOpen(true);
+    setError("");
   };
 
   const handleCloseModal = () => {
     if (isLoading) return;
     setIsModalOpen(false);
+    setError("");
+    setCompanyName("");
+  };
+
+  const checkDuplicateCompany = async (companyName, userId) => {
+    const { data, error } = await supabase
+      .from("company_requests")
+      .select("id, company_name, status")
+      .eq("user_id", userId)
+      .eq("company_name", companyName.trim().toUpperCase());
+
+    if (error) throw error;
+    return data && data.length > 0;
   };
 
   const handleCreateRequest = async () => {
     if (!companyName.trim()) {
-      alert("Please enter a company name.");
+      setError("Please enter a company name.");
       return;
     }
+
+    const normalizedName = companyName.trim().toUpperCase();
+
+    if (
+      !normalizedName.endsWith("LTD") &&
+      !normalizedName.endsWith("LIMITED")
+    ) {
+      setError("Company name must end with 'LTD' or 'LIMITED'.");
+      return;
+    }
+
     setIsLoading(true);
+    setError("");
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found. Please log in again.");
 
+      // Duplikasyon kontrolü
+      const isDuplicate = await checkDuplicateCompany(normalizedName, user.id);
+      if (isDuplicate) {
+        setError(
+          "You already have a request for this company name. Please choose a different name."
+        );
+        setIsLoading(false);
+        return;
+      }
+
       await supabase.from("company_requests").insert({
         user_id: user.id,
-        company_name: companyName.trim().toUpperCase(),
+        company_name: normalizedName,
         package_name: selectedPackage.name,
         status: "pending_payment",
       });
@@ -295,61 +225,43 @@ export default function MarketplacePage() {
       navigate("/dashboard");
     } catch (error) {
       console.error("Error creating request:", error);
-      alert(`An error occurred: ${error.message}`);
+      setError(`An error occurred: ${error.message}`);
     } finally {
       setIsLoading(false);
-      setIsModalOpen(false);
-      setCompanyName("");
-      setSelectedPackage(null);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse" />
-        <div
-          className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"
-          style={{ animationDelay: "2s" }}
-        />
-        <div
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"
-          style={{ animationDelay: "4s" }}
-        />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-12 space-y-12">
-        {/* Hero Section with Animation */}
-        <div className="text-center space-y-6 animate-fadeInDown">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-gray-200 text-sm font-medium text-gray-600 mb-4">
-            <Sparkles className="w-4 h-4 text-indigo-500" />
-            Launch Your Business Today
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-12 space-y-12">
+        <div className="text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 text-sm font-normal text-gray-600 mb-4">
+            <Sparkles className="w-4 h-4 text-blue-500" />
+            Choose Your Business Package
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-indigo-600 to-purple-600 leading-tight">
-            Our Premium Packages
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+            Launch Your Business Today
           </h1>
 
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Choose the perfect package to launch your new venture with
-            confidence and style.
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto font-normal leading-relaxed">
+            Select the perfect package to start your entrepreneurial journey
+            with confidence.
           </p>
         </div>
 
-        {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-2 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg rounded-2xl p-2 transition-all duration-300">
+            <TabsList className="grid w-full max-w-md grid-cols-2 bg-white border border-gray-200 shadow-sm rounded-lg p-1">
               <TabsTrigger
                 value="uk"
-                className="rounded-xl font-semibold transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
+                className="rounded-md font-medium text-sm transition-all duration-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
               >
                 🇬🇧 UK Residents
               </TabsTrigger>
               <TabsTrigger
                 value="global"
-                className="rounded-xl font-semibold transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg"
+                className="rounded-md font-medium text-sm transition-all duration-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
               >
                 🌍 Global
               </TabsTrigger>
@@ -357,7 +269,7 @@ export default function MarketplacePage() {
           </div>
 
           <TabsContent value="uk" className="mt-8">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-6xl mx-auto">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-5xl mx-auto">
               {ukPackages.map((plan, index) => (
                 <PackageCard
                   key={plan.name}
@@ -370,7 +282,7 @@ export default function MarketplacePage() {
           </TabsContent>
 
           <TabsContent value="global" className="mt-8">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-6xl mx-auto">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-5xl mx-auto">
               {globalPackages.map((plan, index) => (
                 <PackageCard
                   key={plan.name}
@@ -383,61 +295,51 @@ export default function MarketplacePage() {
           </TabsContent>
         </Tabs>
 
-        {/* Enhanced Modal */}
+        {/* Modal */}
         <Dialog
           open={isModalOpen}
           onClose={handleCloseModal}
           PaperProps={{
             sx: {
-              borderRadius: "20px",
+              borderRadius: "12px",
               padding: "8px",
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-              minWidth: "500px",
-            },
-          }}
-          BackdropProps={{
-            sx: {
-              backdropFilter: "blur(8px)",
-              backgroundColor: "rgba(0,0,0,0.4)",
+              background: "white",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+              minWidth: "480px",
             },
           }}
         >
           <DialogTitle
             sx={{
-              fontSize: "1.5rem",
-              fontWeight: "bold",
-              background: "linear-gradient(135deg, #1e293b, #6366f1)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              fontSize: "1.25rem",
+              fontWeight: "600",
+              color: "#111827",
               textAlign: "center",
-              paddingBottom: "8px",
             }}
           >
-            <div className="flex items-center justify-center gap-2">
-              <Sparkles className="w-6 h-6 text-indigo-500" />
-              One Last Step
-              <Sparkles className="w-6 h-6 text-indigo-500" />
-            </div>
+            Complete Your Request
           </DialogTitle>
 
-          <DialogContent sx={{ padding: "24px" }}>
+          <DialogContent sx={{ padding: "20px" }}>
             <DialogContentText
               sx={{
                 mb: 3,
-                fontSize: "1rem",
-                color: "#64748b",
+                fontSize: "0.95rem",
+                color: "#6b7280",
                 textAlign: "center",
-                lineHeight: 1.6,
+                lineHeight: 1.5,
               }}
             >
-              Please enter the desired name for your new company.
+              Please enter your desired company name to continue.
               <br />
-              <strong>The name must end with "LTD" or "LIMITED".</strong>
+              <strong>Name must end with "LTD" or "LIMITED".</strong>
             </DialogContentText>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2, fontSize: "0.9rem" }}>
+                {error}
+              </Alert>
+            )}
 
             <TextField
               autoFocus
@@ -451,35 +353,22 @@ export default function MarketplacePage() {
               onChange={(e) => setCompanyName(e.target.value.toUpperCase())}
               placeholder="e.g., MYAWESOME LTD"
               disabled={isLoading}
+              error={!!error}
               sx={{
                 "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  fontSize: "1.1rem",
-                  "&:hover fieldset": {
-                    borderColor: "#6366f1",
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "#6366f1",
-                    borderWidth: "2px",
-                  },
-                },
-                "& .MuiInputLabel-root.Mui-focused": {
-                  color: "#6366f1",
+                  borderRadius: "8px",
+                  fontSize: "1rem",
+                  fontWeight: "normal",
                 },
               }}
             />
           </DialogContent>
 
-          <DialogActions sx={{ padding: "16px 24px 24px", gap: "12px" }}>
+          <DialogActions sx={{ padding: "16px 20px 20px", gap: "8px" }}>
             <Button
               onClick={handleCloseModal}
               disabled={isLoading}
-              sx={{
-                borderRadius: "10px",
-                textTransform: "none",
-                fontSize: "1rem",
-                padding: "10px 24px",
-              }}
+              sx={{ textTransform: "none", color: "#6b7280" }}
             >
               Cancel
             </Button>
@@ -488,51 +377,23 @@ export default function MarketplacePage() {
               variant="contained"
               disabled={isLoading}
               sx={{
-                borderRadius: "10px",
                 textTransform: "none",
-                fontSize: "1rem",
-                padding: "10px 24px",
-                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
-                  transform: "translateY(-1px)",
-                  boxShadow: "0 10px 25px rgba(99, 102, 241, 0.4)",
-                },
-                transition: "all 0.3s ease",
+                background: "#3b82f6",
+                "&:hover": { background: "#2563eb" },
               }}
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <CircularProgress size={20} sx={{ color: "white" }} />
+                  <CircularProgress size={16} sx={{ color: "white" }} />
                   Processing...
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Create & Proceed
-                </div>
+                "Create Request"
               )}
             </Button>
           </DialogActions>
         </Dialog>
       </div>
-
-      <style jsx global>{`
-        @keyframes fadeInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fadeInDown {
-          animation: fadeInDown 0.8s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

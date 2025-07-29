@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
-import { auth } from "@/firebase";
+import { auth } from "@/supabase";
 import Loader from "@/components/ui/Loader"; // Şık yükleme animasyonumuzu kullanalım
 import {
   Card,

@@ -1,93 +1,105 @@
-// supabase/functions/shopify-webhook-handler/index.ts
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// supabase/functions/shopify-webhook-handler/index.ts - Cart API için
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// HMAC doğrulaması için - doğru import
-import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+const supabaseAdmin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
 
 serve(async (req) => {
-  const SHOPIFY_WEBHOOK_SECRET = Deno.env.get("SHOPIFY_WEBHOOK_SECRET")!;
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
   try {
-    const requestBodyText = await req.text();
+    const body = await req.text();
     const hmacHeader = req.headers.get("X-Shopify-Hmac-Sha256");
 
     if (!hmacHeader) {
-      throw new Error("Missing Shopify HMAC signature.");
+      throw new Error("Missing HMAC signature");
     }
 
-    // Güvenlik: Webhook'un gerçekten Shopify'dan geldiğini doğrula
+    // HMAC verification
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(SHOPIFY_WEBHOOK_SECRET),
+      encoder.encode(Deno.env.get("SHOPIFY_WEBHOOK_SECRET")!),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign"],
+      ["sign"]
     );
 
     const signature = await crypto.subtle.sign(
       "HMAC",
       key,
-      encoder.encode(requestBodyText),
+      encoder.encode(body)
     );
-
     const computedHmac = btoa(
-      String.fromCharCode(...new Uint8Array(signature)),
+      String.fromCharCode(...new Uint8Array(signature))
     );
 
     if (computedHmac !== hmacHeader) {
-      return new Response("Invalid HMAC signature.", { status: 401 });
+      return new Response("Invalid HMAC signature", { status: 401 });
     }
 
-    // Güvenlik kontrolünü geçti, şimdi veriyi işleyebiliriz
-    const payload = JSON.parse(requestBodyText);
+    const payload = JSON.parse(body);
+    console.log("Webhook received for order:", payload.name || payload.id);
 
-    // Order/paid eventi için custom_attributes'i bul
-    const customAttributes = payload.custom_attributes;
-    if (!customAttributes || customAttributes.length === 0) {
-      console.warn("Webhook received without custom attributes. Skipping.");
-      return new Response("OK, but no attributes found.", { status: 200 });
-    }
+    // Cart API ile gelen attributes'leri kontrol et
+    const noteAttributes = payload.note_attributes || [];
+    const customAttributes = payload.custom_attributes || [];
+    const allAttributes = [...noteAttributes, ...customAttributes];
 
-    const requestIdAttribute = customAttributes.find(
-      (attr: { key: string }) => attr.key === "company_request_id",
+    let requestId = null;
+
+    // Request ID'yi bul
+    const requestIdAttr = allAttributes.find(
+      (attr: { name?: string; key?: string }) =>
+        attr.name === "company_request_id" || attr.key === "company_request_id"
     );
 
-    if (!requestIdAttribute) {
-      throw new Error("company_request_id not found in webhook payload.");
+    if (requestIdAttr) {
+      requestId = requestIdAttr.value;
     }
 
-    const requestId = requestIdAttribute.value;
+    if (!requestId) {
+      console.warn("No request ID found in webhook payload");
+      return new Response("No request ID found", { status: 200 });
+    }
 
-    // Veritabanında ilgili talebin durumunu güncelle
+    // Payment kontrolü
+    const isPaid =
+      payload.financial_status === "paid" &&
+      parseFloat(payload.total_price) > 0;
+
+    if (!isPaid) {
+      console.log("Payment not completed for request:", requestId);
+      return new Response("Payment not completed", { status: 200 });
+    }
+
+    // Database güncelle
     const { error: updateError } = await supabaseAdmin
       .from("company_requests")
-      .update({ status: "in_review" })
+      .update({
+        status: "in_review",
+        payment_data: {
+          order_id: payload.id,
+          order_name: payload.name,
+          total_price: payload.total_price,
+          currency: payload.currency,
+          paid_at: new Date().toISOString(),
+        },
+      })
       .eq("id", requestId)
-      .eq("status", "pending_payment"); // Sadece hala ödeme bekleyenleri güncelle
+      .eq("status", "pending_payment");
 
     if (updateError) {
-      throw new Error(`DB Update Error: ${updateError.message}`);
+      console.error("Database update error:", updateError);
+      throw updateError;
     }
 
-    console.log(`Successfully updated request ${requestId} to 'in_review'.`);
-    return new Response("Webhook processed successfully.", { status: 200 });
+    console.log(`Successfully updated request ${requestId} to 'in_review'`);
+
+    return new Response("Webhook processed successfully", { status: 200 });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Webhook Handler Error:", error.message);
-    } else {
-      console.error("Webhook Handler Error:", error);
-    }
-    return new Response(
-      `Webhook Error: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
-      { status: 400 },
-    );
+    console.error("Webhook error:", error);
+    return new Response(`Webhook error: ${error.message}`, { status: 400 });
   }
 });

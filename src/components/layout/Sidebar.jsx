@@ -1,16 +1,16 @@
-// src/components/layout/Sidebar.jsx
-
+// src/components/layout/Sidebar.jsx - Ağırbaşlı & Oturaklı Tasarım
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { supabase } from "@/supabase"; // Firebase yerine Supabase'i import ediyoruz
+import { supabase } from "@/supabase";
 import {
   FaTachometerAlt,
   FaStore,
   FaListAlt,
   FaCog,
   FaSignOutAlt,
-  FaAngleLeft,
-  FaAngleRight,
+  FaChevronLeft,
+  FaChevronRight,
+  FaUser,
 } from "react-icons/fa";
 import goformedLogo from "@/assets/logos/goformed.png";
 import { Button } from "@/components/ui/button";
@@ -26,69 +26,101 @@ const menuItems = [
 export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
   const navigate = useNavigate();
 
-  // Çıkış yapma fonksiyonunu Supabase ile güncelliyoruz
   const handleLogout = async () => {
-    // Supabase'in signOut fonksiyonu asenkron çalışır
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate("/login");
+    } catch (error) {
       console.error("Error logging out:", error.message);
     }
-    // Çıkış yaptıktan sonra kullanıcıyı giriş sayfasına yönlendir
-    // App.jsx'teki onAuthStateChange dinleyicisi de bu değişikliği yakalayıp
-    // session'ı null yapacağı için bu yönlendirme sorunsuz çalışır.
-    navigate("/login");
   };
 
   return (
     <aside
       className={cn(
-        "fixed top-0 left-0 h-screen bg-card text-card-foreground border-r flex flex-col z-50 transition-all duration-300",
-        isCollapsed ? "items-center" : ""
+        "fixed top-0 left-0 h-screen bg-white",
+        "border-r border-gray-200 flex flex-col z-50",
+        "transition-all duration-300 ease-out shadow-sm"
       )}
       style={{ width: `${width}px` }}
     >
-      <Button
-        onClick={toggleCollapse}
-        variant="outline"
-        size="icon"
-        className="absolute top-1/2 -translate-y-1/2 rounded-full h-7 w-7 z-50"
-        style={{ left: `${width - 14}px` }}
-      >
-        {isCollapsed ? (
-          <FaAngleRight className="h-4 w-4" />
-        ) : (
-          <FaAngleLeft className="h-4 w-4" />
-        )}
-      </Button>
-
-      <div className="flex items-center h-20 border-b w-full px-6 flex-shrink-0">
-        <img
-          src={goformedLogo}
-          alt="GoFormed"
+      {/* Toggle Button - Orta Kısımda */}
+      <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 z-50">
+        <Button
+          onClick={toggleCollapse}
+          variant="outline"
+          size="icon"
           className={cn(
-            "h-8 transition-all duration-300",
-            isCollapsed && "mx-auto"
+            "w-8 h-8 rounded-full bg-white border-2 border-gray-200",
+            "hover:border-gray-300 hover:bg-gray-50",
+            "text-gray-600 hover:text-gray-800",
+            "transition-all duration-200 shadow-sm"
           )}
-        />
+        >
+          {isCollapsed ? (
+            <FaChevronRight className="h-3 w-3" />
+          ) : (
+            <FaChevronLeft className="h-3 w-3" />
+          )}
+        </Button>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1 w-full">
+      {/* Logo Section - Sabit Boyut */}
+      <div className="flex items-center justify-center h-20 border-b border-gray-100 px-4 flex-shrink-0">
+        <div className="flex items-center justify-center">
+          {/* Logo her zaman aynı boyutta kalır */}
+          <img
+            src={goformedLogo}
+            alt="GoFormed"
+            className="h-8 w-auto object-contain"
+          />
+        </div>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 px-3 py-6 space-y-1">
         {menuItems.map((item) => (
           <SidebarLink key={item.text} item={item} isCollapsed={isCollapsed} />
         ))}
       </nav>
 
-      <div className="mt-auto p-4 border-t w-full">
+      {/* User Section */}
+      <div className="mt-auto p-3 border-t border-gray-100">
+        {/* User Profile Info */}
+        <div
+          className={cn(
+            "flex items-center p-3 mb-3 rounded-lg bg-gray-50",
+            isCollapsed && "justify-center"
+          )}
+        >
+          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+            <FaUser className="h-4 w-4 text-gray-600" />
+          </div>
+          {!isCollapsed && (
+            <div className="ml-3 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                User Account
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                account@email.com
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Logout Button */}
         <Button
           variant="ghost"
           className={cn(
-            "w-full",
-            isCollapsed ? "justify-center" : "justify-start"
+            "w-full text-gray-600 hover:text-red-600 hover:bg-red-50",
+            "transition-colors duration-200 font-medium",
+            isCollapsed ? "justify-center px-0" : "justify-start"
           )}
-          onClick={handleLogout} // Güncellenmiş fonksiyonu burada kullanıyoruz
+          onClick={handleLogout}
         >
-          <FaSignOutAlt className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
-          {!isCollapsed && "Log Out"}
+          <FaSignOutAlt className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+          {!isCollapsed && "Sign Out"}
         </Button>
       </div>
     </aside>
@@ -103,15 +135,24 @@ function SidebarLink({ item, isCollapsed }) {
       end={item.to === "/dashboard"}
       className={({ isActive }) =>
         cn(
-          "flex items-center p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          "flex items-center px-3 py-3 rounded-lg transition-all duration-200",
+          "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
+          "font-medium text-sm group",
           isActive &&
-            "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+            "bg-blue-50 text-blue-700 hover:text-blue-800 hover:bg-blue-100",
           isCollapsed && "justify-center"
         )
       }
     >
-      <Icon className={cn("h-5 w-5 flex-shrink-0", !isCollapsed && "mr-3")} />
-      {!isCollapsed && <span className="truncate">{item.text}</span>}
+      <Icon
+        className={cn(
+          "h-5 w-5 flex-shrink-0 transition-colors duration-200",
+          !isCollapsed && "mr-3"
+        )}
+      />
+      {!isCollapsed && (
+        <span className="truncate font-medium">{item.text}</span>
+      )}
     </NavLink>
   );
 }

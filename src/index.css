@@ -1,55 +1,63 @@
-/* src/index.css */
-
+/* src/index.css - Güncellenmiş */
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
 
 @theme {
-  /* -- YENİ TEMA: BEYAZ / YEŞİL / MOR -- */
-  --font-sans: "Inter", sans-serif;
-  --font-serif: "Playfair Display", serif;
+  /* Modern Font Stack */
+  --font-sans: "Inter", "Poppins", system-ui, -apple-system, sans-serif;
+  --font-display: "Poppins", "Inter", system-ui, -apple-system, sans-serif;
 
-  /* Ana Renkler */
-  --color-background: oklch(100% 0 0); /* Saf Beyaz */
-  --color-foreground: oklch(
-    20% 0.03 270
-  ); /* Çok Koyu, Hafif Morumsu Gri (Metin) */
+  /* Enhanced Color Palette */
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(15% 0.02 270);
 
-  /* Kart ve Popover Renkleri */
-  --color-card: oklch(100% 0 0);
+  --color-card: oklch(99% 0.002 270);
   --color-card-foreground: oklch(20% 0.03 270);
 
   --color-popover: oklch(100% 0 0);
   --color-popover-foreground: oklch(20% 0.03 270);
 
-  /* Eylem ve Vurgu Renkleri */
-  --color-primary: oklch(55% 0.22 285); /* Canlı MOR (Ana Butonlar) */
-  --color-primary-foreground: oklch(100% 0 0); /* Beyaz (Buton İçi Metin) */
+  /* Modern Purple Gradients */
+  --color-primary: oklch(58% 0.24 285);
+  --color-primary-foreground: oklch(100% 0 0);
 
-  --color-secondary: oklch(
-    68% 0.2 155
-  ); /* Canlı YEŞİL (İkincil Vurgular, İkonlar) */
-  --color-secondary-foreground: oklch(
-    15% 0.1 155
-  ); /* Koyu Yeşil (Yeşil Üzeri Metin) */
+  --color-secondary: oklch(70% 0.22 155);
+  --color-secondary-foreground: oklch(12% 0.1 155);
 
-  /* Sessiz ve Nötr Renkler */
-  --color-muted: oklch(97.5% 0.005 280); /* Çok Açık, Hafif Morumsu Gri */
-  --color-muted-foreground: oklch(60% 0.03 275);
+  /* Enhanced Muted Colors */
+  --color-muted: oklch(97% 0.008 270);
+  --color-muted-foreground: oklch(55% 0.05 270);
 
-  --color-accent: oklch(97.5% 0.005 280);
+  --color-accent: oklch(96% 0.01 270);
   --color-accent-foreground: oklch(25% 0.05 275);
 
-  /* Diğer Renkler */
-  --color-destructive: oklch(65% 0.25 25); /* Kırmızı */
+  /* Status Colors */
+  --color-destructive: oklch(62% 0.25 25);
   --color-destructive-foreground: oklch(100% 0 0);
 
-  --color-border: oklch(94% 0.01 280); /* Sınır Çizgileri */
-  --color-input: oklch(94% 0.01 280);
-  --color-ring: oklch(60% 0.24 285); /* Odaklanma Halkası (Mor) */
+  --color-warning: oklch(75% 0.15 65);
+  --color-warning-foreground: oklch(15% 0.05 65);
 
-  --radius: 0.75rem;
+  --color-success: oklch(65% 0.15 150);
+  --color-success-foreground: oklch(100% 0 0);
+
+  /* Borders and Effects */
+  --color-border: oklch(92% 0.015 270);
+  --color-input: oklch(92% 0.015 270);
+  --color-ring: oklch(58% 0.24 285);
+
+  --radius: 0.875rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
-/* Base stiller */
+/* Base Styles */
 * {
   border-color: var(--color-border);
 }
@@ -59,24 +67,110 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
 }
 
+/* Typography Hierarchy */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-/* Yeni renk paletine uygun Gradient Sınıfı */
+h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 700;
+}
+
+h3 {
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 600;
+}
+
+/* Enhanced Gradients */
 .text-gradient {
   background: linear-gradient(
-    to right,
-    var(--color-primary),
-    var(--color-secondary)
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 50%,
+    oklch(65% 0.25 320) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-gradient-modern {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    oklch(60% 0.25 300) 50%,
+    var(--color-secondary) 100%
+  );
+}
+
+/* Modern Button Styles */
+.btn-modern {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glassmorphism Effects */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Enhanced Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus States */
+.focus-modern:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--color-primary);
 }
