@@ -1,9 +1,6 @@
-// src/pages/LoginPage.jsx
-
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { sendSignInLinkToEmail, signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "@/firebase";
+import { supabase } from "@/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,17 +23,21 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const actionCodeSettings = {
-      url: `${window.location.origin}/finish-login`,
-      handleCodeInApp: true,
-    };
-
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem("emailForSignIn", email);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          // Kullanıcı e-postadaki linke tıkladıktan sonra bu adrese yönlendirilir.
+          // Supabase, bu linkteki token'ı yakalayıp oturumu otomatik olarak başlatır.
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+
+      if (error) throw error;
+
       setLinkSent(true);
     } catch (err) {
-      setError("Failed to send link. Please check the email and try again.");
+      setError(err.error_description || err.message);
     } finally {
       setLoading(false);
     }
@@ -44,10 +45,13 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate("/dashboard");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+      if (error) throw error;
+      // Kullanıcı Google penceresinden geri yönlendirildiğinde Supabase oturumu otomatik yönetir.
     } catch (err) {
-      setError("Failed to sign in with Google.");
+      setError(err.error_description || err.message);
     }
   };
 
@@ -128,6 +132,7 @@ export default function LoginPage() {
               >
                 Sign In with Google
               </Button>
+
               <p className="px-8 text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link

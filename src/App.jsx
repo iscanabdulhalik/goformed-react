@@ -1,11 +1,7 @@
-// src/App.jsx
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "./firebase";
+import { supabase } from "./supabase"; // Firebase yerine Supabase'i import et
 
-// Sayfaları import ediyoruz
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -13,21 +9,40 @@ import DashboardPage from "./pages/DashboardPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import SettingsPage from "./pages/SettingsPage";
-import FinishLoginPage from "./pages/FinishLoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 
-// Layout'ları ve Loader'ı import ediyoruz
 import Layout from "./components/layout/Layout";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Loader from "./components/ui/Loader";
 
-const App = () => {
-  const [user, loading] = useAuthState(auth);
+import RequestDetailsPage from "./pages/RequestDetailsPage";
 
-  // Firebase kullanıcı durumunu kontrol ederken yükleme animasyonunu göster
+const App = () => {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    // Component kaldırıldığında (cleanup) abonelikten çık
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Oturum bilgisi alınana kadar yükleme ekranını göster
   if (loading) {
     return <Loader />;
   }
+
+  const user = session?.user;
 
   return (
     <Routes>
@@ -48,9 +63,6 @@ const App = () => {
         path="/register"
         element={user ? <Navigate to="/dashboard" /> : <RegisterPage />}
       />
-
-      {/* Kimlik Doğrulama Yardımcı Rotaları */}
-      <Route path="/finish-login" element={<FinishLoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Sadece Giriş Yapmış Kullanıcıların Erişebileceği Korumalı Rotalar */}
@@ -62,10 +74,11 @@ const App = () => {
         <Route path="marketplace" element={<MarketplacePage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        {/* Gelecekte eklenecek diğer dashboard sayfaları buraya gelebilir */}
       </Route>
 
-      {/* Tanımlanmayan diğer tüm yollar için ana sayfaya yönlendirme (isteğe bağlı) */}
+      <Route path="request/:id" element={<RequestDetailsPage />} />
+
+      {/* Tanımlanmayan diğer tüm yollar için ana sayfaya yönlendirme */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

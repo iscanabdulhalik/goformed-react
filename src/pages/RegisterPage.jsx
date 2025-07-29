@@ -1,13 +1,6 @@
-// src/pages/RegisterPage.jsx
-
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signInWithPopup,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/firebase";
+import { supabase } from "@/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,28 +29,33 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      // Kullanıcı oluşturulduktan hemen sonra doğrulama e-postası gönder
-      await sendEmailVerification(userCredential.user);
-      setVerificationSent(true); // Başarılı mesajını göstermek için state'i güncelle
+      const { error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          // Kullanıcıyı e-postadaki linke tıkladıktan sonra bu adrese yönlendir
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+
+      if (error) throw error;
+
+      setVerificationSent(true);
     } catch (err) {
-      setError("Failed to create an account. The email may already be in use.");
+      setError(err.error_description || err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleRegister = async () => {
-    // Google ile kayıt olanların e-postaları zaten doğrulanmış kabul edilir.
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate("/dashboard");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
+      if (error) throw error;
     } catch (err) {
-      setError("Failed to sign up with Google.");
+      setError(err.error_description || err.message);
     }
   };
 

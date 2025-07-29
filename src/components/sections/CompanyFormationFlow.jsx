@@ -1,5 +1,8 @@
+// src/components/sections/CompanyFormationFlow.jsx
+
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,73 +22,10 @@ import {
   ShieldCheck,
   FileSignature,
   AlertTriangle,
-} from "lucide-react"; // AlertTriangle ikonu eklendi
-import { Link } from "react-router-dom";
+} from "lucide-react";
 
-// Paket verileri (değişiklik yok)
-const ukPackages = [
-  {
-    name: "Entrepreneur (UK)",
-    oldPrice: "£449",
-    price: "£149",
-    feeText: "+ £50 Companies House fee included",
-    features: [
-      "UK Company Formation",
-      "Payoneer UK Business Account",
-      "Stripe & Shopify Setup Guide",
-      "London Registered Office",
-      "Basic Support",
-    ],
-    badge: "Popular",
-    badgeClass: "bg-green-600",
-  },
-  {
-    name: "Pro Builder (UK)",
-    oldPrice: "£599",
-    price: "£249",
-    feeText: "+ £50 Companies House fee included",
-    features: [
-      "Everything in Entrepreneur",
-      "VAT Registration",
-      "Printed Documents",
-      "PAYE Registration",
-      "Priority Support",
-    ],
-    badge: "Premium",
-    badgeClass: "bg-purple-600",
-  },
-];
-const globalPackages = [
-  {
-    name: "Global Starter",
-    oldPrice: "£549",
-    price: "£199",
-    feeText: "+ £50 Companies House fee included",
-    features: [
-      "Everything in Entrepreneur",
-      "Extra ID verification support",
-      "Document assistance",
-      "International address proof setup (for Stripe & UK bank account)",
-    ],
-    badge: "International",
-    badgeClass: "bg-blue-600",
-  },
-  {
-    name: "Global Premium",
-    oldPrice: "£649",
-    price: "£249",
-    feeText: "+ £50 Companies House fee included",
-    features: [
-      "Everything in Global Starter",
-      "VAT & PAYE Registration",
-      "Printed Documents",
-      "Shopify Store Support",
-      "Business Email & Hosting",
-    ],
-    badge: "Elite",
-    badgeClass: "bg-gray-800",
-  },
-];
+// Merkezi dosyadan import ediyoruz, artık paketler burada tanımlı DEĞİL.
+import { ukPackages, globalPackages } from "@/lib/packages";
 
 const CompanyStatus = {
   IDLE: "idle",
@@ -97,7 +37,6 @@ const CompanyStatus = {
 };
 
 export default function CompanyFormationFlow() {
-  // State'ler ve ref'ler (değişiklik yok)
   const [activeTab, setActiveTab] = useState("uk");
   const [step, setStep] = useState(1);
   const [companyName, setCompanyName] = useState("");
@@ -109,7 +48,18 @@ export default function CompanyFormationFlow() {
   const [formError, setFormError] = useState("");
   const [packageError, setPackageError] = useState(false);
   const detailsFormRef = useRef(null);
-  const apiDebounceTimer = useRef(null);
+
+  // handleSelectPackage fonksiyonunu ekleyelim ki hata vermesin
+  const handleSelectPackage = (pkg) => {
+    if (!acceptedName) {
+      setPackageError(true);
+      const inputElement = document.querySelector('input[type="text"]');
+      inputElement?.focus();
+      return;
+    }
+    setSelectedPackage(pkg);
+    setStep(2); // Form adımına geç
+  };
 
   useEffect(() => {
     setAcceptedName("");
@@ -117,75 +67,46 @@ export default function CompanyFormationFlow() {
     setPackageError(false);
   }, [companyName]);
 
-  const handleCompanySearch = () => {
+  const handleCompanySearch = async () => {
     const name = companyName.toUpperCase().trim();
-    if (name.length < 4) return;
     if (!name.endsWith("LTD") && !name.endsWith("LIMITED")) {
       setCompanyStatus(CompanyStatus.INVALID);
       return;
     }
 
     setCompanyStatus(CompanyStatus.LOADING);
-    clearTimeout(apiDebounceTimer.current);
 
-    apiDebounceTimer.current = setTimeout(async () => {
-      try {
-        // YENİ: İstek artık kendi backend'imize yapılıyor.
-        // Authorization başlığına burada gerek yok, backend halledecek.
-        const response = await fetch(
-          `${
-            import.meta.env.VITE_BACKEND_URL
-          }/check-company-name?q=${encodeURIComponent(name)}`
-        );
+    try {
+      const { data, error } = await supabase.rpc("check_company_name", {
+        company_name: name,
+        api_key: import.meta.env.VITE_COMPANIES_HOUSE_API_KEY,
+      });
 
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-        const data = await response.json();
+      if (error) throw error;
 
-        if (
-          data.items &&
-          data.items.length > 0 &&
-          data.items.some((item) => item.title.toUpperCase() === name)
-        ) {
-          setCompanyStatus(CompanyStatus.UNAVAILABLE);
-        } else {
-          setCompanyStatus(CompanyStatus.AVAILABLE);
-          setAcceptedName(name);
-          setTimeout(() => {
-            const pricingElement =
-              document.getElementById("packages-container");
-            pricingElement?.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-          }, 100);
-        }
-      } catch (error) {
-        console.error("Company search error:", error);
-        setCompanyStatus(CompanyStatus.ERROR);
+      if (
+        data &&
+        data.items &&
+        data.items.length > 0 &&
+        data.items.some((item) => item.title.toUpperCase() === name)
+      ) {
+        setCompanyStatus(CompanyStatus.UNAVAILABLE);
+      } else {
+        setCompanyStatus(CompanyStatus.AVAILABLE);
+        setAcceptedName(name);
+        setPackageError(false); // Başarılı aramadan sonra hatayı temizle
+        setTimeout(() => {
+          const pricingElement = document.getElementById("packages");
+          pricingElement?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 100);
       }
-    }, 300);
-  };
-
-  // handleSelectPackage ve handleFormSubmit (değişiklik yok)
-  const handleSelectPackage = (pkg) => {
-    if (!acceptedName) {
-      setPackageError(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
+    } catch (error) {
+      console.error("Company search error:", error);
+      setCompanyStatus(CompanyStatus.ERROR);
     }
-    setPackageError(false);
-    setSelectedPackage(pkg);
-    setStep(2);
-    setTimeout(
-      () =>
-        detailsFormRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        }),
-      100
-    );
   };
 
   const handleFormSubmit = async (e) => {
@@ -203,21 +124,20 @@ export default function CompanyFormationFlow() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/submit-formation-request`,
+      const { error } = await supabase.functions.invoke(
+        "submit-formation-request",
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             fullName: userDetails.fullName,
             email: userDetails.email,
             companyName: acceptedName,
             packageName: selectedPackage.name,
-          }),
+            selectedPackage: selectedPackage,
+          },
         }
       );
 
-      if (!response.ok) throw new Error("Backend request failed");
+      if (error) throw error;
 
       setStep(3);
       window.scrollTo({
@@ -232,7 +152,6 @@ export default function CompanyFormationFlow() {
     }
   };
 
-  // renderCompanyStatus fonksiyonunu daha bilgilendirici hale getirme
   const renderCompanyStatus = () => {
     const name = companyName.toUpperCase().trim();
     switch (companyStatus) {
@@ -240,7 +159,7 @@ export default function CompanyFormationFlow() {
         return (
           <div className="flex items-center justify-center gap-2 text-gray-500">
             <Loader2 className="animate-spin h-4 w-4" />
-            Checking availability...
+            Checking...
           </div>
         );
       case CompanyStatus.AVAILABLE:
@@ -265,14 +184,13 @@ export default function CompanyFormationFlow() {
         return (
           <div className="flex items-center justify-center gap-2 font-semibold text-red-600">
             <AlertTriangle className="h-5 w-5" />
-            Could not verify name. Please try again.
+            Could not verify.
           </div>
         );
       default:
         return (
           <p className="text-sm text-gray-500">
-            Only names ending in <strong>LTD</strong> or{" "}
-            <strong>LIMITED</strong> are allowed.
+            End with <strong>LTD</strong> or <strong>LIMITED</strong>.
           </p>
         );
     }
@@ -283,7 +201,6 @@ export default function CompanyFormationFlow() {
   return (
     <section id="packages" className="w-full py-24 sm:py-32">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* --- Adım 1: Arama ve Paketler --- */}
         <AnimatePresence>
           {step === 1 && (
             <motion.div
@@ -321,7 +238,6 @@ export default function CompanyFormationFlow() {
                   </p>
                 )}
               </div>
-
               <div className="flex justify-center mb-10">
                 <div className="inline-flex rounded-lg border p-1">
                   <Button
@@ -340,7 +256,6 @@ export default function CompanyFormationFlow() {
                   </Button>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-7 max-w-4xl mx-auto">
                 {packagesToShow.map((pkg) => (
                   <PackageCard
@@ -354,8 +269,6 @@ export default function CompanyFormationFlow() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* --- Adım 2: Form ve Başarı Ekranı --- */}
         <div ref={detailsFormRef}>
           <AnimatePresence>
             {step === 2 && (
@@ -480,8 +393,6 @@ export default function CompanyFormationFlow() {
             )}
           </AnimatePresence>
         </div>
-
-        {/* --- Gateway Logos --- */}
         <div className="max-w-4xl mx-auto mt-28 text-center">
           <h4 className="inline-flex items-center justify-center gap-3 text-xl font-bold text-gray-800 mb-4">
             <ShieldCheck className="h-8 w-8 text-secondary" />

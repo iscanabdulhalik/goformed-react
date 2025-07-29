@@ -1,0 +1,8 @@
+{
+  // Deno eklentisini SADECE belirtilen yollar için etkinleştir.
+  "deno.enablePaths": ["supabase/functions"],
+
+  // Geri kalan ayarlar aynı kalabilir.
+  "deno.lint": true,
+  "deno.unstable": true
+}

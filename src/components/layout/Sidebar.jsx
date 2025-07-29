@@ -1,7 +1,8 @@
+// src/components/layout/Sidebar.jsx
+
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "@/firebase";
+import { supabase } from "@/supabase"; // Firebase yerine Supabase'i import ediyoruz
 import {
   FaTachometerAlt,
   FaStore,
@@ -25,8 +26,17 @@ const menuItems = [
 export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    signOut(auth).then(() => navigate("/login"));
+  // Çıkış yapma fonksiyonunu Supabase ile güncelliyoruz
+  const handleLogout = async () => {
+    // Supabase'in signOut fonksiyonu asenkron çalışır
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Error logging out:", error.message);
+    }
+    // Çıkış yaptıktan sonra kullanıcıyı giriş sayfasına yönlendir
+    // App.jsx'teki onAuthStateChange dinleyicisi de bu değişikliği yakalayıp
+    // session'ı null yapacağı için bu yönlendirme sorunsuz çalışır.
+    navigate("/login");
   };
 
   return (
@@ -37,7 +47,6 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
       )}
       style={{ width: `${width}px` }}
     >
-      {/* Toggle Butonu, her zaman görünür ve kenarda */}
       <Button
         onClick={toggleCollapse}
         variant="outline"
@@ -52,26 +61,23 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
         )}
       </Button>
 
-      {/* Logo Alanı */}
       <div className="flex items-center h-20 border-b w-full px-6 flex-shrink-0">
         <img
           src={goformedLogo}
           alt="GoFormed"
           className={cn(
             "h-8 transition-all duration-300",
-            isCollapsed && "mx-auto" // Daraltılmış halde ortala
+            isCollapsed && "mx-auto"
           )}
         />
       </div>
 
-      {/* Navigasyon Alanı */}
       <nav className="flex-1 px-4 py-4 space-y-1 w-full">
         {menuItems.map((item) => (
           <SidebarLink key={item.text} item={item} isCollapsed={isCollapsed} />
         ))}
       </nav>
 
-      {/* Çıkış Alanı */}
       <div className="mt-auto p-4 border-t w-full">
         <Button
           variant="ghost"
@@ -79,7 +85,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
             "w-full",
             isCollapsed ? "justify-center" : "justify-start"
           )}
-          onClick={handleLogout}
+          onClick={handleLogout} // Güncellenmiş fonksiyonu burada kullanıyoruz
         >
           <FaSignOutAlt className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
           {!isCollapsed && "Log Out"}

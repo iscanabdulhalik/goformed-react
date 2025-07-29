@@ -1,0 +1,6 @@
+// deno.jsonc
+{
+  "imports": {
+    "@/": "./src/"
+  }
+}

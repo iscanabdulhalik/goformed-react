@@ -1,7 +1,8 @@
+// src/pages/ForgotPasswordPage.jsx
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/firebase";
+import { supabase } from "@/supabase"; // Firebase yerine Supabase'i import ediyoruz
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,12 +25,19 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      // Firebase'in `sendPasswordResetEmail` fonksiyonu yerine
+      // Supabase'in `resetPasswordForEmail` fonksiyonunu kullanıyoruz.
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        // Kullanıcıyı şifresini sıfırladıktan sonra yönlendireceğimiz adres.
+        // Supabase'de bu adresi önceden "URL Configuration" ayarlarında belirtmeniz gerekir.
+        redirectTo: `${window.location.origin}/password-reset`, // Örnek bir URL
+      });
+
+      if (error) throw error;
+
       setEmailSent(true);
     } catch (err) {
-      setError(
-        "Failed to send reset link. Please ensure the email is correct."
-      );
+      setError(err.error_description || err.message);
     } finally {
       setLoading(false);
     }
@@ -91,7 +99,7 @@ export default function ForgotPasswordPage() {
                 Remembered your password?{" "}
                 <Link
                   to="/login"
-                  className="underline underline-offset-4 hover:text-primary"
+                  className="underline underline-offset-4 hovertext-primary"
                 >
                   Sign In
                 </Link>
