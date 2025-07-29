@@ -1,6 +1,7 @@
-// supabase/functions/create-checkout-session/index.ts - Cart API ile
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// supabase/functions/create-checkout-session/index.ts
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHmac } from "https://deno.land/std@0.177.0/node/_crypto/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,58 +10,83 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+interface CartLine {
+  merchandiseId: string;
+  quantity: number;
+}
+
+interface CartAttribute {
+  key: string;
+  value: string;
+}
+
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders, status: 200 });
   }
 
   try {
-    console.log("=== CART CREATE REQUEST START ===");
+    console.log("=== SHOPIFY CHECKOUT SESSION START ===");
 
     const { variantId, productId, requestId } = await req.json();
-    console.log("Request data:", { variantId, productId, requestId });
+    console.log("Request payload:", { variantId, productId, requestId });
 
+    // Validate input
     if (!variantId || !requestId) {
-      throw new Error("Variant ID and Request ID are required");
+      throw new Error("variantId ve requestId gerekli");
     }
 
-    // Environment variables
-    const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_URL");
-    const SHOPIFY_STOREFRONT_API_TOKEN = Deno.env.get(
-      "SHOPIFY_STOREFRONT_API_TOKEN"
-    );
+    // Environment variables check
+    const SHOPIFY_STORE_DOMAIN =
+      Deno.env.get("VITE_SHOPIFY_STORE_URL") ||
+      Deno.env.get("SHOPIFY_STORE_URL");
+    const SHOPIFY_ACCESS_TOKEN =
+      Deno.env.get("VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN") ||
+      Deno.env.get("SHOPIFY_STOREFRONT_ACCESS_TOKEN");
 
-    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_API_TOKEN) {
-      throw new Error("Missing Shopify environment variables");
+    console.log("Environment check:", {
+      domain: SHOPIFY_STORE_DOMAIN ? "✓" : "✗",
+      token: SHOPIFY_ACCESS_TOKEN ? "✓" : "✗",
+    });
+
+    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+      console.error("Missing environment variables:", {
+        SHOPIFY_STORE_DOMAIN: !!SHOPIFY_STORE_DOMAIN,
+        SHOPIFY_ACCESS_TOKEN: !!SHOPIFY_ACCESS_TOKEN,
+      });
+      throw new Error("Shopify yapılandırması eksik");
     }
 
-    const SHOPIFY_API_URL = `https://${SHOPIFY_STORE_DOMAIN}/api/2023-10/graphql.json`;
+    // Initialize Supabase Admin Client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Supabase yapılandırması eksik");
+    }
 
-    // Auth check
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error("Authorization header is required");
+      throw new Error("Authorization header gerekli");
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: authError } =
+      await supabaseAdmin.auth.getUser(token);
 
-    if (authError || !user) {
+    if (authError || !userData.user) {
       console.error("Auth error:", authError);
-      throw new Error("Invalid authentication");
+      throw new Error("Geçersiz authentication");
     }
 
+    const user = userData.user;
     console.log("User authenticated:", user.email);
 
-    // Verify request
+    // Verify request ownership
     const { data: request, error: requestError } = await supabaseAdmin
       .from("company_requests")
       .select("*")
@@ -69,41 +95,57 @@ serve(async (req) => {
       .single();
 
     if (requestError || !request) {
-      console.error("Request error:", requestError);
-      throw new Error("Request not found or unauthorized");
+      console.error("Request verification failed:", requestError);
+      throw new Error("Request bulunamadı veya yetki yok");
     }
 
-    console.log("Request verified:", request.company_name);
+    console.log("Request verified:", {
+      id: request.id,
+      company_name: request.company_name,
+      status: request.status,
+    });
 
-    // Yeni Cart API kullan
-    const cartQuery = `
+    // Shopify GraphQL endpoint
+    const shopifyEndpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`;
+
+    // Create cart mutation
+    const cartMutation = `
       mutation cartCreate($input: CartInput!) {
         cartCreate(input: $input) {
           cart {
             id
             checkoutUrl
+            totalQuantity
+            estimatedCost {
+              totalAmount {
+                amount
+                currencyCode
+              }
+            }
           }
           userErrors {
             field
             message
+            code
           }
         }
-      }`;
+      }
+    `;
 
-    const cartVariables = {
+    const cartInput = {
       input: {
         lines: [
           {
             merchandiseId: variantId,
             quantity: 1,
           },
-        ],
+        ] as CartLine[],
         attributes: [
-          { key: "company_request_id", value: requestId },
-          { key: "user_email", value: user.email },
-          { key: "company_name", value: request.company_name },
-          { key: "package_name", value: request.package_name },
-        ],
+          { key: "company_request_id", value: requestId.toString() },
+          { key: "user_email", value: user.email || "" },
+          { key: "company_name", value: request.company_name || "" },
+          { key: "package_name", value: request.package_name || "" },
+        ] as CartAttribute[],
         buyerIdentity: {
           email: user.email,
         },
@@ -111,67 +153,109 @@ serve(async (req) => {
     };
 
     console.log(
-      "Creating cart with variables:",
-      JSON.stringify(cartVariables, null, 2)
+      "Creating cart with input:",
+      JSON.stringify(cartInput, null, 2)
     );
 
-    const cartResponse = await fetch(SHOPIFY_API_URL, {
+    // Make GraphQL request to Shopify
+    const shopifyResponse = await fetch(shopifyEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": SHOPIFY_STOREFRONT_API_TOKEN,
+        "X-Shopify-Storefront-Access-Token": SHOPIFY_ACCESS_TOKEN,
       },
-      body: JSON.stringify({ query: cartQuery, variables: cartVariables }),
+      body: JSON.stringify({
+        query: cartMutation,
+        variables: cartInput,
+      }),
     });
 
-    if (!cartResponse.ok) {
-      const errorText = await cartResponse.text();
-      console.error("Shopify Cart API error:", cartResponse.status, errorText);
-      throw new Error(`Shopify Cart API error: ${cartResponse.status}`);
-    }
-
-    const cartResult = await cartResponse.json();
-    console.log("Cart API result:", JSON.stringify(cartResult, null, 2));
-
-    if (cartResult.errors) {
-      console.error("GraphQL errors:", cartResult.errors);
-      throw new Error(`GraphQL errors: ${JSON.stringify(cartResult.errors)}`);
-    }
-
-    if (cartResult.data?.cartCreate?.userErrors?.length > 0) {
-      console.error(
-        "Cart creation errors:",
-        cartResult.data.cartCreate.userErrors
-      );
+    if (!shopifyResponse.ok) {
+      const errorText = await shopifyResponse.text();
+      console.error("Shopify API error:", {
+        status: shopifyResponse.status,
+        statusText: shopifyResponse.statusText,
+        body: errorText,
+      });
       throw new Error(
-        `Cart error: ${cartResult.data.cartCreate.userErrors[0].message}`
+        `Shopify API hatası: ${shopifyResponse.status} - ${shopifyResponse.statusText}`
       );
     }
 
-    const checkoutUrl = cartResult.data?.cartCreate?.cart?.checkoutUrl;
+    const shopifyResult = await shopifyResponse.json();
+    console.log("Shopify response:", JSON.stringify(shopifyResult, null, 2));
 
-    if (!checkoutUrl) {
-      console.error(
-        "No checkout URL in cart response:",
-        cartResult.data?.cartCreate
-      );
-      throw new Error("Checkout URL not received from Shopify Cart API");
+    // Check for GraphQL errors
+    if (shopifyResult.errors && shopifyResult.errors.length > 0) {
+      console.error("GraphQL errors:", shopifyResult.errors);
+      throw new Error(`GraphQL hatası: ${shopifyResult.errors[0].message}`);
     }
 
-    console.log("Cart created successfully:", checkoutUrl);
-    console.log("=== CART CREATE REQUEST END ===");
+    // Check for user errors
+    const userErrors = shopifyResult.data?.cartCreate?.userErrors;
+    if (userErrors && userErrors.length > 0) {
+      console.error("Cart creation errors:", userErrors);
+      throw new Error(`Cart oluşturma hatası: ${userErrors[0].message}`);
+    }
 
-    return new Response(JSON.stringify({ checkoutUrl }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+    // Extract checkout URL
+    const cart = shopifyResult.data?.cartCreate?.cart;
+    if (!cart || !cart.checkoutUrl) {
+      console.error("Invalid cart response:", shopifyResult.data?.cartCreate);
+      throw new Error("Checkout URL alınamadı");
+    }
+
+    console.log("Cart created successfully:", {
+      cartId: cart.id,
+      checkoutUrl: cart.checkoutUrl,
+      totalQuantity: cart.totalQuantity,
     });
+
+    // Update request status to indicate payment is being processed
+    const { error: updateError } = await supabaseAdmin
+      .from("company_requests")
+      .update({
+        status: "pending_payment",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", requestId);
+
+    if (updateError) {
+      console.error("Failed to update request status:", updateError);
+      // Don't throw here, as the checkout URL is still valid
+    }
+
+    console.log("=== SHOPIFY CHECKOUT SESSION SUCCESS ===");
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        checkoutUrl: cart.checkoutUrl,
+        cartId: cart.id,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
   } catch (error) {
-    console.error("=== CART CREATE ERROR ===");
-    console.error("Error:", error.message);
-
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.error("=== SHOPIFY CHECKOUT SESSION ERROR ===");
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
     });
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        details: "Checkout session oluşturulamadı",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });

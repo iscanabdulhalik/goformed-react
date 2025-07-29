@@ -1,4 +1,4 @@
-// src/components/layout/Sidebar.jsx - Ağırbaşlı & Oturaklı Tasarım
+// src/components/layout/Sidebar.jsx - Güncellenmiş
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -11,6 +11,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaUser,
+  FaShoppingBag,
 } from "react-icons/fa";
 import goformedLogo from "@/assets/logos/goformed.png";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,12 @@ import { cn } from "@/lib/utils";
 
 const menuItems = [
   { to: "/dashboard", text: "Dashboard", icon: FaTachometerAlt },
-  { to: "/dashboard/marketplace", text: "Marketplace", icon: FaStore },
+  {
+    to: "/dashboard/marketplace",
+    text: "Marketplace",
+    icon: FaShoppingBag,
+    description: "Ek Hizmetler",
+  },
   { to: "/dashboard/orders", text: "Orders", icon: FaListAlt },
   { to: "/dashboard/settings", text: "Settings", icon: FaCog },
 ];
@@ -45,7 +51,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
       )}
       style={{ width: `${width}px` }}
     >
-      {/* Toggle Button - Orta Kısımda */}
+      {/* Toggle Button */}
       <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 z-50">
         <Button
           onClick={toggleCollapse}
@@ -66,10 +72,9 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
         </Button>
       </div>
 
-      {/* Logo Section - Sabit Boyut */}
+      {/* Logo Section */}
       <div className="flex items-center justify-center h-20 border-b border-gray-100 px-4 flex-shrink-0">
         <div className="flex items-center justify-center">
-          {/* Logo her zaman aynı boyutta kalır */}
           <img
             src={goformedLogo}
             alt="GoFormed"
@@ -137,7 +142,7 @@ function SidebarLink({ item, isCollapsed }) {
         cn(
           "flex items-center px-3 py-3 rounded-lg transition-all duration-200",
           "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
-          "font-medium text-sm group",
+          "font-medium text-sm group relative",
           isActive &&
             "bg-blue-50 text-blue-700 hover:text-blue-800 hover:bg-blue-100",
           isCollapsed && "justify-center"
@@ -151,7 +156,24 @@ function SidebarLink({ item, isCollapsed }) {
         )}
       />
       {!isCollapsed && (
-        <span className="truncate font-medium">{item.text}</span>
+        <div className="flex-1">
+          <span className="truncate font-medium">{item.text}</span>
+          {item.description && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              {item.description}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tooltip for collapsed state */}
+      {isCollapsed && (
+        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+          {item.text}
+          {item.description && (
+            <div className="text-gray-300 text-xs">{item.description}</div>
+          )}
+        </div>
       )}
     </NavLink>
   );

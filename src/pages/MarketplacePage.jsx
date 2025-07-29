@@ -1,399 +1,604 @@
-// src/pages/MarketplacePage.jsx - Duplikasyon kontrolü ile
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/MarketplacePage.jsx - Ek Hizmetler Marketplace
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
-import { ukPackages, globalPackages } from "@/lib/packages";
-
-// Material UI imports
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import TextField from "@mui/material/TextField";
-import CircularProgress from "@mui/material/CircularProgress";
-import Alert from "@mui/material/Alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
+  CardDescription,
 } from "@/components/ui/card";
-import { Check, Sparkles, Crown, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  FaFileAlt,
+  FaPalette,
+  FaIdCard,
+  FaMapMarkerAlt,
+  FaCalculator,
+  FaShieldAlt,
+  FaGlobe,
+  FaEnvelope,
+  FaPhoneAlt,
+  FaSpinner,
+  FaCheck,
+} from "react-icons/fa";
+import { Building2, CreditCard, FileText, MapPin } from "lucide-react";
 
-// PackageCard component (önceki versiyondan aynı)
-const PackageCard = ({ plan, onSelect, index }) => {
-  const [isHovered, setIsHovered] = useState(false);
+// Ek hizmetler data
+const additionalServices = [
+  {
+    id: "vat-registration",
+    title: "VAT Registration",
+    description:
+      "Get your company registered for VAT with HMRC. Essential for businesses with turnover over £85,000.",
+    longDescription:
+      "Complete VAT registration service including application submission, communication with HMRC, and guidance on VAT compliance requirements.",
+    price: "$129",
+    originalPrice: "$199",
+    currency: "USD",
+    icon: <FaCalculator className="w-6 h-6" />,
+    category: "Tax & Compliance",
+    deliveryTime: "3-5 business days",
+    features: [
+      "VAT registration application",
+      "HMRC communication handling",
+      "VAT compliance guidance",
+      "Ongoing support for 30 days",
+    ],
+    isPopular: false,
+    isNew: true,
+  },
+  {
+    id: "logo-design",
+    title: "Logo Design",
+    description:
+      "Get 3 original, custom-made logos tailored to your business style and preferences — 100% unique.",
+    longDescription:
+      "Professional logo design service with unlimited revisions until you're completely satisfied. Includes multiple file formats and brand guidelines.",
+    price: "$50",
+    originalPrice: "$99",
+    currency: "USD",
+    icon: <FaPalette className="w-6 h-6" />,
+    category: "Branding",
+    deliveryTime: "2-3 business days",
+    features: [
+      "3 unique logo concepts",
+      "Unlimited revisions",
+      "Multiple file formats (PNG, SVG, EPS)",
+      "Brand color palette",
+      "Commercial use rights",
+    ],
+    isPopular: true,
+    isNew: false,
+  },
+  {
+    id: "ein-number",
+    title: "EIN Number",
+    description:
+      "Get your EIN in just 2-5 business days as a non-US resident. Essential for US business operations.",
+    longDescription:
+      "Fast EIN (Employer Identification Number) application service for international entrepreneurs looking to do business in the US.",
+    price: "$60",
+    originalPrice: "$120",
+    currency: "USD",
+    icon: <FaIdCard className="w-6 h-6" />,
+    category: "US Business",
+    deliveryTime: "2-5 business days",
+    features: [
+      "EIN application & submission",
+      "IRS communication handling",
+      "Digital EIN certificate",
+      "Tax ID setup guidance",
+    ],
+    isPopular: false,
+    isNew: false,
+  },
+  {
+    id: "uk-address-proof",
+    title: "UK Proof of Address",
+    description:
+      "Obtain a UK proof of address accepted by Stripe and UK online banking services.",
+    longDescription:
+      "Official UK address verification document that satisfies KYC requirements for major financial platforms and banking services.",
+    price: "$129",
+    originalPrice: "$200",
+    currency: "USD",
+    icon: <FaMapMarkerAlt className="w-6 h-6" />,
+    category: "Documentation",
+    deliveryTime: "5-7 business days",
+    features: [
+      "Official address verification",
+      "Stripe & bank accepted format",
+      "Digital & physical copies",
+      "Ongoing address service",
+    ],
+    isPopular: false,
+    isNew: false,
+  },
+  {
+    id: "business-insurance",
+    title: "Business Insurance",
+    description:
+      "Protect your business with comprehensive insurance coverage tailored for UK companies.",
+    longDescription:
+      "Professional indemnity and public liability insurance options designed specifically for international entrepreneurs operating UK companies.",
+    price: "$89",
+    originalPrice: "$150",
+    currency: "USD",
+    icon: <FaShieldAlt className="w-6 h-6" />,
+    category: "Protection",
+    deliveryTime: "1-2 business days",
+    features: [
+      "Professional indemnity cover",
+      "Public liability insurance",
+      "Instant digital certificates",
+      "Competitive rates",
+    ],
+    isPopular: false,
+    isNew: true,
+  },
+  {
+    id: "website-setup",
+    title: "Professional Website",
+    description:
+      "Get a professional business website with hosting, domain, and SSL certificate included.",
+    longDescription:
+      "Complete website solution including modern design, mobile optimization, and business email setup to establish your online presence.",
+    price: "$199",
+    originalPrice: "$399",
+    currency: "USD",
+    icon: <FaGlobe className="w-6 h-6" />,
+    category: "Digital Presence",
+    deliveryTime: "5-7 business days",
+    features: [
+      "Modern responsive design",
+      "Free domain & hosting (1 year)",
+      "SSL certificate included",
+      "Business email setup",
+      "SEO optimization",
+    ],
+    isPopular: true,
+    isNew: false,
+  },
+];
 
-  const getBadgeIcon = (badge) => {
-    switch (badge) {
-      case "Premium":
-        return <Crown className="w-3 h-3" />;
-      case "Elite":
-        return <Sparkles className="w-3 h-3" />;
-      default:
-        return <Star className="w-3 h-3" />;
-    }
-  };
-
-  const getBadgeColor = (badge) => {
-    switch (badge) {
-      case "Premium":
-        return "bg-blue-600";
-      case "Elite":
-        return "bg-purple-600";
-      default:
-        return "bg-green-600";
-    }
-  };
-
-  const isPremium = plan.badge === "Premium" || plan.badge === "Elite";
-
-  return (
-    <div
-      className="group transform transition-all duration-300 ease-out hover:scale-105"
-      style={{
-        animationDelay: `${index * 100}ms`,
-        animation: "slideInUp 0.6s ease-out forwards",
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Card
-        className={`
-        relative h-full backdrop-blur-sm transition-all duration-300 overflow-hidden
-        ${
-          isPremium
-            ? "bg-white border-2 border-blue-200 shadow-lg hover:shadow-xl"
-            : "bg-white border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md"
-        }
-      `}
-      >
-        <div className="absolute top-4 right-4 z-10">
-          <div
-            className={`
-            ${getBadgeColor(plan.badge)} text-white px-3 py-1 text-xs 
-            font-medium rounded-full shadow-sm flex items-center gap-1
-            transition-transform duration-300 ${isHovered ? "scale-105" : ""}
-          `}
-          >
-            {getBadgeIcon(plan.badge)}
-            {plan.badge}
-          </div>
-        </div>
-
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-semibold mb-3 text-gray-900">
-            {plan.name}
-          </CardTitle>
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-3">
-              <span className="text-base font-normal text-gray-400 line-through">
-                {plan.oldPrice}
-              </span>
-              <span className="text-3xl font-bold text-gray-900">
-                {plan.price}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 font-normal">{plan.feeText}</p>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex-1 space-y-4">
-          <ul className="space-y-3">
-            {plan.features.map((feature, featureIndex) => (
-              <li
-                key={feature}
-                className="flex items-start gap-3 transition-transform duration-200"
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  <Check className="h-4 w-4 text-green-500" />
-                </div>
-                <span className="text-sm text-gray-600 font-normal leading-relaxed">
-                  {feature}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-
-        <CardFooter className="pt-6">
-          <Button
-            variant="contained"
-            onClick={() => onSelect(plan)}
-            fullWidth
-            className="!py-3 !font-medium !text-base !rounded-lg !transition-all !duration-300"
-            sx={{
-              background: isPremium
-                ? "linear-gradient(135deg, #3b82f6, #6366f1)"
-                : "#1f2937",
-              "&:hover": {
-                background: isPremium
-                  ? "linear-gradient(135deg, #2563eb, #4f46e5)"
-                  : "#374151",
-                transform: "translateY(-1px)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              },
-            }}
-          >
-            Choose Plan
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-};
-
-export default function MarketplacePage() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("uk");
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [companyName, setCompanyName] = useState("");
+// Service Card Component
+const ServiceCard = ({ service, onOrder }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleSelectPackage = (plan) => {
-    setSelectedPackage(plan);
-    setIsModalOpen(true);
-    setError("");
-  };
-
-  const handleCloseModal = () => {
-    if (isLoading) return;
-    setIsModalOpen(false);
-    setError("");
-    setCompanyName("");
-  };
-
-  const checkDuplicateCompany = async (companyName, userId) => {
-    const { data, error } = await supabase
-      .from("company_requests")
-      .select("id, company_name, status")
-      .eq("user_id", userId)
-      .eq("company_name", companyName.trim().toUpperCase());
-
-    if (error) throw error;
-    return data && data.length > 0;
-  };
-
-  const handleCreateRequest = async () => {
-    if (!companyName.trim()) {
-      setError("Please enter a company name.");
-      return;
-    }
-
-    const normalizedName = companyName.trim().toUpperCase();
-
-    if (
-      !normalizedName.endsWith("LTD") &&
-      !normalizedName.endsWith("LIMITED")
-    ) {
-      setError("Company name must end with 'LTD' or 'LIMITED'.");
-      return;
-    }
-
+  const handleOrder = async () => {
     setIsLoading(true);
-    setError("");
-
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found. Please log in again.");
-
-      // Duplikasyon kontrolü
-      const isDuplicate = await checkDuplicateCompany(normalizedName, user.id);
-      if (isDuplicate) {
-        setError(
-          "You already have a request for this company name. Please choose a different name."
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      await supabase.from("company_requests").insert({
-        user_id: user.id,
-        company_name: normalizedName,
-        package_name: selectedPackage.name,
-        status: "pending_payment",
-      });
-
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Error creating request:", error);
-      setError(`An error occurred: ${error.message}`);
+      await onOrder(service);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-12 space-y-12">
-        <div className="text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 text-sm font-normal text-gray-600 mb-4">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            Choose Your Business Package
-          </div>
-
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-            Launch Your Business Today
-          </h1>
-
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Select the perfect package to start your entrepreneurial journey
-            with confidence.
-          </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.3 }}
+      className="h-full"
+    >
+      <Card
+        className={`h-full flex flex-col transition-all duration-300 hover:shadow-lg ${
+          service.isPopular
+            ? "border-2 border-blue-500 shadow-md"
+            : "border hover:border-gray-300"
+        }`}
+      >
+        {/* Header with badges */}
+        <div className="relative">
+          {service.isPopular && (
+            <div className="absolute -top-3 left-4 z-10">
+              <Badge className="bg-blue-600 text-white px-3 py-1 text-xs font-semibold">
+                Popular
+              </Badge>
+            </div>
+          )}
+          {service.isNew && (
+            <div className="absolute -top-3 right-4 z-10">
+              <Badge className="bg-green-600 text-white px-3 py-1 text-xs font-semibold">
+                New
+              </Badge>
+            </div>
+          )}
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-md grid-cols-2 bg-white border border-gray-200 shadow-sm rounded-lg p-1">
-              <TabsTrigger
-                value="uk"
-                className="rounded-md font-medium text-sm transition-all duration-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
-              >
-                🇬🇧 UK Residents
-              </TabsTrigger>
-              <TabsTrigger
-                value="global"
-                className="rounded-md font-medium text-sm transition-all duration-200 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
-              >
-                🌍 Global
-              </TabsTrigger>
-            </TabsList>
+        <CardHeader className="pb-4">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 p-3 bg-blue-50 rounded-lg">
+              <div className="text-blue-600">{service.icon}</div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg font-bold text-gray-900 mb-1">
+                {service.title}
+              </CardTitle>
+              <Badge variant="outline" className="text-xs mb-2">
+                {service.category}
+              </Badge>
+              <CardDescription className="text-sm text-gray-600 leading-relaxed">
+                {service.description}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex-1 flex flex-col">
+          {/* Price */}
+          <div className="mb-4">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-2xl font-bold text-gray-900">
+                {service.price}
+              </span>
+              {service.originalPrice && (
+                <span className="text-lg text-gray-400 line-through">
+                  {service.originalPrice}
+                </span>
+              )}
+              <span className="text-sm text-gray-500">Total amount</span>
+            </div>
+            <p className="text-xs text-gray-500">
+              Delivery: {service.deliveryTime}
+            </p>
           </div>
 
-          <TabsContent value="uk" className="mt-8">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-5xl mx-auto">
-              {ukPackages.map((plan, index) => (
-                <PackageCard
-                  key={plan.name}
-                  plan={plan}
-                  onSelect={handleSelectPackage}
-                  index={index}
-                />
+          {/* Features */}
+          <div className="mb-6 flex-1">
+            <ul className="space-y-2">
+              {service.features.slice(0, 3).map((feature, index) => (
+                <li key={index} className="flex items-start gap-2 text-sm">
+                  <FaCheck className="h-3 w-3 text-green-500 mt-1 flex-shrink-0" />
+                  <span className="text-gray-600">{feature}</span>
+                </li>
               ))}
-            </div>
-          </TabsContent>
+              {service.features.length > 3 && (
+                <li className="text-xs text-gray-500 pl-5">
+                  +{service.features.length - 3} more features
+                </li>
+              )}
+            </ul>
+          </div>
 
-          <TabsContent value="global" className="mt-8">
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 max-w-5xl mx-auto">
-              {globalPackages.map((plan, index) => (
-                <PackageCard
-                  key={plan.name}
-                  plan={plan}
-                  onSelect={handleSelectPackage}
-                  index={index}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Modal */}
-        <Dialog
-          open={isModalOpen}
-          onClose={handleCloseModal}
-          PaperProps={{
-            sx: {
-              borderRadius: "12px",
-              padding: "8px",
-              background: "white",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-              minWidth: "480px",
-            },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              fontSize: "1.25rem",
-              fontWeight: "600",
-              color: "#111827",
-              textAlign: "center",
-            }}
+          {/* Order Button */}
+          <Button
+            onClick={handleOrder}
+            disabled={isLoading}
+            className={`w-full font-semibold transition-all duration-300 ${
+              service.isPopular
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-900 hover:bg-gray-800"
+            }`}
           >
-            Complete Your Request
-          </DialogTitle>
-
-          <DialogContent sx={{ padding: "20px" }}>
-            <DialogContentText
-              sx={{
-                mb: 3,
-                fontSize: "0.95rem",
-                color: "#6b7280",
-                textAlign: "center",
-                lineHeight: 1.5,
-              }}
-            >
-              Please enter your desired company name to continue.
-              <br />
-              <strong>Name must end with "LTD" or "LIMITED".</strong>
-            </DialogContentText>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2, fontSize: "0.9rem" }}>
-                {error}
-              </Alert>
+            {isLoading ? (
+              <>
+                <FaSpinner className="animate-spin mr-2 h-4 w-4" />
+                Processing...
+              </>
+            ) : (
+              "Order"
             )}
+          </Button>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
 
-            <TextField
-              autoFocus
-              margin="dense"
-              id="company-name"
-              label="Company Name"
-              type="text"
-              fullWidth
-              variant="outlined"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value.toUpperCase())}
-              placeholder="e.g., MYAWESOME LTD"
-              disabled={isLoading}
-              error={!!error}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "8px",
-                  fontSize: "1rem",
-                  fontWeight: "normal",
-                },
-              }}
-            />
-          </DialogContent>
+// Service Detail Modal
+const ServiceDetailModal = ({ service, isOpen, onClose, onOrder }) => {
+  const [isLoading, setIsLoading] = useState(false);
 
-          <DialogActions sx={{ padding: "16px 20px 20px", gap: "8px" }}>
-            <Button
-              onClick={handleCloseModal}
-              disabled={isLoading}
-              sx={{ textTransform: "none", color: "#6b7280" }}
+  if (!isOpen || !service) return null;
+
+  const handleOrder = async () => {
+    setIsLoading(true);
+    try {
+      await onOrder(service);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="text-blue-600 text-xl">{service.icon}</div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {service.title}
+                </h2>
+                <Badge variant="outline" className="text-sm">
+                  {service.category}
+                </Badge>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
             >
-              Cancel
+              ×
+            </button>
+          </div>
+
+          {/* Description */}
+          <div className="mb-6">
+            <p className="text-gray-700 leading-relaxed">
+              {service.longDescription}
+            </p>
+          </div>
+
+          {/* Price and Delivery */}
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-3xl font-bold text-gray-900">
+                    {service.price}
+                  </span>
+                  {service.originalPrice && (
+                    <span className="text-xl text-gray-400 line-through">
+                      {service.originalPrice}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">Total amount</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {service.deliveryTime}
+                </p>
+                <p className="text-xs text-gray-500">Delivery time</p>
+              </div>
+            </div>
+          </div>
+
+          {/* All Features */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              What's Included:
+            </h3>
+            <div className="grid gap-3">
+              {service.features.map((feature, index) => (
+                <motion.div
+                  key={feature}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-start gap-3 p-3 bg-green-50 rounded-lg"
+                >
+                  <FaCheck className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">{feature}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Order Button */}
+          <div className="flex gap-3">
+            <Button onClick={onClose} variant="outline" className="flex-1">
+              Close
             </Button>
             <Button
-              onClick={handleCreateRequest}
-              variant="contained"
+              onClick={handleOrder}
               disabled={isLoading}
-              sx={{
-                textTransform: "none",
-                background: "#3b82f6",
-                "&:hover": { background: "#2563eb" },
-              }}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <CircularProgress size={16} sx={{ color: "white" }} />
+                <>
+                  <FaSpinner className="animate-spin mr-2 h-4 w-4" />
                   Processing...
-                </div>
+                </>
               ) : (
-                "Create Request"
+                `Order ${service.price}`
               )}
             </Button>
-          </DialogActions>
-        </Dialog>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// Categories
+const categories = [
+  { id: "all", name: "All Services", icon: <Building2 className="w-4 h-4" /> },
+  {
+    id: "Tax & Compliance",
+    name: "Tax & Compliance",
+    icon: <FileText className="w-4 h-4" />,
+  },
+  { id: "Branding", name: "Branding", icon: <FaPalette className="w-4 h-4" /> },
+  {
+    id: "Documentation",
+    name: "Documentation",
+    icon: <FaFileAlt className="w-4 h-4" />,
+  },
+  {
+    id: "US Business",
+    name: "US Business",
+    icon: <FaIdCard className="w-4 h-4" />,
+  },
+  {
+    id: "Digital Presence",
+    name: "Digital",
+    icon: <FaGlobe className="w-4 h-4" />,
+  },
+  {
+    id: "Protection",
+    name: "Protection",
+    icon: <FaShieldAlt className="w-4 h-4" />,
+  },
+];
+
+// Main Component
+export default function MarketplacePage() {
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedService, setSelectedService] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const filteredServices =
+    selectedCategory === "all"
+      ? additionalServices
+      : additionalServices.filter(
+          (service) => service.category === selectedCategory
+        );
+
+  const handleServiceOrder = async (service) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert("Hizmet siparişi vermek için giriş yapmanız gerekiyor.");
+        return;
+      }
+
+      // Burada gerçek sipariş işlemi yapılabilir
+      // Örneğin: Stripe checkout, database'e sipariş kaydetme vs.
+      console.log("Ordering service:", service.id, "for user:", user.email);
+
+      // Demo için alert gösterelim
+      alert(
+        `${service.title} hizmeti için sipariş alındı! Size en kısa sürede dönüş yapılacak.`
+      );
+    } catch (error) {
+      console.error("Order error:", error);
+      alert("Sipariş sırasında hata oluştu. Lütfen tekrar deneyin.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Building2 className="w-8 h-8 text-blue-600" />
+            <h1 className="text-4xl font-bold text-gray-900">Marketplace</h1>
+          </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Expand your business with our additional services. From VAT
+            registration to professional branding, we've got you covered.
+          </p>
+        </motion.div>
+
+        {/* Category Filter */}
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              className="flex items-center gap-2"
+            >
+              {category.icon}
+              {category.name}
+            </Button>
+          ))}
+        </div>
+
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {filteredServices.map((service, index) => (
+            <motion.div
+              key={service.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => {
+                setSelectedService(service);
+                setShowModal(true);
+              }}
+              className="cursor-pointer"
+            >
+              <ServiceCard
+                service={service}
+                onOrder={(service) => {
+                  setSelectedService(service);
+                  setShowModal(true);
+                }}
+              />
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredServices.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Building2 className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              No services found
+            </h3>
+            <p className="text-gray-600">
+              Try selecting a different category or check back later for new
+              services.
+            </p>
+          </div>
+        )}
+
+        {/* Contact Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-2xl shadow-lg p-8 text-center"
+        >
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Need Something Custom?
+          </h2>
+          <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+            Don't see what you're looking for? We offer custom solutions
+            tailored to your specific business needs. Get in touch and let's
+            discuss how we can help.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button variant="outline" className="flex items-center gap-2">
+              <FaEnvelope className="w-4 h-4" />
+              Email Us
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+              <FaPhoneAlt className="w-4 h-4" />
+              Schedule a Call
+            </Button>
+          </div>
+        </motion.div>
       </div>
+
+      {/* Service Detail Modal */}
+      <ServiceDetailModal
+        service={selectedService}
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedService(null);
+        }}
+        onOrder={handleServiceOrder}
+      />
     </div>
   );
 }

@@ -1,5 +1,4 @@
-// src/pages/HomePage.jsx
-
+// src/pages/HomePage.jsx - CompanyFormationFlow olmadan
 import React from "react";
 import HeroSection from "../components/sections/HeroSection";
 import TrustedBySection from "../components/sections/TrustedBySection";
@@ -10,7 +9,8 @@ import FaqSection from "../components/sections/FaqSection";
 import ContactSection from "../components/sections/ContactSection";
 import SocialProofSection from "../components/sections/SocialProofSection";
 import WhyUsSection from "../components/sections/WhyUsSection";
-import CompanyFormationFlow from "../components/sections/CompanyFormationFlow";
+import AboutSection from "../components/sections/AboutSection";
+import CtaSection from "../components/sections/CtaSection";
 
 const HomePage = () => {
   return (
@@ -19,10 +19,12 @@ const HomePage = () => {
       <TrustedBySection />
       <ServicesSection />
       <WhyUsSection />
+      <AboutSection />
       <HowItWorksSection />
       <SocialProofSection />
-      <CompanyFormationFlow />
+      <PricingSection />
       <FaqSection />
+      <CtaSection />
       <ContactSection />
     </>
   );
