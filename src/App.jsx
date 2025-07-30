@@ -1,4 +1,4 @@
-// src/App.jsx - URL hash parameters fix
+// src/App.jsx - Admin routes eklendi
 import React, { useState, useEffect } from "react";
 import {
   Routes,
@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { supabase } from "./supabase";
 
+// User pages
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -17,13 +18,22 @@ import MarketplacePage from "./pages/MarketplacePage";
 import OrdersPage from "./pages/OrdersPage";
 import SettingsPage from "./pages/SettingsPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import RequestDetailsPage from "./pages/RequestDetailsPage";
 
+// Admin pages
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUserManagement from "./pages/admin/AdminUserManagement";
+import AdminNotificationManagement from "./pages/admin/AdminNotificationManagement";
+
+// Layouts
 import Layout from "./components/layout/Layout";
 import DashboardLayout from "./components/layout/DashboardLayout";
+import AdminLayout from "./components/layout/AdminLayout";
+
+// Components
 import Loader from "./components/ui/Loader";
 import ErrorBoundary from "./components/ErrorBoundary";
-
-import RequestDetailsPage from "./pages/RequestDetailsPage";
 
 // Session timeout: 30 dakika
 const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -48,7 +58,6 @@ const App = () => {
         console.log("🔑 Processing auth callback...");
 
         try {
-          // Supabase session'ı set et
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -58,14 +67,24 @@ const App = () => {
             console.error("Auth callback error:", error);
           } else {
             console.log("✅ Auth callback successful");
-            // URL'den hash parametrelerini temizle
             window.history.replaceState(
               {},
               document.title,
               window.location.pathname
             );
-            // Dashboard'a yönlendir
-            navigate("/dashboard", { replace: true });
+
+            // Check if admin and redirect accordingly
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", data.user.id)
+              .single();
+
+            if (profile?.role === "admin") {
+              navigate("/admin", { replace: true });
+            } else {
+              navigate("/dashboard", { replace: true });
+            }
           }
         } catch (error) {
           console.error("Session setting error:", error);
@@ -73,7 +92,6 @@ const App = () => {
       }
     };
 
-    // Sayfa yüklendiğinde auth callback'i kontrol et
     if (window.location.hash.includes("access_token")) {
       handleAuthCallback();
     }
@@ -123,7 +141,13 @@ const App = () => {
     try {
       await supabase.auth.signOut();
       setSession(null);
-      navigate("/login");
+
+      // Redirect based on current location
+      if (location.pathname.startsWith("/admin")) {
+        navigate("/admin/login");
+      } else {
+        navigate("/login");
+      }
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -146,7 +170,6 @@ const App = () => {
         } else if (mounted) {
           setSession(session);
 
-          // Pending request kontrolü
           if (session?.user) {
             const pendingRequest = localStorage.getItem("pendingRequest");
             if (pendingRequest) {
@@ -167,7 +190,6 @@ const App = () => {
 
     initializeAuth();
 
-    // Auth state değişikliklerini dinle
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -178,20 +200,32 @@ const App = () => {
       setSession(session);
 
       if (event === "SIGNED_IN" && session) {
-        // Giriş yapıldığında dashboard'a yönlendir (sadece login/register sayfalarındaysa)
-        if (
-          location.pathname === "/login" ||
-          location.pathname === "/register"
+        // Check if user is admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        // Redirect based on role and current location
+        if (profile?.role === "admin" && location.pathname === "/admin/login") {
+          navigate("/admin", { replace: true });
+        } else if (
+          profile?.role !== "admin" &&
+          (location.pathname === "/login" || location.pathname === "/register")
         ) {
           navigate("/dashboard", { replace: true });
         }
       }
 
       if (event === "SIGNED_OUT") {
-        navigate("/login", { replace: true });
+        if (location.pathname.startsWith("/admin")) {
+          navigate("/admin/login", { replace: true });
+        } else {
+          navigate("/login", { replace: true });
+        }
       }
 
-      // Pending request kontrolü
       if (session?.user) {
         const pendingRequest = localStorage.getItem("pendingRequest");
         if (pendingRequest) {
@@ -248,6 +282,50 @@ const App = () => {
     }
   };
 
+  // Admin Guard Component
+  const AdminGuard = ({ children }) => {
+    const [adminLoading, setAdminLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+      const checkAdmin = async () => {
+        try {
+          if (!session?.user) {
+            setAdminLoading(false);
+            return;
+          }
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+
+          setIsAdmin(profile?.role === "admin");
+        } catch (error) {
+          console.error("Admin check error:", error);
+          setIsAdmin(false);
+        } finally {
+          setAdminLoading(false);
+        }
+      };
+
+      checkAdmin();
+    }, [session]);
+
+    if (adminLoading) return <Loader />;
+
+    if (!session) {
+      return <Navigate to="/admin/login" replace />;
+    }
+
+    if (!isAdmin) {
+      return <Navigate to="/admin/login" replace />;
+    }
+
+    return children;
+  };
+
   // Loading durumunda
   if (loading || !initialized) {
     return <Loader />;
@@ -268,7 +346,7 @@ const App = () => {
           }
         />
 
-        {/* Auth sayfaları */}
+        {/* User Auth sayfaları */}
         <Route
           path="/login"
           element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
@@ -286,7 +364,7 @@ const App = () => {
           }
         />
 
-        {/* Dashboard - korumalı rotalar */}
+        {/* User Dashboard - korumalı rotalar */}
         <Route
           path="/dashboard"
           element={
@@ -298,6 +376,39 @@ const App = () => {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="request/:id" element={<RequestDetailsPage />} />
+        </Route>
+
+        {/* Admin Auth */}
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+
+        {/* Admin Dashboard - korumalı rotalar */}
+        <Route
+          path="/admin"
+          element={
+            <AdminGuard>
+              <AdminLayout />
+            </AdminGuard>
+          }
+        >
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminUserManagement />} />
+          <Route
+            path="companies"
+            element={<div>Company Management Coming Soon</div>}
+          />
+          <Route
+            path="notifications"
+            element={<AdminNotificationManagement />}
+          />
+          <Route
+            path="automations"
+            element={<div>Automations Coming Soon</div>}
+          />
+          <Route path="reports" element={<div>Reports Coming Soon</div>} />
+          <Route
+            path="settings"
+            element={<div>Admin Settings Coming Soon</div>}
+          />
         </Route>
 
         {/* 404 - Bulunamayan sayfalar */}
