@@ -74,7 +74,7 @@ export default function DashboardLayout() {
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="text-2xl font-semibold text-gray-900"
+                className="text-2xl font-medium text-gray-900 tracking-tight"
               >
                 {getPageTitle()}
               </motion.h1>

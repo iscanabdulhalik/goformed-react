@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx - Improved with animations and better spacing
+// src/pages/DashboardPage.jsx - Enhanced with time-based greetings and improved animations
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link } from "react-router-dom";
@@ -18,35 +18,86 @@ import {
   FaTimesCircle,
   FaShoppingBag,
   FaBuilding,
-  FaChartLine,
-  FaStar,
+  FaChartBar,
   FaArrowRight,
   FaGlobe,
-  FaUsers,
-  FaChartBar,
 } from "react-icons/fa";
-import { Check, Crown, Sparkles, Star, Building2, Zap } from "lucide-react";
+import {
+  Check,
+  Crown,
+  Sparkles,
+  Star,
+  Building2,
+  Zap,
+  Sunrise,
+  Sun,
+  Moon,
+  Sunset,
+} from "lucide-react";
 
-// Animation variants
+// Time-based greeting and theme configuration
+const getTimeBasedGreeting = () => {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return {
+      greeting: "Good Morning!",
+      message: "Ready to build something amazing today?",
+      icon: <Sunrise className="w-6 h-6" />,
+      gradient: "from-orange-400 via-yellow-400 to-orange-500",
+      bgGradient: "from-orange-50 to-yellow-50",
+      iconColor: "text-orange-500",
+    };
+  } else if (hour >= 12 && hour < 17) {
+    return {
+      greeting: "Good Afternoon!",
+      message: "Keep up the great work on your business journey",
+      icon: <Sun className="w-6 h-6" />,
+      gradient: "from-blue-400 via-cyan-400 to-blue-500",
+      bgGradient: "from-blue-50 to-cyan-50",
+      iconColor: "text-blue-500",
+    };
+  } else if (hour >= 17 && hour < 21) {
+    return {
+      greeting: "Good Evening!",
+      message: "Time to review your progress and plan ahead",
+      icon: <Sunset className="w-6 h-6" />,
+      gradient: "from-purple-400 via-pink-400 to-red-500",
+      bgGradient: "from-purple-50 to-pink-50",
+      iconColor: "text-purple-500",
+    };
+  } else {
+    return {
+      greeting: "Good Night!",
+      message: "Working late? Your dedication will pay off",
+      icon: <Moon className="w-6 h-6" />,
+      gradient: "from-indigo-400 via-purple-400 to-indigo-600",
+      bgGradient: "from-indigo-50 to-purple-50",
+      iconColor: "text-indigo-500",
+    };
+  }
+};
+
+// Enhanced animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      delayChildren: 0.2,
+      delayChildren: 0.3,
     },
   },
 };
 
 const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
+  hidden: { y: 30, opacity: 0 },
   visible: {
     y: 0,
     opacity: 1,
     transition: {
-      duration: 0.5,
-      ease: "easeOut",
+      duration: 0.6,
+      ease: [0.22, 1, 0.36, 1],
     },
   },
 };
@@ -54,16 +105,33 @@ const itemVariants = {
 const cardHoverVariants = {
   rest: { scale: 1, y: 0 },
   hover: {
-    scale: 1.02,
-    y: -5,
+    scale: 1.03,
+    y: -8,
     transition: {
-      duration: 0.2,
+      duration: 0.3,
       ease: "easeOut",
     },
   },
 };
 
-// Package Card Component
+const titleVariants = {
+  hidden: {
+    opacity: 0,
+    y: -20,
+    scale: 0.95,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.8,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
+
+// Package Card Component with enhanced animations
 const PackageCard = ({ plan, onSelect, isPopular = false }) => {
   const getBadgeIcon = (badge) => {
     switch (badge) {
@@ -352,6 +420,16 @@ export default function DashboardPage() {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [companyName, setCompanyName] = useState("");
   const [showPackageModal, setShowPackageModal] = useState(false);
+  const [timeGreeting, setTimeGreeting] = useState(getTimeBasedGreeting());
+
+  // Update greeting every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeGreeting(getTimeBasedGreeting());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch user requests
   useEffect(() => {
@@ -478,106 +556,135 @@ export default function DashboardPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
+      {/* Enhanced Header with Time-based Greeting */}
       <motion.div
-        variants={itemVariants}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+        variants={titleVariants}
+        className={`bg-gradient-to-r ${timeGreeting.bgGradient} rounded-2xl p-6 relative overflow-hidden`}
       >
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome Back!</h1>
-          <p className="text-gray-600 mt-1">
-            Track and manage your company formation journey
-          </p>
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-4 right-4 w-32 h-32 bg-white rounded-full animate-pulse"></div>
+          <div className="absolute bottom-4 left-4 w-24 h-24 bg-white rounded-full animate-pulse delay-1000"></div>
         </div>
-        <Button
-          onClick={() => setActiveTab("packages")}
-          className="bg-blue-600 hover:bg-blue-700 font-semibold flex items-center gap-2"
-        >
-          <FaPlus className="h-4 w-4" />
-          Start New Company
-        </Button>
+
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <motion.div
+              className={`p-3 bg-white rounded-full ${timeGreeting.iconColor}`}
+              animate={{
+                rotate: [0, 5, -5, 0],
+                scale: [1, 1.05, 1],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 3,
+              }}
+            >
+              {timeGreeting.icon}
+            </motion.div>
+            <div>
+              <motion.h1
+                className="text-3xl font-bold text-gray-900"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                {timeGreeting.greeting}
+              </motion.h1>
+              <motion.p
+                className="text-gray-700 mt-1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                {timeGreeting.message}
+              </motion.p>
+            </div>
+          </div>
+
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              onClick={() => setActiveTab("packages")}
+              className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-6 py-3`}
+            >
+              <FaPlus className="h-4 w-4" />
+              Start New Company
+            </Button>
+          </motion.div>
+        </div>
       </motion.div>
 
-      {/* Stats Cards */}
+      {/* Enhanced Stats Cards */}
       <motion.div
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-4 gap-4"
       >
-        <motion.div whileHover={{ scale: 1.02 }}>
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FaBuilding className="h-5 w-5 text-blue-600" />
+        {[
+          {
+            title: "Total Companies",
+            value: requests.length,
+            icon: FaBuilding,
+            color: "blue",
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-600",
+          },
+          {
+            title: "Completed",
+            value: completedRequests,
+            icon: FaCheckCircle,
+            color: "green",
+            bgColor: "bg-green-100",
+            textColor: "text-green-600",
+          },
+          {
+            title: "In Progress",
+            value: pendingRequests,
+            icon: FaClock,
+            color: "yellow",
+            bgColor: "bg-yellow-100",
+            textColor: "text-yellow-600",
+          },
+          {
+            title: "Success Rate",
+            value: "98%",
+            icon: FaChartBar,
+            color: "purple",
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-600",
+          },
+        ].map((stat, index) => (
+          <motion.div
+            key={stat.title}
+            whileHover={{ scale: 1.02, y: -2 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 + 0.5 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 border-0 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className={`p-2 ${stat.bgColor} rounded-lg`}>
+                    <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-600">
+                      {stat.title}
+                    </p>
+                    <motion.p
+                      className="text-xl font-bold text-gray-900"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: index * 0.1 + 0.7, type: "spring" }}
+                    >
+                      {stat.value}
+                    </motion.p>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Companies
-                  </p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {requests.length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ scale: 1.02 }}>
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <FaCheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {completedRequests}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ scale: 1.02 }}>
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <FaClock className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">
-                    In Progress
-                  </p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {pendingRequests}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div whileHover={{ scale: 1.02 }}>
-          <Card className="hover:shadow-md transition-all duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <FaChartBar className="h-5 w-5 text-purple-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">
-                    Success Rate
-                  </p>
-                  <p className="text-xl font-bold text-gray-900">98%</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </motion.div>
 
       {/* Tabs */}
