@@ -1,4 +1,4 @@
-// src/components/layout/Sidebar.jsx - Güncellenmiş
+// src/components/layout/Sidebar.jsx - Clean version without user section
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -10,7 +10,6 @@ import {
   FaSignOutAlt,
   FaChevronLeft,
   FaChevronRight,
-  FaUser,
   FaShoppingBag,
 } from "react-icons/fa";
 import goformedLogo from "@/assets/logos/goformed.png";
@@ -23,7 +22,7 @@ const menuItems = [
     to: "/dashboard/marketplace",
     text: "Marketplace",
     icon: FaShoppingBag,
-    description: "Ek Hizmetler",
+    description: "Additional Services",
   },
   { to: "/dashboard/orders", text: "Orders", icon: FaListAlt },
   { to: "/dashboard/settings", text: "Settings", icon: FaCog },
@@ -90,31 +89,8 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
         ))}
       </nav>
 
-      {/* User Section */}
-      <div className="mt-auto p-3 border-t border-gray-100">
-        {/* User Profile Info */}
-        <div
-          className={cn(
-            "flex items-center p-3 mb-3 rounded-lg bg-gray-50",
-            isCollapsed && "justify-center"
-          )}
-        >
-          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-            <FaUser className="h-4 w-4 text-gray-600" />
-          </div>
-          {!isCollapsed && (
-            <div className="ml-3 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                User Account
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                account@email.com
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Logout Button */}
+      {/* Logout Button - Bottom */}
+      <div className="p-3 border-t border-gray-100">
         <Button
           variant="ghost"
           className={cn(

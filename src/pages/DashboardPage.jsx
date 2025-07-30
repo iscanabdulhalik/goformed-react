@@ -1,8 +1,8 @@
-// src/pages/DashboardPage.jsx - Yeni tasarım
+// src/pages/DashboardPage.jsx - Improved with animations and better spacing
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,8 +20,48 @@ import {
   FaBuilding,
   FaChartLine,
   FaStar,
+  FaArrowRight,
+  FaGlobe,
+  FaUsers,
+  FaChartBar,
 } from "react-icons/fa";
-import { Check, Crown, Sparkles, Star } from "lucide-react";
+import { Check, Crown, Sparkles, Star, Building2, Zap } from "lucide-react";
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut",
+    },
+  },
+};
+
+const cardHoverVariants = {
+  rest: { scale: 1, y: 0 },
+  hover: {
+    scale: 1.02,
+    y: -5,
+    transition: {
+      duration: 0.2,
+      ease: "easeOut",
+    },
+  },
+};
 
 // Package Card Component
 const PackageCard = ({ plan, onSelect, isPopular = false }) => {
@@ -49,11 +89,10 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.3 }}
-      className="group"
+      variants={cardHoverVariants}
+      initial="rest"
+      whileHover="hover"
+      className="group h-full"
     >
       <Card
         className={`relative h-full transition-all duration-300 hover:shadow-xl ${
@@ -64,26 +103,27 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
       >
         {/* Badge */}
         <div className="absolute -top-3 right-4 z-10">
-          <div
+          <motion.div
             className={`${getBadgeColor(
               plan.badge
             )} text-white px-3 py-1 text-xs font-semibold rounded-full shadow-sm flex items-center gap-1`}
+            whileHover={{ scale: 1.05 }}
           >
             {getBadgeIcon(plan.badge)}
             {plan.badge}
-          </div>
+          </motion.div>
         </div>
 
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-bold text-gray-900 mb-3">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold text-gray-900 mb-2 pr-16">
             {plan.name}
           </CardTitle>
           <div className="space-y-2">
-            <div className="flex items-baseline gap-3">
-              <span className="text-lg text-gray-400 line-through font-medium">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm text-gray-400 line-through font-medium">
                 {plan.oldPrice}
               </span>
-              <span className="text-3xl font-bold text-gray-900">
+              <span className="text-2xl font-bold text-gray-900">
                 {plan.price}
               </span>
             </div>
@@ -91,28 +131,34 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4 flex-1">
-          <ul className="space-y-3">
-            {plan.features.map((feature) => (
-              <li key={feature} className="flex items-start gap-3">
-                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-600 leading-relaxed">
+        <CardContent className="space-y-4 flex-1 flex flex-col">
+          <ul className="space-y-2 flex-1">
+            {plan.features.slice(0, 3).map((feature) => (
+              <li key={feature} className="flex items-start gap-2">
+                <Check className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                <span className="text-xs text-gray-600 leading-relaxed">
                   {feature}
                 </span>
               </li>
             ))}
+            {plan.features.length > 3 && (
+              <li className="text-xs text-gray-500 pl-5">
+                +{plan.features.length - 3} more features
+              </li>
+            )}
           </ul>
 
-          <div className="pt-4">
+          <div className="pt-3">
             <Button
               onClick={() => onSelect(plan)}
-              className={`w-full font-semibold transition-all duration-300 ${
+              className={`w-full font-semibold text-sm transition-all duration-300 transform group-hover:scale-105 ${
                 isPopular
                   ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   : "bg-gray-900 hover:bg-gray-800"
               }`}
             >
-              Paketi Seç
+              Select Package
+              <FaArrowRight className="ml-2 h-3 w-3 transition-transform group-hover:translate-x-1" />
             </Button>
           </div>
         </CardContent>
@@ -126,32 +172,32 @@ const statusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     icon: FaClock,
-    label: "Ödeme Bekliyor",
-    description: "Paketi almak için ödeme yapmanız gerekiyor",
+    label: "Pending Payment",
+    description: "Complete payment to start your company formation",
   },
   in_review: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
     icon: FaEye,
-    label: "İnceleniyor",
-    description: "Talebiniz uzmanlarımız tarafından inceleniyor",
+    label: "In Review",
+    description: "Our team is reviewing your application",
   },
   documents_requested: {
     color: "bg-orange-100 text-orange-800 border-orange-300",
     icon: FaExclamationTriangle,
-    label: "Belge Gerekli",
-    description: "Eksik belgelerinizi tamamlamanız gerekiyor",
+    label: "Documents Required",
+    description: "Please upload the requested documents",
   },
   completed: {
     color: "bg-green-100 text-green-800 border-green-300",
     icon: FaCheckCircle,
-    label: "Tamamlandı",
-    description: "Şirketiniz başarıyla kuruldu",
+    label: "Completed",
+    description: "Your company has been successfully formed",
   },
   rejected: {
     color: "bg-red-100 text-red-800 border-red-300",
     icon: FaTimesCircle,
-    label: "Reddedildi",
-    description: "Talebiniz reddedildi, detaylar için iletişime geçin",
+    label: "Rejected",
+    description: "Please contact support for assistance",
   },
 };
 
@@ -168,7 +214,7 @@ const PaymentButton = ({ request }) => {
 
       if (!shopifyInfo?.variantId) {
         throw new Error(
-          `Bu paket için ödeme bilgisi bulunamadı: ${request.package_name}`
+          `Payment info not found for package: ${request.package_name}`
         );
       }
 
@@ -176,7 +222,7 @@ const PaymentButton = ({ request }) => {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        throw new Error("Oturum açmanız gerekiyor");
+        throw new Error("Please log in to continue");
       }
 
       const { data, error } = await supabase.functions.invoke(
@@ -198,11 +244,11 @@ const PaymentButton = ({ request }) => {
       if (data?.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
-        throw new Error("Ödeme sayfası URL'si alınamadı");
+        throw new Error("Checkout URL not received");
       }
     } catch (error) {
       console.error("Payment error:", error);
-      alert(`Ödeme başlatılamadı: ${error.message}`);
+      alert(`Payment could not be initiated: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -212,17 +258,17 @@ const PaymentButton = ({ request }) => {
     <Button
       onClick={handlePayment}
       disabled={isProcessing}
-      className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6"
+      className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 text-sm"
     >
       {isProcessing ? (
         <>
-          <FaSpinner className="animate-spin mr-2 h-4 w-4" />
-          İşleniyor...
+          <FaSpinner className="animate-spin mr-2 h-3 w-3" />
+          Processing...
         </>
       ) : (
         <>
-          <FaShoppingBag className="mr-2 h-4 w-4" />
-          Ödeme Yap
+          <FaShoppingBag className="mr-2 h-3 w-3" />
+          Pay Now
         </>
       )}
     </Button>
@@ -236,40 +282,38 @@ const RequestCard = ({ request }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
+      variants={itemVariants}
+      whileHover={{ scale: 1.01 }}
+      className="group"
     >
-      <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
-        <CardHeader className="pb-3">
+      <Card className="hover:shadow-md transition-all duration-300 border-l-4 border-l-blue-500">
+        <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-lg font-bold text-gray-900 mb-1">
+              <CardTitle className="text-base font-bold text-gray-900 mb-1">
                 {request.company_name}
               </CardTitle>
               <p className="text-sm text-gray-600">{request.package_name}</p>
             </div>
             <div className="text-right">
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${status.color}`}
+                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${status.color}`}
               >
                 <StatusIcon className="mr-1 h-3 w-3" />
                 {status.label}
               </span>
               <p className="text-xs text-gray-500 mt-1">
-                {new Date(request.created_at).toLocaleDateString("tr-TR")}
+                {new Date(request.created_at).toLocaleDateString("en-US")}
               </p>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <p className="text-sm text-gray-600 mb-4">{status.description}</p>
+        <CardContent className="pt-0">
+          <p className="text-sm text-gray-600 mb-3">{status.description}</p>
 
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4 text-xs text-gray-500">
-              <span>Durum: {status.label}</span>
-              <span>•</span>
               <span>ID: {request.id.slice(0, 8)}</span>
             </div>
 
@@ -287,7 +331,7 @@ const RequestCard = ({ request }) => {
                 <Button asChild variant="outline" size="sm">
                   <Link to={`/dashboard/request/${request.id}`}>
                     <FaEye className="mr-2 h-3 w-3" />
-                    Detaylar
+                    View Details
                   </Link>
                 </Button>
               )}
@@ -316,7 +360,7 @@ export default function DashboardPage() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) throw new Error("Kullanıcı bulunamadı");
+        if (!user) throw new Error("User not found");
 
         const { data, error } = await supabase
           .from("company_requests")
@@ -369,7 +413,7 @@ export default function DashboardPage() {
 
   const handleCreateRequest = async () => {
     if (!companyName.trim()) {
-      alert("Lütfen şirket adını girin");
+      alert("Please enter a company name");
       return;
     }
 
@@ -378,7 +422,7 @@ export default function DashboardPage() {
       !normalizedName.endsWith("LTD") &&
       !normalizedName.endsWith("LIMITED")
     ) {
-      alert("Şirket adı 'LTD' veya 'LIMITED' ile bitmelidir");
+      alert("Company name must end with 'LTD' or 'LIMITED'");
       return;
     }
 
@@ -386,7 +430,7 @@ export default function DashboardPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("Kullanıcı bulunamadı");
+      if (!user) throw new Error("User not found");
 
       // Check for duplicates
       const { data: existingRequests } = await supabase
@@ -396,7 +440,7 @@ export default function DashboardPage() {
         .eq("company_name", normalizedName);
 
       if (existingRequests && existingRequests.length > 0) {
-        alert("Bu şirket adı için zaten bir talebiniz var");
+        alert("You already have a request for this company name");
         return;
       }
 
@@ -412,9 +456,9 @@ export default function DashboardPage() {
       setShowPackageModal(false);
       setCompanyName("");
       setSelectedPackage(null);
-      setActiveTab("requests");
+      setActiveTab("overview");
     } catch (error) {
-      alert(`Hata: ${error.message}`);
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -428,223 +472,338 @@ export default function DashboardPage() {
   ).length;
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      className="space-y-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+      >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome Back!</h1>
           <p className="text-gray-600 mt-1">
-            Şirket kurulum sürecinizi takip edin
+            Track and manage your company formation journey
           </p>
         </div>
         <Button
           onClick={() => setActiveTab("packages")}
-          className="bg-blue-600 hover:bg-blue-700 font-semibold"
+          className="bg-blue-600 hover:bg-blue-700 font-semibold flex items-center gap-2"
         >
-          <FaPlus className="mr-2 h-4 w-4" />
-          Yeni Şirket Kur
+          <FaPlus className="h-4 w-4" />
+          Start New Company
         </Button>
-      </div>
+      </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FaBuilding className="h-6 w-6 text-blue-600" />
+      <motion.div
+        variants={itemVariants}
+        className="grid grid-cols-1 md:grid-cols-4 gap-4"
+      >
+        <motion.div whileHover={{ scale: 1.02 }}>
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaBuilding className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Companies
+                  </p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {requests.length}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Toplam Şirket
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {requests.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <FaCheckCircle className="h-6 w-6 text-green-600" />
+        <motion.div whileHover={{ scale: 1.02 }}>
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <FaCheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {completedRequests}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Tamamlanan</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {completedRequests}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <FaClock className="h-6 w-6 text-yellow-600" />
+        <motion.div whileHover={{ scale: 1.02 }}>
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <FaClock className="h-5 w-5 text-yellow-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">
+                    In Progress
+                  </p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {pendingRequests}
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Devam Eden</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {pendingRequests}
-                </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div whileHover={{ scale: 1.02 }}>
+          <Card className="hover:shadow-md transition-all duration-300">
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <FaChartBar className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">
+                    Success Rate
+                  </p>
+                  <p className="text-xl font-bold text-gray-900">98%</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
-          <TabsTrigger value="packages">Paket Seç</TabsTrigger>
-        </TabsList>
+      <motion.div variants={itemVariants}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="packages">Choose Package</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="overview" className="mt-6">
-          {requests.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <FaBuilding className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Henüz şirket talebiniz yok
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  İlk şirketinizi kurmak için bir paket seçin
-                </p>
-                <Button
-                  onClick={() => setActiveTab("packages")}
-                  className="bg-blue-600 hover:bg-blue-700"
+          <TabsContent value="overview" className="mt-6">
+            <AnimatePresence>
+              {requests.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
                 >
-                  Paket Seç
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Şirket Talepleriniz
-              </h2>
-              {requests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="packages" className="mt-6">
-          <div className="space-y-8">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Paket Seçin
-              </h2>
-              <p className="text-gray-600">
-                İhtiyacınıza uygun paketi seçerek şirket kurma sürecini başlatın
-              </p>
-            </div>
-
-            <Tabs defaultValue="uk" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="uk">UK Residents</TabsTrigger>
-                <TabsTrigger value="global">Non-UK Residents</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="uk">
-                <div className="grid md:grid-cols-2 gap-6">
-                  {ukPackages.map((plan) => (
-                    <PackageCard
-                      key={plan.name}
-                      plan={plan}
-                      onSelect={handlePackageSelect}
-                      isPopular={plan.badge === "Popular"}
-                    />
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Building2 className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        Ready to Start Your Business?
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Choose a package and begin your entrepreneurial journey
+                        with us
+                      </p>
+                      <Button
+                        onClick={() => setActiveTab("packages")}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Zap className="mr-2 h-4 w-4" />
+                        Choose Package
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : (
+                <motion.div
+                  className="space-y-4"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Your Company Requests
+                  </h2>
+                  {requests.map((request) => (
+                    <RequestCard key={request.id} request={request} />
                   ))}
-                </div>
-              </TabsContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </TabsContent>
 
-              <TabsContent value="global">
-                <div className="grid md:grid-cols-2 gap-6">
-                  {globalPackages.map((plan) => (
-                    <PackageCard
-                      key={plan.name}
-                      plan={plan}
-                      onSelect={handlePackageSelect}
-                      isPopular={plan.badge === "Elite"}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="packages" className="mt-6">
+            <motion.div
+              className="space-y-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.div variants={itemVariants} className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Choose Your Perfect Package
+                </h2>
+                <p className="text-gray-600">
+                  Select the right package for your business needs and get
+                  started today
+                </p>
+              </motion.div>
+
+              <Tabs defaultValue="uk" className="w-full">
+                <motion.div variants={itemVariants}>
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="uk" className="flex items-center gap-2">
+                      <FaBuilding className="h-4 w-4" />
+                      UK Residents
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="global"
+                      className="flex items-center gap-2"
+                    >
+                      <FaGlobe className="h-4 w-4" />
+                      International
+                    </TabsTrigger>
+                  </TabsList>
+                </motion.div>
+
+                <TabsContent value="uk">
+                  <motion.div
+                    className="grid md:grid-cols-2 gap-4"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    {ukPackages.map((plan, index) => (
+                      <motion.div key={plan.name} variants={itemVariants}>
+                        <PackageCard
+                          plan={plan}
+                          onSelect={handlePackageSelect}
+                          isPopular={plan.badge === "Popular"}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </TabsContent>
+
+                <TabsContent value="global">
+                  <motion.div
+                    className="grid md:grid-cols-2 gap-4"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    {globalPackages.map((plan, index) => (
+                      <motion.div key={plan.name} variants={itemVariants}>
+                        <PackageCard
+                          plan={plan}
+                          onSelect={handlePackageSelect}
+                          isPopular={plan.badge === "Elite"}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </TabsContent>
+              </Tabs>
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+      </motion.div>
 
       {/* Package Selection Modal */}
-      {showPackageModal && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <AnimatePresence>
+        {showPackageModal && selectedPackage && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           >
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Şirket Adını Girin
-              </h3>
-              <p className="text-gray-600 mb-4">
-                <strong>{selectedPackage.name}</strong> paketi için şirket adını
-                belirleyin.
-                <br />
-                <span className="text-sm">
-                  Ad "LTD" veya "LIMITED" ile bitmelidir.
-                </span>
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Şirket Adı
-                  </label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) =>
-                      setCompanyName(e.target.value.toUpperCase())
-                    }
-                    placeholder="ÖRN: MYCOMPANY LTD"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            >
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Company Formation
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {selectedPackage.name}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => {
-                      setShowPackageModal(false);
-                      setCompanyName("");
-                      setSelectedPackage(null);
-                    }}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    İptal
-                  </Button>
-                  <Button
-                    onClick={handleCreateRequest}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    Oluştur
-                  </Button>
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      Package Details:
+                    </h4>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-lg text-gray-400 line-through">
+                        {selectedPackage.oldPrice}
+                      </span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {selectedPackage.price}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {selectedPackage.feeText}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Company Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) =>
+                        setCompanyName(e.target.value.toUpperCase())
+                      }
+                      placeholder="e.g., MYCOMPANY LTD"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Must end with "LTD" or "LIMITED"
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={() => {
+                        setShowPackageModal(false);
+                        setCompanyName("");
+                        setSelectedPackage(null);
+                      }}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateRequest}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                      Create Request
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
