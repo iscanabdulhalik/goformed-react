@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx - Enhanced with time-based greetings and improved animations
+// src/pages/DashboardPage.jsx - Redesigned with better UX and corrected image usage
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link } from "react-router-dom";
@@ -33,44 +33,48 @@ import {
   Sun,
   Moon,
   Sunset,
+  ShoppingCart,
 } from "lucide-react";
 
+// The imported CompanyIcon is a string (path to the image)
+import CompanyIcon from "../assets/icons/company.png";
+
 // Time-based greeting and theme configuration
-const getTimeBasedGreeting = () => {
+const getTimeBasedGreeting = (userName) => {
   const hour = new Date().getHours();
 
   if (hour >= 5 && hour < 12) {
     return {
-      greeting: "Good Morning!",
+      greeting: `Good Morning, ${userName}!`,
       message: "Ready to build something amazing today?",
-      icon: <Sunrise className="w-6 h-6" />,
+      icon: <Sunrise className="w-5 h-5" />,
       gradient: "from-orange-400 via-yellow-400 to-orange-500",
       bgGradient: "from-orange-50 to-yellow-50",
       iconColor: "text-orange-500",
     };
   } else if (hour >= 12 && hour < 17) {
     return {
-      greeting: "Good Afternoon!",
+      greeting: `Good Afternoon, ${userName}!`,
       message: "Keep up the great work on your business journey",
-      icon: <Sun className="w-6 h-6" />,
+      icon: <Sun className="w-5 h-5" />,
       gradient: "from-blue-400 via-cyan-400 to-blue-500",
       bgGradient: "from-blue-50 to-cyan-50",
       iconColor: "text-blue-500",
     };
   } else if (hour >= 17 && hour < 21) {
     return {
-      greeting: "Good Evening!",
+      greeting: `Good Evening, ${userName}!`,
       message: "Time to review your progress and plan ahead",
-      icon: <Sunset className="w-6 h-6" />,
+      icon: <Sunset className="w-5 h-5" />,
       gradient: "from-purple-400 via-pink-400 to-red-500",
       bgGradient: "from-purple-50 to-pink-50",
       iconColor: "text-purple-500",
     };
   } else {
     return {
-      greeting: "Good Night!",
+      greeting: `Good Night, ${userName}!`,
       message: "Working late? Your dedication will pay off",
-      icon: <Moon className="w-6 h-6" />,
+      icon: <Moon className="w-5 h-5" />,
       gradient: "from-indigo-400 via-purple-400 to-indigo-600",
       bgGradient: "from-indigo-50 to-purple-50",
       iconColor: "text-indigo-500",
@@ -85,92 +89,42 @@ const containerVariants = {
     opacity: 1,
     transition: {
       staggerChildren: 0.1,
-      delayChildren: 0.3,
+      delayChildren: 0.2,
     },
   },
 };
 
 const itemVariants = {
-  hidden: { y: 30, opacity: 0 },
+  hidden: { y: 20, opacity: 0 },
   visible: {
     y: 0,
     opacity: 1,
     transition: {
-      duration: 0.6,
+      duration: 0.5,
       ease: [0.22, 1, 0.36, 1],
     },
   },
 };
 
-const cardHoverVariants = {
-  rest: { scale: 1, y: 0 },
-  hover: {
-    scale: 1.03,
-    y: -8,
-    transition: {
-      duration: 0.3,
-      ease: "easeOut",
-    },
-  },
-};
-
-const titleVariants = {
-  hidden: {
-    opacity: 0,
-    y: -20,
-    scale: 0.95,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.8,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-// Package Card Component with enhanced animations
+// Package Card Component with all features visible
 const PackageCard = ({ plan, onSelect, isPopular = false }) => {
-  const getBadgeIcon = (badge) => {
-    switch (badge) {
-      case "Premium":
-        return <Crown className="w-3 h-3" />;
-      case "Elite":
-        return <Sparkles className="w-3 h-3" />;
-      default:
-        return <Star className="w-3 h-3" />;
-    }
-  };
-
-  const getBadgeColor = (badge) => {
-    switch (badge) {
-      case "Premium":
-        return "bg-purple-600";
-      case "Elite":
-        return "bg-gray-800";
-      default:
-        return "bg-green-600";
-    }
-  };
-
   return (
     <motion.div
-      variants={cardHoverVariants}
-      initial="rest"
-      whileHover="hover"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -3, scale: 1.02 }}
+      transition={{ duration: 0.3 }}
       className="group h-full"
     >
       <Card
-        className={`relative h-full transition-all duration-300 hover:shadow-xl ${
+        className={`relative h-full transition-all duration-300 hover:shadow-lg ${
           isPopular
-            ? "border-2 border-blue-500 shadow-lg"
+            ? "border-2 border-blue-500 shadow-md"
             : "border hover:border-gray-300"
         }`}
       >
         {/* Badge */}
-        <div className="absolute -top-3 right-4 z-10">
+        <div className="absolute -top-2 right-4 z-10">
           <motion.div
             className={`${getBadgeColor(
               plan.badge
@@ -200,20 +154,22 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
         </CardHeader>
 
         <CardContent className="space-y-4 flex-1 flex flex-col">
+          {/* All Features */}
           <ul className="space-y-2 flex-1">
-            {plan.features.slice(0, 3).map((feature) => (
-              <li key={feature} className="flex items-start gap-2">
+            {plan.features.map((feature, index) => (
+              <motion.li
+                key={feature}
+                className="flex items-start gap-2"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
                 <Check className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
                 <span className="text-xs text-gray-600 leading-relaxed">
                   {feature}
                 </span>
-              </li>
+              </motion.li>
             ))}
-            {plan.features.length > 3 && (
-              <li className="text-xs text-gray-500 pl-5">
-                +{plan.features.length - 3} more features
-              </li>
-            )}
           </ul>
 
           <div className="pt-3">
@@ -233,6 +189,28 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
       </Card>
     </motion.div>
   );
+};
+
+const getBadgeIcon = (badge) => {
+  switch (badge) {
+    case "Premium":
+      return <Crown className="w-3 h-3" />;
+    case "Elite":
+      return <Sparkles className="w-3 h-3" />;
+    default:
+      return <Star className="w-3 h-3" />;
+  }
+};
+
+const getBadgeColor = (badge) => {
+  switch (badge) {
+    case "Premium":
+      return "bg-purple-600";
+    case "Elite":
+      return "bg-gray-800";
+    default:
+      return "bg-green-600";
+  }
 };
 
 // Status configuration
@@ -269,82 +247,8 @@ const statusConfig = {
   },
 };
 
-// Payment Button Component
-const PaymentButton = ({ request }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handlePayment = async () => {
-    setIsProcessing(true);
-    try {
-      const shopifyInfo = [...ukPackages, ...globalPackages].find(
-        (pkg) => pkg.name === request.package_name
-      );
-
-      if (!shopifyInfo?.variantId) {
-        throw new Error(
-          `Payment info not found for package: ${request.package_name}`
-        );
-      }
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("Please log in to continue");
-      }
-
-      const { data, error } = await supabase.functions.invoke(
-        "create-checkout-session",
-        {
-          body: {
-            variantId: shopifyInfo.variantId,
-            productId: shopifyInfo.shopifyProductId,
-            requestId: request.id,
-          },
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-
-      if (error) throw error;
-
-      if (data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else {
-        throw new Error("Checkout URL not received");
-      }
-    } catch (error) {
-      console.error("Payment error:", error);
-      alert(`Payment could not be initiated: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <Button
-      onClick={handlePayment}
-      disabled={isProcessing}
-      className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 text-sm"
-    >
-      {isProcessing ? (
-        <>
-          <FaSpinner className="animate-spin mr-2 h-3 w-3" />
-          Processing...
-        </>
-      ) : (
-        <>
-          <FaShoppingBag className="mr-2 h-3 w-3" />
-          Pay Now
-        </>
-      )}
-    </Button>
-  );
-};
-
-// Request Card Component
-const RequestCard = ({ request }) => {
+// Company Request Card Component
+const CompanyRequestCard = ({ request }) => {
   const status = statusConfig[request.status] || statusConfig.pending_payment;
   const StatusIcon = status.icon;
 
@@ -357,11 +261,17 @@ const RequestCard = ({ request }) => {
       <Card className="hover:shadow-md transition-all duration-300 border-l-4 border-l-blue-500">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-base font-bold text-gray-900 mb-1">
-                {request.company_name}
-              </CardTitle>
-              <p className="text-sm text-gray-600">{request.package_name}</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                {/* HATA GİDERİLDİ: <CompanyIcon/> yerine <img> etiketi kullanıldı */}
+                <img src={CompanyIcon} alt="Company Icon" className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-gray-900 mb-1">
+                  {request.company_name}
+                </CardTitle>
+                <p className="text-sm text-gray-600">{request.package_name}</p>
+              </div>
             </div>
             <div className="text-right">
               <span
@@ -386,23 +296,12 @@ const RequestCard = ({ request }) => {
             </div>
 
             <div className="flex gap-2">
-              {request.status === "pending_payment" && (
-                <PaymentButton request={request} />
-              )}
-
-              {[
-                "in_review",
-                "documents_requested",
-                "completed",
-                "rejected",
-              ].includes(request.status) && (
-                <Button asChild variant="outline" size="sm">
-                  <Link to={`/dashboard/request/${request.id}`}>
-                    <FaEye className="mr-2 h-3 w-3" />
-                    View Details
-                  </Link>
-                </Button>
-              )}
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/dashboard/request/${request.id}`}>
+                  <FaEye className="mr-2 h-3 w-3" />
+                  View Details
+                </Link>
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -417,21 +316,40 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [companyName, setCompanyName] = useState("");
-  const [showPackageModal, setShowPackageModal] = useState(false);
-  const [timeGreeting, setTimeGreeting] = useState(getTimeBasedGreeting());
+  const [user, setUser] = useState(null);
+  const [timeGreeting, setTimeGreeting] = useState(null);
+
+  // Get user and set up greeting
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        const userName =
+          user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+        setTimeGreeting(getTimeBasedGreeting(userName));
+      }
+    };
+    getUser();
+  }, []);
 
   // Update greeting every minute
   useEffect(() => {
+    if (!user) return;
+
     const interval = setInterval(() => {
-      setTimeGreeting(getTimeBasedGreeting());
+      const userName =
+        user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+      setTimeGreeting(getTimeBasedGreeting(userName));
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
-  // Fetch user requests
+  // Fetch user requests - sorted by newest first
   useEffect(() => {
     const fetchRequests = async () => {
       try {
@@ -444,7 +362,7 @@ export default function DashboardPage() {
           .from("company_requests")
           .select("*")
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false }); // Newest first
 
         if (error) throw error;
         setRequests(data || []);
@@ -457,7 +375,7 @@ export default function DashboardPage() {
 
     fetchRequests();
 
-    // Real-time subscription
+    // Real-time subscription with auto-refresh
     const channel = supabase
       .channel("company_requests_changes")
       .on(
@@ -470,9 +388,9 @@ export default function DashboardPage() {
         (payload) => {
           if (payload.eventType === "UPDATE") {
             setRequests((currentRequests) =>
-              currentRequests.map((req) =>
-                req.id === payload.new.id ? payload.new : req
-              )
+              currentRequests
+                .map((req) => (req.id === payload.new.id ? payload.new : req))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             );
           } else if (payload.eventType === "INSERT") {
             setRequests((currentRequests) => [payload.new, ...currentRequests]);
@@ -483,62 +401,6 @@ export default function DashboardPage() {
 
     return () => supabase.removeChannel(channel);
   }, []);
-
-  const handlePackageSelect = async (pkg) => {
-    setSelectedPackage(pkg);
-    setShowPackageModal(true);
-  };
-
-  const handleCreateRequest = async () => {
-    if (!companyName.trim()) {
-      alert("Please enter a company name");
-      return;
-    }
-
-    const normalizedName = companyName.trim().toUpperCase();
-    if (
-      !normalizedName.endsWith("LTD") &&
-      !normalizedName.endsWith("LIMITED")
-    ) {
-      alert("Company name must end with 'LTD' or 'LIMITED'");
-      return;
-    }
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
-
-      // Check for duplicates
-      const { data: existingRequests } = await supabase
-        .from("company_requests")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("company_name", normalizedName);
-
-      if (existingRequests && existingRequests.length > 0) {
-        alert("You already have a request for this company name");
-        return;
-      }
-
-      const { error } = await supabase.from("company_requests").insert({
-        user_id: user.id,
-        company_name: normalizedName,
-        package_name: selectedPackage.name,
-        status: "pending_payment",
-      });
-
-      if (error) throw error;
-
-      setShowPackageModal(false);
-      setCompanyName("");
-      setSelectedPackage(null);
-      setActiveTab("overview");
-    } catch (error) {
-      alert(`Error: ${error.message}`);
-    }
-  };
 
   if (loading) return <Loader />;
 
@@ -557,63 +419,65 @@ export default function DashboardPage() {
       animate="visible"
     >
       {/* Enhanced Header with Time-based Greeting */}
-      <motion.div
-        variants={titleVariants}
-        className={`bg-gradient-to-r ${timeGreeting.bgGradient} rounded-2xl p-6 relative overflow-hidden`}
-      >
-        {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-4 right-4 w-32 h-32 bg-white rounded-full animate-pulse"></div>
-          <div className="absolute bottom-4 left-4 w-24 h-24 bg-white rounded-full animate-pulse delay-1000"></div>
-        </div>
-
-        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <motion.div
-              className={`p-3 bg-white rounded-full ${timeGreeting.iconColor}`}
-              animate={{
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.05, 1],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-              }}
-            >
-              {timeGreeting.icon}
-            </motion.div>
-            <div>
-              <motion.h1
-                className="text-3xl font-bold text-gray-900"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                {timeGreeting.greeting}
-              </motion.h1>
-              <motion.p
-                className="text-gray-700 mt-1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                {timeGreeting.message}
-              </motion.p>
-            </div>
+      {timeGreeting && (
+        <motion.div
+          variants={itemVariants}
+          className={`bg-gradient-to-r ${timeGreeting.bgGradient} rounded-xl p-6 relative overflow-hidden`}
+        >
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-4 right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
+            <div className="absolute bottom-4 left-4 w-16 h-16 bg-white rounded-full animate-pulse delay-1000"></div>
           </div>
 
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              onClick={() => setActiveTab("packages")}
-              className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-6 py-3`}
-            >
-              <FaPlus className="h-4 w-4" />
-              Start New Company
-            </Button>
-          </motion.div>
-        </div>
-      </motion.div>
+          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <motion.div
+                className={`p-3 bg-white rounded-full ${timeGreeting.iconColor}`}
+                animate={{
+                  rotate: [0, 5, -5, 0],
+                  scale: [1, 1.05, 1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatDelay: 3,
+                }}
+              >
+                {timeGreeting.icon}
+              </motion.div>
+              <div>
+                <motion.h1
+                  className="text-2xl font-bold text-gray-900"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  {timeGreeting.greeting}
+                </motion.h1>
+                <motion.p
+                  className="text-gray-700 mt-1 text-sm"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {timeGreeting.message}
+                </motion.p>
+              </div>
+            </div>
+
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={() => setActiveTab("packages")}
+                className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-6 py-3 text-sm`}
+              >
+                <FaPlus className="h-4 w-4" />
+                Start New Company
+              </Button>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Enhanced Stats Cards */}
       <motion.div
@@ -665,14 +529,14 @@ export default function DashboardPage() {
               <CardContent className="p-4">
                 <div className="flex items-center">
                   <div className={`p-2 ${stat.bgColor} rounded-lg`}>
-                    <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
+                    <stat.icon className={`h-4 w-4 ${stat.textColor}`} />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-xs font-medium text-gray-600">
                       {stat.title}
                     </p>
                     <motion.p
-                      className="text-xl font-bold text-gray-900"
+                      className="text-lg font-bold text-gray-900"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.1 + 0.7, type: "spring" }}
@@ -687,15 +551,152 @@ export default function DashboardPage() {
         ))}
       </motion.div>
 
-      {/* Tabs */}
+      {/* Redesigned Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="packages">Choose Package</TabsTrigger>
-          </TabsList>
+          {/* Custom Tab List */}
+          <div className="flex space-x-1 mb-6">
+            {[
+              { value: "overview", label: "Overview", icon: FaBuilding },
+              { value: "companies", label: "Your Companies", icon: Building2 },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                  activeTab === tab.value
+                    ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          <TabsContent value="overview" className="mt-6">
+          <TabsContent value="overview" className="mt-0">
+            <AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              >
+                {/* Recent Activity */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <FaClock className="h-5 w-5 text-blue-600" />
+                      Recent Activity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {requests.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">No activity yet</p>
+                        <p className="text-sm text-gray-400">
+                          Start your first company to see activity here
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {requests.slice(0, 3).map((request) => {
+                          const status =
+                            statusConfig[request.status] ||
+                            statusConfig.pending_payment;
+                          const StatusIcon = status.icon;
+                          return (
+                            <div
+                              key={request.id}
+                              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                            >
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                {/* HATA GİDERİLDİ: Tekrar düzeltildi */}
+                                <img
+                                  src={CompanyIcon}
+                                  alt="Company Icon"
+                                  className="w-5 h-5"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-sm text-gray-900">
+                                  {request.company_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {request.package_name}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}
+                              >
+                                <StatusIcon className="mr-1 h-3 w-3" />
+                                {status.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {requests.length > 3 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActiveTab("companies")}
+                            className="w-full"
+                          >
+                            View All Companies
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Zap className="h-5 w-5 text-purple-600" />
+                      Quick Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => setActiveTab("packages")}
+                        className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        <FaBuilding className="mr-3 h-4 w-4" />
+                        Form New Company
+                      </Button>
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="w-full justify-start hover:bg-green-50"
+                      >
+                        <Link to="/dashboard/marketplace">
+                          <ShoppingCart className="mr-3 h-4 w-4" />
+                          Browse Additional Services
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="w-full justify-start hover:bg-blue-50"
+                      >
+                        <Link to="/dashboard/orders">
+                          <FaEye className="mr-3 h-4 w-4" />
+                          View All Orders
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </AnimatePresence>
+          </TabsContent>
+
+          <TabsContent value="companies" className="mt-0">
             <AnimatePresence>
               {requests.length === 0 ? (
                 <motion.div
@@ -715,13 +716,21 @@ export default function DashboardPage() {
                         Choose a package and begin your entrepreneurial journey
                         with us
                       </p>
-                      <Button
-                        onClick={() => setActiveTab("packages")}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <Zap className="mr-2 h-4 w-4" />
-                        Choose Package
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button
+                          onClick={() => setActiveTab("packages")}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Zap className="mr-2 h-4 w-4" />
+                          Choose Package
+                        </Button>
+                        <Button asChild variant="outline">
+                          <Link to="/dashboard/marketplace">
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Additional Services
+                          </Link>
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -732,18 +741,26 @@ export default function DashboardPage() {
                   initial="hidden"
                   animate="visible"
                 >
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Your Company Requests
-                  </h2>
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Your Company Requests ({requests.length})
+                    </h2>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/dashboard/marketplace">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Additional Services
+                      </Link>
+                    </Button>
+                  </div>
                   {requests.map((request) => (
-                    <RequestCard key={request.id} request={request} />
+                    <CompanyRequestCard key={request.id} request={request} />
                   ))}
                 </motion.div>
               )}
             </AnimatePresence>
           </TabsContent>
 
-          <TabsContent value="packages" className="mt-6">
+          <TabsContent value="packages" className="mt-0">
             <motion.div
               className="space-y-6"
               variants={containerVariants}
@@ -762,24 +779,23 @@ export default function DashboardPage() {
 
               <Tabs defaultValue="uk" className="w-full">
                 <motion.div variants={itemVariants}>
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="uk" className="flex items-center gap-2">
-                      <FaBuilding className="h-4 w-4" />
-                      UK Residents
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="global"
-                      className="flex items-center gap-2"
-                    >
-                      <FaGlobe className="h-4 w-4" />
-                      International
-                    </TabsTrigger>
-                  </TabsList>
+                  <div className="flex justify-center mb-6">
+                    <div className="inline-flex rounded-lg border p-1">
+                      <button className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium">
+                        <FaBuilding className="mr-2 h-4 w-4 inline" />
+                        UK Residents
+                      </button>
+                      <button className="px-4 py-2 rounded-md text-gray-600 hover:text-blue-600 text-sm font-medium">
+                        <FaGlobe className="mr-2 h-4 w-4 inline" />
+                        International
+                      </button>
+                    </div>
+                  </div>
                 </motion.div>
 
                 <TabsContent value="uk">
                   <motion.div
-                    className="grid md:grid-cols-2 gap-4"
+                    className="grid md:grid-cols-2 gap-6"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
@@ -788,7 +804,9 @@ export default function DashboardPage() {
                       <motion.div key={plan.name} variants={itemVariants}>
                         <PackageCard
                           plan={plan}
-                          onSelect={handlePackageSelect}
+                          onSelect={() =>
+                            console.log("Package selected:", plan.name)
+                          }
                           isPopular={plan.badge === "Popular"}
                         />
                       </motion.div>
@@ -798,7 +816,7 @@ export default function DashboardPage() {
 
                 <TabsContent value="global">
                   <motion.div
-                    className="grid md:grid-cols-2 gap-4"
+                    className="grid md:grid-cols-2 gap-6"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
@@ -807,7 +825,9 @@ export default function DashboardPage() {
                       <motion.div key={plan.name} variants={itemVariants}>
                         <PackageCard
                           plan={plan}
-                          onSelect={handlePackageSelect}
+                          onSelect={() =>
+                            console.log("Package selected:", plan.name)
+                          }
                           isPopular={plan.badge === "Elite"}
                         />
                       </motion.div>
@@ -819,98 +839,6 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
-
-      {/* Package Selection Modal */}
-      <AnimatePresence>
-        {showPackageModal && selectedPackage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full"
-            >
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Building2 className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      Company Formation
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {selectedPackage.name}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">
-                      Package Details:
-                    </h4>
-                    <div className="flex items-baseline gap-2 mb-2">
-                      <span className="text-lg text-gray-400 line-through">
-                        {selectedPackage.oldPrice}
-                      </span>
-                      <span className="text-2xl font-bold text-blue-600">
-                        {selectedPackage.price}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {selectedPackage.feeText}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Company Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) =>
-                        setCompanyName(e.target.value.toUpperCase())
-                      }
-                      placeholder="e.g., MYCOMPANY LTD"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Must end with "LTD" or "LIMITED"
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      onClick={() => {
-                        setShowPackageModal(false);
-                        setCompanyName("");
-                        setSelectedPackage(null);
-                      }}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleCreateRequest}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    >
-                      Create Request
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }

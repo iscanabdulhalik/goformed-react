@@ -1,4 +1,6 @@
-anasayfa goformedun ecomeerce sayfasıyla aynı olcak ama aboutgoformed kısmına kada olan yerler tasarım olarak değişecek geri kalanlar aynı oalcak main sayfamız ecomerce olcak
-check yout company kısmı var 
-
-choose your oackage kısmında her bir pakete göre maile atıcak ve pakete göre once sirket ismini validate etmesi gerekiyor sirket ismi kabul edilirse otomatik scroll ediliyor ve detay gösdte butonı çıkıyor butona basarsa da isim ve mail çıkıyor 
+YAPILACAKLAR
+-> kullanıcı dashboardında Dashboard yazisi daha ufak olsun iki kat kadar good evening yanina isim olsun fontlar genel olarak daha ufaktan resmi olabilir
+-> Notifications kismi en sagda olsun profilden de sagda olsun tiklayinca da sagdan bildirim pencefesi gelsin animasyonlu ilerde kodlayacağımız admin dashboarddan kullanıcıya veya kullanıcılara bildirim gönderebilelim
+->yine kullanıcı dashboardında Yeni company requestleri en uste gelsin yani tarih yeniye gore diralansin otomatik olarak sayfa refresh olsun yoksa gözükmüyor ve dashboarddaki şirketlerin sol kısımlarına şirket iconu gelsin assets/icons içerisince company.svg iconu var onu yol olarak ver
+-> Tab selectorler arka plan olmadan bagimsiz ve renkli olsun bide hover efekt olsun kullanıcı dashboardındaki tab selectorlerde overview ve your companies kısmı olsun choose package olmasın açılan firmalar your companies kısmına gelsin ordan da ek servis alma butonu gibi bişey olsun o da marketplace'e yönlendirsin 
+-> dashboarddaki paketlerde tüm özellikler görünsün yan yana sıralanabilir 
