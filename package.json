@@ -1,5 +1,4 @@
 {
-  "homepage": "https://iscanabdulhalik.github.io/goformed-react",
   "name": "goformed-react",
   "private": true,
   "version": "0.0.0",
@@ -12,6 +11,12 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

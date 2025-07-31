@@ -1,11 +1,9 @@
-// src/pages/DashboardPage.jsx - Redesigned with better UX
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Loader from "@/components/ui/Loader";
 import { ukPackages, globalPackages } from "@/lib/packages";
 import {
@@ -36,7 +34,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 
-// Company icon import - assets/icons/company.svg yolunu kullanıyoruz
+// Company icon component
 const CompanyIcon = () => (
   <svg
     width="20"
@@ -49,7 +47,7 @@ const CompanyIcon = () => (
   </svg>
 );
 
-// Time-based greeting and theme configuration
+// Time-based greeting
 const getTimeBasedGreeting = (userName) => {
   const hour = new Date().getHours();
 
@@ -92,7 +90,7 @@ const getTimeBasedGreeting = (userName) => {
   }
 };
 
-// Enhanced animation variants
+// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -116,7 +114,7 @@ const itemVariants = {
   },
 };
 
-// Package Card Component with all features visible
+// Package Card Component
 const PackageCard = ({ plan, onSelect, isPopular = false }) => {
   return (
     <motion.div
@@ -147,15 +145,15 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
         </div>
 
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold text-gray-900 mb-2 pr-16">
+          <CardTitle className="text-lg font-bold text-gray-900 mb-2 pr-16">
             {plan.name}
           </CardTitle>
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
-              <span className="text-xs text-gray-400 line-through font-medium">
+              <span className="text-sm text-gray-400 line-through font-medium">
                 {plan.oldPrice}
               </span>
-              <span className="text-xl font-bold text-gray-900">
+              <span className="text-2xl font-bold text-gray-900">
                 {plan.price}
               </span>
             </div>
@@ -174,8 +172,8 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Check className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-                <span className="text-xs text-gray-600 leading-relaxed">
+                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-gray-600 leading-relaxed">
                   {feature}
                 </span>
               </motion.li>
@@ -185,14 +183,14 @@ const PackageCard = ({ plan, onSelect, isPopular = false }) => {
           <div className="pt-3">
             <Button
               onClick={() => onSelect(plan)}
-              className={`w-full font-semibold text-xs transition-all duration-300 transform group-hover:scale-105 ${
+              className={`w-full font-semibold transition-all duration-300 transform group-hover:scale-105 ${
                 isPopular
                   ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   : "bg-gray-900 hover:bg-gray-800"
               }`}
             >
               Select Package
-              <FaArrowRight className="ml-2 h-3 w-3 transition-transform group-hover:translate-x-1" />
+              <FaArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </div>
         </CardContent>
@@ -276,10 +274,10 @@ const CompanyRequestCard = ({ request }) => {
                 <CompanyIcon />
               </div>
               <div>
-                <CardTitle className="text-sm font-bold text-gray-900 mb-1">
+                <CardTitle className="text-base font-bold text-gray-900 mb-1">
                   {request.company_name}
                 </CardTitle>
-                <p className="text-xs text-gray-600">{request.package_name}</p>
+                <p className="text-sm text-gray-600">{request.package_name}</p>
               </div>
             </div>
             <div className="text-right">
@@ -297,10 +295,10 @@ const CompanyRequestCard = ({ request }) => {
         </CardHeader>
 
         <CardContent className="pt-0">
-          <p className="text-xs text-gray-600 mb-3">{status.description}</p>
+          <p className="text-sm text-gray-600 mb-3">{status.description}</p>
 
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4 text-xs text-gray-500">
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span>ID: {request.id.slice(0, 8)}</span>
             </div>
 
@@ -316,6 +314,34 @@ const CompanyRequestCard = ({ request }) => {
         </CardContent>
       </Card>
     </motion.div>
+  );
+};
+
+// Custom Tab Component to replace Radix Tabs
+const CustomTab = ({ activeTab, setActiveTab, tabs, children }) => {
+  return (
+    <div className="w-full">
+      {/* Tab List */}
+      <div className="flex space-x-1 mb-6">
+        {tabs.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
+              activeTab === tab.value
+                ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="tab-content">{children}</div>
+    </div>
   );
 };
 
@@ -420,6 +446,11 @@ export default function DashboardPage() {
     (r) => r.status !== "completed"
   ).length;
 
+  const tabs = [
+    { value: "overview", label: "Overview", icon: FaBuilding },
+    { value: "companies", label: "Your Companies", icon: Building2 },
+  ];
+
   return (
     <motion.div
       className="space-y-6"
@@ -457,7 +488,7 @@ export default function DashboardPage() {
               </motion.div>
               <div>
                 <motion.h1
-                  className="text-xl font-bold text-gray-900"
+                  className="text-lg font-bold text-gray-900"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
@@ -465,7 +496,7 @@ export default function DashboardPage() {
                   {timeGreeting.greeting}
                 </motion.h1>
                 <motion.p
-                  className="text-gray-700 mt-1 text-xs"
+                  className="text-gray-700 mt-1 text-sm"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
@@ -477,11 +508,13 @@ export default function DashboardPage() {
 
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
-                onClick={() => setActiveTab("packages")}
-                className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-4 py-2 text-xs`}
+                asChild
+                className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-4 py-2 text-sm`}
               >
-                <FaPlus className="h-3 w-3" />
-                Start New Company
+                <Link to="/dashboard/marketplace">
+                  <FaPlus className="h-3 w-3" />
+                  Additional Services
+                </Link>
               </Button>
             </motion.div>
           </div>
@@ -545,7 +578,7 @@ export default function DashboardPage() {
                       {stat.title}
                     </p>
                     <motion.p
-                      className="text-base font-bold text-gray-900"
+                      className="text-lg font-bold text-gray-900"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.1 + 0.7, type: "spring" }}
@@ -560,31 +593,15 @@ export default function DashboardPage() {
         ))}
       </motion.div>
 
-      {/* Redesigned Tabs */}
+      {/* Custom Tabs */}
       <motion.div variants={itemVariants}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Custom Tab List */}
-          <div className="flex space-x-1 mb-6">
-            {[
-              { value: "overview", label: "Overview", icon: FaBuilding },
-              { value: "companies", label: "Your Companies", icon: Building2 },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                  activeTab === tab.value
-                    ? "bg-blue-600 text-white shadow-lg transform scale-105"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <TabsContent value="overview" className="mt-0">
+        <CustomTab
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          tabs={tabs}
+        >
+          {/* Overview Tab */}
+          {activeTab === "overview" && (
             <AnimatePresence>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -625,7 +642,7 @@ export default function DashboardPage() {
                                 <CompanyIcon />
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium text-xs text-gray-900">
+                                <p className="font-medium text-sm text-gray-900">
                                   {request.company_name}
                                 </p>
                                 <p className="text-xs text-gray-500">
@@ -667,26 +684,18 @@ export default function DashboardPage() {
                   <CardContent>
                     <div className="space-y-3">
                       <Button
-                        onClick={() => setActiveTab("packages")}
+                        asChild
                         className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                       >
-                        <FaBuilding className="mr-3 h-4 w-4" />
-                        Form New Company
-                      </Button>
-                      <Button
-                        asChild
-                        variant="outline"
-                        className="w-full justify-start hover:bg-green-50"
-                      >
                         <Link to="/dashboard/marketplace">
-                          <ShoppingCart className="mr-3 h-4 w-4" />
+                          <FaShoppingBag className="mr-3 h-4 w-4" />
                           Browse Additional Services
                         </Link>
                       </Button>
                       <Button
                         asChild
                         variant="outline"
-                        className="w-full justify-start hover:bg-blue-50"
+                        className="w-full justify-start hover:bg-green-50"
                       >
                         <Link to="/dashboard/orders">
                           <FaEye className="mr-3 h-4 w-4" />
@@ -698,9 +707,10 @@ export default function DashboardPage() {
                 </Card>
               </motion.div>
             </AnimatePresence>
-          </TabsContent>
+          )}
 
-          <TabsContent value="companies" className="mt-0">
+          {/* Companies Tab */}
+          {activeTab === "companies" && (
             <AnimatePresence>
               {requests.length === 0 ? (
                 <motion.div
@@ -717,21 +727,17 @@ export default function DashboardPage() {
                         Ready to Start Your Business?
                       </h3>
                       <p className="text-gray-600 mb-6">
-                        Choose a package and begin your entrepreneurial journey
+                        Choose a service and begin your entrepreneurial journey
                         with us
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Button
-                          onClick={() => setActiveTab("packages")}
+                          asChild
                           className="bg-blue-600 hover:bg-blue-700"
                         >
-                          <Zap className="mr-2 h-4 w-4" />
-                          Choose Package
-                        </Button>
-                        <Button asChild variant="outline">
                           <Link to="/dashboard/marketplace">
                             <ShoppingCart className="mr-2 h-4 w-4" />
-                            Additional Services
+                            Browse Services
                           </Link>
                         </Button>
                       </div>
@@ -762,86 +768,8 @@ export default function DashboardPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </TabsContent>
-
-          <TabsContent value="packages" className="mt-0">
-            <motion.div
-              className="space-y-6"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <motion.div variants={itemVariants} className="text-center">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  Choose Your Perfect Package
-                </h2>
-                <p className="text-gray-600 text-sm">
-                  Select the right package for your business needs and get
-                  started today
-                </p>
-              </motion.div>
-
-              <Tabs defaultValue="uk" className="w-full">
-                <motion.div variants={itemVariants}>
-                  <div className="flex justify-center mb-6">
-                    <div className="inline-flex rounded-lg border p-1">
-                      <button className="px-3 py-2 rounded-md bg-blue-600 text-white text-xs font-medium">
-                        <FaBuilding className="mr-2 h-3 w-3 inline" />
-                        UK Residents
-                      </button>
-                      <button className="px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 text-xs font-medium">
-                        <FaGlobe className="mr-2 h-3 w-3 inline" />
-                        International
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <TabsContent value="uk">
-                  <motion.div
-                    className="grid md:grid-cols-2 gap-6"
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {ukPackages.map((plan, index) => (
-                      <motion.div key={plan.name} variants={itemVariants}>
-                        <PackageCard
-                          plan={plan}
-                          onSelect={() =>
-                            console.log("Package selected:", plan.name)
-                          }
-                          isPopular={plan.badge === "Popular"}
-                        />
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                </TabsContent>
-
-                <TabsContent value="global">
-                  <motion.div
-                    className="grid md:grid-cols-2 gap-6"
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {globalPackages.map((plan, index) => (
-                      <motion.div key={plan.name} variants={itemVariants}>
-                        <PackageCard
-                          plan={plan}
-                          onSelect={() =>
-                            console.log("Package selected:", plan.name)
-                          }
-                          isPopular={plan.badge === "Elite"}
-                        />
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                </TabsContent>
-              </Tabs>
-            </motion.div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </CustomTab>
       </motion.div>
     </motion.div>
   );

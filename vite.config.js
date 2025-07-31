@@ -14,5 +14,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    port: 5173,
+    host: "localhost", // localhost olarak ayarla, subdomain yok
+    strictPort: true,
+  },
+  preview: {
+    port: 5173,
+    host: "localhost",
+    strictPort: true,
+  },
 });
-//

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { CheckCircle } from "lucide-react";
 // ÖNEMLİ: Bu bölüm için uygun, ekibinizi veya ofisinizi gösteren bir görseli
 // projenizin 'src/assets/images/' klasörüne ekleyip adını 'team.jpg' olarak değiştirin.
-import teamImage from "@/assets/images/team.jpg";
+import teamImage from "../../assets/images/team.jpg";
 
 const features = [
   "Expert guidance since 2019",

@@ -23,7 +23,7 @@ export default function EnhancedHeroSection() {
   return (
     <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden">
       {/* Dynamic Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
 
       {/* Animated Background Elements */}
       <motion.div
@@ -93,7 +93,7 @@ export default function EnhancedHeroSection() {
             </motion.h1>
 
             <motion.p
-              className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-xl mx-auto lg:mx-0 leading-relaxed"
+              className="text-xl md:text-2xl text-gray-600 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -134,7 +134,7 @@ export default function EnhancedHeroSection() {
               </motion.button>
 
               <motion.button
-                className="px-8 py-4 bg-white/10 backdrop-blur-sm border-2 border-gray-300 hover:border-blue-400 text-gray-700 dark:text-white rounded-2xl font-semibold text-lg transition-all duration-300 w-full sm:w-auto"
+                className="px-8 py-4 bg-white/10 backdrop-blur-sm border-2 border-gray-300 hover:border-blue-400 text-gray-700 rounded-2xl font-semibold text-lg transition-all duration-300 w-full sm:w-auto"
                 whileHover={{
                   scale: 1.02,
                   borderColor: "#3b82f6",

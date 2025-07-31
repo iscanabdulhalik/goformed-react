@@ -125,7 +125,7 @@ const ServiceCard = ({ service, index }) => {
           {/* Content */}
           <div className="text-center space-y-4">
             <motion.h3
-              className="text-xl font-bold text-gray-800 dark:text-white"
+              className="text-xl font-bold text-gray-800"
               animate={{
                 color: isHovered ? "#1f2937" : "#374151",
               }}
@@ -135,7 +135,7 @@ const ServiceCard = ({ service, index }) => {
             </motion.h3>
 
             <motion.p
-              className="text-gray-600 dark:text-gray-300 leading-relaxed"
+              className="text-gray-600 leading-relaxed"
               animate={{
                 opacity: isHovered ? 1 : 0.8,
               }}
@@ -198,7 +198,7 @@ export default function EnhancedServicesSection() {
       ref={ref}
     >
       {/* Background Elements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50" />
 
       {/* Animated Background Shapes */}
       <motion.div
@@ -262,7 +262,7 @@ export default function EnhancedServicesSection() {
           </motion.h2>
 
           <motion.p
-            className="max-w-3xl mx-auto text-xl text-gray-600 dark:text-gray-300"
+            className="max-w-3xl mx-auto text-xl text-gray-600"
             initial={{ opacity: 0 }}
             animate={controls}
             variants={{

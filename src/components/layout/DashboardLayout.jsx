@@ -1,4 +1,4 @@
-// src/components/layout/DashboardLayout.jsx - Enhanced with notification system
+// src/components/layout/DashboardLayout.jsx - Fixed header size and notifications
 import React, { useState, useCallback, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -265,11 +265,11 @@ export default function DashboardLayout() {
         className="transition-all duration-300 ease-out"
         style={{ marginLeft: `${currentSidebarWidth}px` }}
       >
-        {/* Top Bar */}
+        {/* Top Bar - Reduced padding and font sizes */}
         <motion.div
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-40"
+          className="bg-white border-b border-gray-200 px-6 py-3 sticky top-0 z-40"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -278,28 +278,33 @@ export default function DashboardLayout() {
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="text-lg font-medium text-gray-900 tracking-tight"
+                className="text-base font-medium text-gray-900 tracking-tight"
               >
                 {getPageTitle()}
               </motion.h1>
 
-              {/* Breadcrumb */}
-              <div className="hidden md:flex items-center text-sm text-gray-500">
-                <span>GoFormed</span>
-                <span className="mx-2">/</span>
-                <span className="text-gray-900">{getPageTitle()}</span>
-              </div>
+              {/* User name next to title */}
+              {user && (
+                <div className="hidden md:flex items-center text-sm text-gray-500">
+                  <span>
+                    Good evening,{" "}
+                    {user?.user_metadata?.full_name ||
+                      user?.email?.split("@")[0] ||
+                      "User"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {/* Search */}
               <div className="hidden md:flex relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
                 />
               </div>
 
@@ -322,14 +327,6 @@ export default function DashboardLayout() {
 
               {/* User Profile */}
               <div className="flex items-center space-x-3">
-                <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.user_metadata?.full_name ||
-                      user?.email?.split("@")[0] ||
-                      "User"}
-                  </p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                </div>
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                   {user?.user_metadata?.avatar_url ? (
                     <img

@@ -1,4 +1,4 @@
-// src/App.jsx - Admin routes eklendi
+// src/App.jsx - Fixed admin auth check and profile handling
 import React, { useState, useEffect } from "react";
 import {
   Routes,
@@ -74,13 +74,8 @@ const App = () => {
             );
 
             // Check if admin and redirect accordingly
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("role")
-              .eq("id", data.user.id)
-              .single();
-
-            if (profile?.role === "admin") {
+            const userRole = await checkUserRole(data.user.id);
+            if (userRole === "admin") {
               navigate("/admin", { replace: true });
             } else {
               navigate("/dashboard", { replace: true });
@@ -96,6 +91,42 @@ const App = () => {
       handleAuthCallback();
     }
   }, [navigate]);
+
+  // Helper function to check user role with better error handling
+  const checkUserRole = async (userId) => {
+    try {
+      // First check if profile exists
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no rows
+
+      if (error) {
+        console.error("Error checking user role:", error);
+        return "user"; // Default to user role on error
+      }
+
+      // If no profile exists, create one with default user role
+      if (!profile) {
+        console.log("No profile found, creating default profile...");
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: userId,
+          role: "user",
+        });
+
+        if (insertError) {
+          console.error("Error creating profile:", insertError);
+        }
+        return "user";
+      }
+
+      return profile.role || "user";
+    } catch (error) {
+      console.error("Error in checkUserRole:", error);
+      return "user";
+    }
+  };
 
   // Kullanıcı aktivitesini takip et
   useEffect(() => {
@@ -200,18 +231,14 @@ const App = () => {
       setSession(session);
 
       if (event === "SIGNED_IN" && session) {
-        // Check if user is admin
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+        // Check if user is admin with better error handling
+        const userRole = await checkUserRole(session.user.id);
 
         // Redirect based on role and current location
-        if (profile?.role === "admin" && location.pathname === "/admin/login") {
+        if (userRole === "admin" && location.pathname === "/admin/login") {
           navigate("/admin", { replace: true });
         } else if (
-          profile?.role !== "admin" &&
+          userRole !== "admin" &&
           (location.pathname === "/login" || location.pathname === "/register")
         ) {
           navigate("/dashboard", { replace: true });
@@ -254,12 +281,17 @@ const App = () => {
 
   const handlePendingRequest = async (requestData, user) => {
     try {
+      // Ensure profile exists
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: user.id,
         full_name: requestData.fullName,
+        role: "user", // Default role
       });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Profile upsert error:", profileError);
+        // Don't throw, continue with request creation
+      }
 
       const { error: requestError } = await supabase
         .from("company_requests")
@@ -295,13 +327,8 @@ const App = () => {
             return;
           }
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
-
-          setIsAdmin(profile?.role === "admin");
+          const userRole = await checkUserRole(session.user.id);
+          setIsAdmin(userRole === "admin");
         } catch (error) {
           console.error("Admin check error:", error);
           setIsAdmin(false);

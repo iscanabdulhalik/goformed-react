@@ -1,5 +1,5 @@
-// src/pages/LoginPage.jsx - Redirect URL fix
-import React, { useState } from "react";
+// src/pages/LoginPage.jsx - Enhanced with better debugging and error handling
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,95 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Check if already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        console.log("Already authenticated, redirecting...");
+        navigate("/dashboard");
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
+  // Handle URL fragments for OAuth callbacks
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const error = hashParams.get("error");
+      const errorDescription = hashParams.get("error_description");
+
+      console.log("URL Hash params:", {
+        accessToken: !!accessToken,
+        error,
+        errorDescription,
+        fullHash: window.location.hash,
+      });
+
+      if (error) {
+        console.error("OAuth Error:", error, errorDescription);
+        setError(`Authentication failed: ${errorDescription || error}`);
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (accessToken) {
+        console.log("Processing OAuth callback...");
+        setGoogleLoading(true);
+
+        try {
+          // Wait a bit for Supabase to process the session
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            setError("Failed to establish session");
+            setGoogleLoading(false);
+            return;
+          }
+
+          if (session) {
+            console.log("✅ Session established:", session.user.email);
+            // Clear the hash
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+            navigate("/dashboard");
+          } else {
+            console.log("No session found after OAuth");
+            setError("Authentication failed - no session");
+            setGoogleLoading(false);
+          }
+        } catch (err) {
+          console.error("OAuth processing error:", err);
+          setError("Authentication processing failed");
+          setGoogleLoading(false);
+        }
+      }
+    };
+
+    if (window.location.hash) {
+      handleAuthCallback();
+    }
+  }, [navigate]);
 
   // Production veya development URL'ini al
   const getRedirectURL = () => {
-    const baseUrl = import.meta.env.PROD
-      ? window.location.origin // Production'da mevcut domain
-      : "http://localhost:5173"; // Development'da localhost
-
-    return `${baseUrl}/dashboard`;
+    const baseUrl = window.location.origin; // Current origin
+    return `${baseUrl}/login`; // Redirect back to login page
   };
 
   const handlePasswordlessLogin = async (e) => {
@@ -37,7 +118,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: getRedirectURL(),
+          emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
 
@@ -45,6 +126,7 @@ export default function LoginPage() {
 
       setLinkSent(true);
     } catch (err) {
+      console.error("Magic link error:", err);
       setError(err.error_description || err.message);
     } finally {
       setLoading(false);
@@ -52,18 +134,61 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError("");
+
+    console.log("Starting Google OAuth...");
+    console.log("Redirect URL:", getRedirectURL());
+
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: getRedirectURL(),
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
-      if (error) throw error;
+
+      console.log("OAuth initiation result:", { data, error });
+
+      if (error) {
+        console.error("OAuth initiation error:", error);
+        throw error;
+      }
+
+      // Don't set loading to false here - let the callback handle it
+      console.log("OAuth popup/redirect should have opened...");
     } catch (err) {
-      setError(err.error_description || err.message);
+      console.error("Google login error:", err);
+      setError(err.error_description || err.message || "Google login failed");
+      setGoogleLoading(false);
     }
   };
+
+  // Show loading state if Google authentication is in progress
+  if (googleLoading) {
+    return (
+      <AuthLayout>
+        <AuthImage />
+        <AuthContent>
+          <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Completing Sign In...
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Please wait while we complete your Google authentication.
+              </p>
+            </div>
+          </div>
+        </AuthContent>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
@@ -138,9 +263,17 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 onClick={handleGoogleLogin}
-                disabled={loading}
+                disabled={loading || googleLoading}
+                className="w-full"
               >
-                Sign In with Google
+                {googleLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                    Signing in with Google...
+                  </>
+                ) : (
+                  "Sign In with Google"
+                )}
               </Button>
 
               <p className="px-8 text-center text-sm text-muted-foreground">
