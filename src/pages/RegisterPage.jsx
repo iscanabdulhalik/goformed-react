@@ -11,6 +11,7 @@ import {
   AuthImage,
 } from "@/components/layout/AuthLayout";
 import { CheckCircle } from "lucide-react";
+import { getSecureRedirectURL, AUTH_CONFIG } from "@/config/auth";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -20,21 +21,37 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
 
-  // Production veya development URL'ini al
-  const getRedirectURL = () => {
-    const baseUrl = import.meta.env.PROD
-      ? window.location.origin // Production'da mevcut domain
-      : "http://localhost:5173"; // Development'da localhost
-
-    return `${baseUrl}/dashboard`;
-  };
-
   const handleEmailRegister = async (e) => {
     e.preventDefault();
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+
+    // ✅ Enhanced validation
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
+
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    // Check password strength
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      setError(
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+      );
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -43,7 +60,12 @@ export default function RegisterPage() {
         email: email,
         password: password,
         options: {
-          emailRedirectTo: getRedirectURL(),
+          emailRedirectTo: getSecureRedirectURL(
+            AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS
+          ),
+          data: {
+            email_confirm: true, // Require email confirmation
+          },
         },
       });
 
@@ -51,6 +73,7 @@ export default function RegisterPage() {
 
       setVerificationSent(true);
     } catch (err) {
+      console.error("Registration error:", err);
       setError(err.error_description || err.message);
     } finally {
       setLoading(false);
@@ -62,7 +85,13 @@ export default function RegisterPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getRedirectURL(),
+          redirectTo: getSecureRedirectURL(
+            AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS
+          ),
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
       if (error) throw error;
@@ -87,6 +116,13 @@ export default function RegisterPage() {
                 Please check your inbox and follow the link to activate your
                 account.
               </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> You must verify your email before
+                  you can sign in. The verification link will expire in 24
+                  hours.
+                </p>
+              </div>
               <Button onClick={() => navigate("/login")}>
                 Back to Sign In
               </Button>
@@ -125,11 +161,15 @@ export default function RegisterPage() {
                     required
                     disabled={loading}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 8 characters with uppercase, lowercase, and
+                    numbers
+                  </p>
                 </div>
                 {error && (
-                  <p className="text-sm font-medium text-destructive">
-                    {error}
-                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm font-medium text-red-800">{error}</p>
+                  </div>
                 )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating Account..." : "Create Account"}

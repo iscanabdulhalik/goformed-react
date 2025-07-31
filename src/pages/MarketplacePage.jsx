@@ -1,15 +1,9 @@
-// src/pages/MarketplacePage.jsx - Ek Hizmetler Marketplace
+// src/pages/MarketplacePage.jsx - Production Ready with Real Data
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   FaFileAlt,
@@ -24,20 +18,26 @@ import {
   FaSpinner,
   FaCheck,
 } from "react-icons/fa";
-import { Building2, CreditCard, FileText, MapPin } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  FileText,
+  MapPin,
+  ShoppingCart,
+} from "lucide-react";
 
-// Ek hizmetler data
-const additionalServices = [
+// Real services data - This would typically come from a database
+const AVAILABLE_SERVICES = [
   {
     id: "vat-registration",
     title: "VAT Registration",
     description:
       "Get your company registered for VAT with HMRC. Essential for businesses with turnover over £85,000.",
     longDescription:
-      "Complete VAT registration service including application submission, communication with HMRC, and guidance on VAT compliance requirements.",
-    price: "$129",
-    originalPrice: "$199",
-    currency: "USD",
+      "Complete VAT registration service including application submission, communication with HMRC, and guidance on VAT compliance requirements. Our experts will handle the entire process and provide ongoing support.",
+    price: 129.0,
+    originalPrice: 199.0,
+    currency: "GBP",
     icon: <FaCalculator className="w-6 h-6" />,
     category: "Tax & Compliance",
     deliveryTime: "3-5 business days",
@@ -46,20 +46,22 @@ const additionalServices = [
       "HMRC communication handling",
       "VAT compliance guidance",
       "Ongoing support for 30 days",
+      "Digital VAT certificate",
     ],
     isPopular: false,
     isNew: true,
+    isActive: true,
   },
   {
     id: "logo-design",
-    title: "Logo Design",
+    title: "Professional Logo Design",
     description:
       "Get 3 original, custom-made logos tailored to your business style and preferences — 100% unique.",
     longDescription:
-      "Professional logo design service with unlimited revisions until you're completely satisfied. Includes multiple file formats and brand guidelines.",
-    price: "$50",
-    originalPrice: "$99",
-    currency: "USD",
+      "Professional logo design service with unlimited revisions until you're completely satisfied. Includes multiple file formats, brand guidelines, and commercial use rights.",
+    price: 50.0,
+    originalPrice: 99.0,
+    currency: "GBP",
     icon: <FaPalette className="w-6 h-6" />,
     category: "Branding",
     deliveryTime: "2-3 business days",
@@ -69,20 +71,22 @@ const additionalServices = [
       "Multiple file formats (PNG, SVG, EPS)",
       "Brand color palette",
       "Commercial use rights",
+      "Source files included",
     ],
     isPopular: true,
     isNew: false,
+    isActive: true,
   },
   {
     id: "ein-number",
-    title: "EIN Number",
+    title: "US EIN Number",
     description:
       "Get your EIN in just 2-5 business days as a non-US resident. Essential for US business operations.",
     longDescription:
-      "Fast EIN (Employer Identification Number) application service for international entrepreneurs looking to do business in the US.",
-    price: "$60",
-    originalPrice: "$120",
-    currency: "USD",
+      "Fast EIN (Employer Identification Number) application service for international entrepreneurs looking to do business in the US. Includes IRS communication and setup guidance.",
+    price: 60.0,
+    originalPrice: 120.0,
+    currency: "GBP",
     icon: <FaIdCard className="w-6 h-6" />,
     category: "US Business",
     deliveryTime: "2-5 business days",
@@ -91,9 +95,11 @@ const additionalServices = [
       "IRS communication handling",
       "Digital EIN certificate",
       "Tax ID setup guidance",
+      "Bank account opening support",
     ],
     isPopular: false,
     isNew: false,
+    isActive: true,
   },
   {
     id: "uk-address-proof",
@@ -101,10 +107,10 @@ const additionalServices = [
     description:
       "Obtain a UK proof of address accepted by Stripe and UK online banking services.",
     longDescription:
-      "Official UK address verification document that satisfies KYC requirements for major financial platforms and banking services.",
-    price: "$129",
-    originalPrice: "$200",
-    currency: "USD",
+      "Official UK address verification document that satisfies KYC requirements for major financial platforms and banking services. Accepted by all major UK banks and payment processors.",
+    price: 129.0,
+    originalPrice: 200.0,
+    currency: "GBP",
     icon: <FaMapMarkerAlt className="w-6 h-6" />,
     category: "Documentation",
     deliveryTime: "5-7 business days",
@@ -113,9 +119,11 @@ const additionalServices = [
       "Stripe & bank accepted format",
       "Digital & physical copies",
       "Ongoing address service",
+      "Utility bill format",
     ],
     isPopular: false,
     isNew: false,
+    isActive: true,
   },
   {
     id: "business-insurance",
@@ -123,10 +131,10 @@ const additionalServices = [
     description:
       "Protect your business with comprehensive insurance coverage tailored for UK companies.",
     longDescription:
-      "Professional indemnity and public liability insurance options designed specifically for international entrepreneurs operating UK companies.",
-    price: "$89",
-    originalPrice: "$150",
-    currency: "USD",
+      "Professional indemnity and public liability insurance options designed specifically for international entrepreneurs operating UK companies. Competitive rates and instant certificates.",
+    price: 89.0,
+    originalPrice: 150.0,
+    currency: "GBP",
     icon: <FaShieldAlt className="w-6 h-6" />,
     category: "Protection",
     deliveryTime: "1-2 business days",
@@ -135,9 +143,11 @@ const additionalServices = [
       "Public liability insurance",
       "Instant digital certificates",
       "Competitive rates",
+      "Annual coverage",
     ],
     isPopular: false,
     isNew: true,
+    isActive: true,
   },
   {
     id: "website-setup",
@@ -145,10 +155,10 @@ const additionalServices = [
     description:
       "Get a professional business website with hosting, domain, and SSL certificate included.",
     longDescription:
-      "Complete website solution including modern design, mobile optimization, and business email setup to establish your online presence.",
-    price: "$199",
-    originalPrice: "$399",
-    currency: "USD",
+      "Complete website solution including modern design, mobile optimization, and business email setup to establish your online presence. SEO optimized and fully responsive.",
+    price: 199.0,
+    originalPrice: 399.0,
+    currency: "GBP",
     icon: <FaGlobe className="w-6 h-6" />,
     category: "Digital Presence",
     deliveryTime: "5-7 business days",
@@ -158,9 +168,42 @@ const additionalServices = [
       "SSL certificate included",
       "Business email setup",
       "SEO optimization",
+      "Content management system",
     ],
     isPopular: true,
     isNew: false,
+    isActive: true,
+  },
+];
+
+// Categories configuration
+const CATEGORIES = [
+  { id: "all", name: "All Services", icon: <Building2 className="w-4 h-4" /> },
+  {
+    id: "Tax & Compliance",
+    name: "Tax & Compliance",
+    icon: <FileText className="w-4 h-4" />,
+  },
+  { id: "Branding", name: "Branding", icon: <FaPalette className="w-4 h-4" /> },
+  {
+    id: "Documentation",
+    name: "Documentation",
+    icon: <FaFileAlt className="w-4 h-4" />,
+  },
+  {
+    id: "US Business",
+    name: "US Business",
+    icon: <FaIdCard className="w-4 h-4" />,
+  },
+  {
+    id: "Digital Presence",
+    name: "Digital",
+    icon: <FaGlobe className="w-4 h-4" />,
+  },
+  {
+    id: "Protection",
+    name: "Protection",
+    icon: <FaShieldAlt className="w-4 h-4" />,
   },
 ];
 
@@ -222,9 +265,9 @@ const ServiceCard = ({ service, onOrder }) => {
               <Badge variant="outline" className="text-xs mb-2">
                 {service.category}
               </Badge>
-              <CardDescription className="text-sm text-gray-600 leading-relaxed">
+              <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
                 {service.description}
-              </CardDescription>
+              </p>
             </div>
           </div>
         </CardHeader>
@@ -234,21 +277,21 @@ const ServiceCard = ({ service, onOrder }) => {
           <div className="mb-4">
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-2xl font-bold text-gray-900">
-                {service.price}
+                £{service.price.toFixed(2)}
               </span>
               {service.originalPrice && (
                 <span className="text-lg text-gray-400 line-through">
-                  {service.originalPrice}
+                  £{service.originalPrice.toFixed(2)}
                 </span>
               )}
-              <span className="text-sm text-gray-500">Total amount</span>
+              <span className="text-sm text-gray-500">Total</span>
             </div>
             <p className="text-xs text-gray-500">
               Delivery: {service.deliveryTime}
             </p>
           </div>
 
-          {/* Features */}
+          {/* Features Preview */}
           <div className="mb-6 flex-1">
             <ul className="space-y-2">
               {service.features.slice(0, 3).map((feature, index) => (
@@ -268,7 +311,7 @@ const ServiceCard = ({ service, onOrder }) => {
           {/* Order Button */}
           <Button
             onClick={handleOrder}
-            disabled={isLoading}
+            disabled={isLoading || !service.isActive}
             className={`w-full font-semibold transition-all duration-300 ${
               service.isPopular
                 ? "bg-blue-600 hover:bg-blue-700"
@@ -280,8 +323,10 @@ const ServiceCard = ({ service, onOrder }) => {
                 <FaSpinner className="animate-spin mr-2 h-4 w-4" />
                 Processing...
               </>
+            ) : !service.isActive ? (
+              "Currently Unavailable"
             ) : (
-              "Order"
+              "Order Service"
             )}
           </Button>
         </CardContent>
@@ -290,201 +335,116 @@ const ServiceCard = ({ service, onOrder }) => {
   );
 };
 
-// Service Detail Modal
-const ServiceDetailModal = ({ service, isOpen, onClose, onOrder }) => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  if (!isOpen || !service) return null;
-
-  const handleOrder = async () => {
-    setIsLoading(true);
-    try {
-      await onOrder(service);
-      onClose();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-      >
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <div className="text-blue-600 text-xl">{service.icon}</div>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {service.title}
-                </h2>
-                <Badge variant="outline" className="text-sm">
-                  {service.category}
-                </Badge>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Description */}
-          <div className="mb-6">
-            <p className="text-gray-700 leading-relaxed">
-              {service.longDescription}
-            </p>
-          </div>
-
-          {/* Price and Delivery */}
-          <div className="bg-gray-50 rounded-xl p-4 mb-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold text-gray-900">
-                    {service.price}
-                  </span>
-                  {service.originalPrice && (
-                    <span className="text-xl text-gray-400 line-through">
-                      {service.originalPrice}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500">Total amount</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
-                  {service.deliveryTime}
-                </p>
-                <p className="text-xs text-gray-500">Delivery time</p>
-              </div>
-            </div>
-          </div>
-
-          {/* All Features */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              What's Included:
-            </h3>
-            <div className="grid gap-3">
-              {service.features.map((feature, index) => (
-                <motion.div
-                  key={feature}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-start gap-3 p-3 bg-green-50 rounded-lg"
-                >
-                  <FaCheck className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">{feature}</span>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Order Button */}
-          <div className="flex gap-3">
-            <Button onClick={onClose} variant="outline" className="flex-1">
-              Close
-            </Button>
-            <Button
-              onClick={handleOrder}
-              disabled={isLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-            >
-              {isLoading ? (
-                <>
-                  <FaSpinner className="animate-spin mr-2 h-4 w-4" />
-                  Processing...
-                </>
-              ) : (
-                `Order ${service.price}`
-              )}
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-// Categories
-const categories = [
-  { id: "all", name: "All Services", icon: <Building2 className="w-4 h-4" /> },
-  {
-    id: "Tax & Compliance",
-    name: "Tax & Compliance",
-    icon: <FileText className="w-4 h-4" />,
-  },
-  { id: "Branding", name: "Branding", icon: <FaPalette className="w-4 h-4" /> },
-  {
-    id: "Documentation",
-    name: "Documentation",
-    icon: <FaFileAlt className="w-4 h-4" />,
-  },
-  {
-    id: "US Business",
-    name: "US Business",
-    icon: <FaIdCard className="w-4 h-4" />,
-  },
-  {
-    id: "Digital Presence",
-    name: "Digital",
-    icon: <FaGlobe className="w-4 h-4" />,
-  },
-  {
-    id: "Protection",
-    name: "Protection",
-    icon: <FaShieldAlt className="w-4 h-4" />,
-  },
-];
-
-// Main Component
+// Main Marketplace Component
 export default function MarketplacePage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedService, setSelectedService] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error) throw error;
+        setUser(user);
+      } catch (error) {
+        console.error("Error getting user:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getUser();
+  }, []);
 
   const filteredServices =
     selectedCategory === "all"
-      ? additionalServices
-      : additionalServices.filter(
-          (service) => service.category === selectedCategory
+      ? AVAILABLE_SERVICES.filter((service) => service.isActive)
+      : AVAILABLE_SERVICES.filter(
+          (service) => service.category === selectedCategory && service.isActive
         );
 
   const handleServiceOrder = async (service) => {
+    if (!user) {
+      alert("Please log in to order services.");
+      window.location.href = "/login";
+      return;
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Log activity
+      await supabase.rpc("log_activity", {
+        p_user_id: user.id,
+        p_action: "service_order_initiated",
+        p_description: `User initiated order for ${service.title}`,
+        p_metadata: { service_id: service.id, service_title: service.title },
+      });
 
-      if (!user) {
-        alert("Hizmet siparişi vermek için giriş yapmanız gerekiyor.");
-        return;
-      }
+      // Create service order record
+      const { data: order, error } = await supabase
+        .from("service_orders")
+        .insert({
+          user_id: user.id,
+          service_id: service.id,
+          service_title: service.title,
+          service_category: service.category,
+          service_description: service.description,
+          price_amount: service.price,
+          currency: service.currency,
+          delivery_time: service.deliveryTime,
+          order_details: {
+            features: service.features,
+            original_price: service.originalPrice,
+          },
+          status: "pending",
+        })
+        .select()
+        .single();
 
-      // Burada gerçek sipariş işlemi yapılabilir
-      // Örneğin: Stripe checkout, database'e sipariş kaydetme vs.
-      console.log("Ordering service:", service.id, "for user:", user.email);
+      if (error) throw error;
 
-      // Demo için alert gösterelim
-      alert(
-        `${service.title} hizmeti için sipariş alındı! Size en kısa sürede dönüş yapılacak.`
-      );
+      // Log successful order creation
+      await supabase.rpc("log_activity", {
+        p_user_id: user.id,
+        p_action: "service_order_created",
+        p_description: `Service order created for ${service.title}`,
+        p_service_order_id: order.id,
+        p_metadata: {
+          order_id: order.id,
+          amount: service.price,
+          currency: service.currency,
+        },
+      });
+
+      // Show success message and redirect to orders
+      alert(`Order created successfully! Order ID: ${order.id.slice(0, 8)}`);
+      window.location.href = `/dashboard/orders`;
     } catch (error) {
-      console.error("Order error:", error);
-      alert("Sipariş sırasında hata oluştu. Lütfen tekrar deneyin.");
+      console.error("Order creation error:", error);
+      alert("Failed to create order. Please try again.");
+
+      // Log error
+      if (user) {
+        await supabase.rpc("log_activity", {
+          p_user_id: user.id,
+          p_action: "service_order_failed",
+          p_description: `Failed to create order for ${service.title}: ${error.message}`,
+          p_metadata: { service_id: service.id, error: error.message },
+        });
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -507,7 +467,7 @@ export default function MarketplacePage() {
 
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {categories.map((category) => (
+          {CATEGORIES.map((category) => (
             <Button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
@@ -528,19 +488,8 @@ export default function MarketplacePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              onClick={() => {
-                setSelectedService(service);
-                setShowModal(true);
-              }}
-              className="cursor-pointer"
             >
-              <ServiceCard
-                service={service}
-                onOrder={(service) => {
-                  setSelectedService(service);
-                  setShowModal(true);
-                }}
-              />
+              <ServiceCard service={service} onOrder={handleServiceOrder} />
             </motion.div>
           ))}
         </div>
@@ -588,17 +537,6 @@ export default function MarketplacePage() {
           </div>
         </motion.div>
       </div>
-
-      {/* Service Detail Modal */}
-      <ServiceDetailModal
-        service={selectedService}
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setSelectedService(null);
-        }}
-        onOrder={handleServiceOrder}
-      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   AuthImage,
 } from "@/components/layout/AuthLayout";
 import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { getSecureRedirectURL, AUTH_CONFIG } from "@/config/auth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -32,7 +33,20 @@ export default function LoginPage() {
       } = await supabase.auth.getSession();
       if (session) {
         console.log("Already authenticated, redirecting...");
-        navigate("/dashboard");
+
+        // Check user role for proper redirect
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        const redirectPath =
+          profile?.role === "admin"
+            ? AUTH_CONFIG.REDIRECT_PATHS.ADMIN_LOGIN_SUCCESS
+            : AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS;
+
+        navigate(redirectPath);
       }
     };
     checkAuth();
@@ -86,7 +100,20 @@ export default function LoginPage() {
               document.title,
               window.location.pathname
             );
-            navigate("/dashboard");
+
+            // ✅ Güvenli redirect
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single();
+
+            const redirectPath =
+              profile?.role === "admin"
+                ? AUTH_CONFIG.REDIRECT_PATHS.ADMIN_LOGIN_SUCCESS
+                : AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS;
+
+            navigate(redirectPath);
           } else {
             console.log("No session found after OAuth");
             setError("Authentication failed - no session");
@@ -105,21 +132,23 @@ export default function LoginPage() {
     }
   }, [navigate]);
 
-  const getRedirectURL = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/login`;
-  };
-
   const handlePasswordlessLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
+      // ✅ Input validation
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error("Please enter a valid email address");
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: getSecureRedirectURL(
+            AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS
+          ),
         },
       });
 
@@ -139,13 +168,12 @@ export default function LoginPage() {
     setError("");
 
     console.log("Starting Google OAuth...");
-    console.log("Redirect URL:", getRedirectURL());
 
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getRedirectURL(),
+          redirectTo: getSecureRedirectURL("/login"), // ✅ Güvenli redirect
           queryParams: {
             access_type: "offline",
             prompt: "consent",

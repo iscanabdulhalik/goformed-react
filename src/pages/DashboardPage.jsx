@@ -1,3 +1,4 @@
+// src/pages/DashboardPage.jsx - Production Ready with Real Data
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link } from "react-router-dom";
@@ -5,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Loader from "@/components/ui/Loader";
-import { ukPackages, globalPackages } from "@/lib/packages";
 import {
   FaPlus,
   FaSpinner,
@@ -32,20 +32,11 @@ import {
   Moon,
   Sunset,
   ShoppingCart,
+  TrendingUp,
+  Package,
+  AlertCircle,
+  DollarSign,
 } from "lucide-react";
-
-// Company icon component
-const CompanyIcon = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className="text-blue-600"
-  >
-    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
-  </svg>
-);
 
 // Time-based greeting
 const getTimeBasedGreeting = (userName) => {
@@ -114,124 +105,23 @@ const itemVariants = {
   },
 };
 
-// Package Card Component
-const PackageCard = ({ plan, onSelect, isPopular = false }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3, scale: 1.02 }}
-      transition={{ duration: 0.3 }}
-      className="group h-full"
-    >
-      <Card
-        className={`relative h-full transition-all duration-300 hover:shadow-lg ${
-          isPopular
-            ? "border-2 border-blue-500 shadow-md"
-            : "border hover:border-gray-300"
-        }`}
-      >
-        {/* Badge */}
-        <div className="absolute -top-2 right-4 z-10">
-          <motion.div
-            className={`${getBadgeColor(
-              plan.badge
-            )} text-white px-3 py-1 text-xs font-semibold rounded-full shadow-sm flex items-center gap-1`}
-            whileHover={{ scale: 1.05 }}
-          >
-            {getBadgeIcon(plan.badge)}
-            {plan.badge}
-          </motion.div>
-        </div>
-
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-bold text-gray-900 mb-2 pr-16">
-            {plan.name}
-          </CardTitle>
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm text-gray-400 line-through font-medium">
-                {plan.oldPrice}
-              </span>
-              <span className="text-2xl font-bold text-gray-900">
-                {plan.price}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">{plan.feeText}</p>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4 flex-1 flex flex-col">
-          {/* All Features */}
-          <ul className="space-y-2 flex-1">
-            {plan.features.map((feature, index) => (
-              <motion.li
-                key={feature}
-                className="flex items-start gap-2"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-600 leading-relaxed">
-                  {feature}
-                </span>
-              </motion.li>
-            ))}
-          </ul>
-
-          <div className="pt-3">
-            <Button
-              onClick={() => onSelect(plan)}
-              className={`w-full font-semibold transition-all duration-300 transform group-hover:scale-105 ${
-                isPopular
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  : "bg-gray-900 hover:bg-gray-800"
-              }`}
-            >
-              Select Package
-              <FaArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-};
-
-const getBadgeIcon = (badge) => {
-  switch (badge) {
-    case "Premium":
-      return <Crown className="w-3 h-3" />;
-    case "Elite":
-      return <Sparkles className="w-3 h-3" />;
-    default:
-      return <Star className="w-3 h-3" />;
-  }
-};
-
-const getBadgeColor = (badge) => {
-  switch (badge) {
-    case "Premium":
-      return "bg-purple-600";
-    case "Elite":
-      return "bg-gray-800";
-    default:
-      return "bg-green-600";
-  }
-};
-
-// Status configuration
-const statusConfig = {
+// Status configurations
+const companyStatusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     icon: FaClock,
     label: "Pending Payment",
     description: "Complete payment to start your company formation",
   },
+  payment_completed: {
+    color: "bg-blue-100 text-blue-800 border-blue-300",
+    icon: FaCheckCircle,
+    label: "Payment Completed",
+    description: "Payment received, starting review process",
+  },
   in_review: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
-    icon: FaEye,
+    icon: FaSpinner,
     label: "In Review",
     description: "Our team is reviewing your application",
   },
@@ -240,6 +130,12 @@ const statusConfig = {
     icon: FaExclamationTriangle,
     label: "Documents Required",
     description: "Please upload the requested documents",
+  },
+  processing: {
+    color: "bg-purple-100 text-purple-800 border-purple-300",
+    icon: FaSpinner,
+    label: "Processing",
+    description: "Your company is being processed with Companies House",
   },
   completed: {
     color: "bg-green-100 text-green-800 border-green-300",
@@ -255,9 +151,43 @@ const statusConfig = {
   },
 };
 
+const serviceStatusConfig = {
+  pending: {
+    color: "bg-yellow-100 text-yellow-800 border-yellow-300",
+    icon: FaClock,
+    label: "Pending",
+    description: "Service order is being processed",
+  },
+  confirmed: {
+    color: "bg-blue-100 text-blue-800 border-blue-300",
+    icon: FaCheckCircle,
+    label: "Confirmed",
+    description: "Service order has been confirmed",
+  },
+  in_progress: {
+    color: "bg-purple-100 text-purple-800 border-purple-300",
+    icon: FaSpinner,
+    label: "In Progress",
+    description: "Service is being worked on",
+  },
+  completed: {
+    color: "bg-green-100 text-green-800 border-green-300",
+    icon: FaCheckCircle,
+    label: "Completed",
+    description: "Service has been completed successfully",
+  },
+  cancelled: {
+    color: "bg-red-100 text-red-800 border-red-300",
+    icon: FaTimesCircle,
+    label: "Cancelled",
+    description: "Service order was cancelled",
+  },
+};
+
 // Company Request Card Component
 const CompanyRequestCard = ({ request }) => {
-  const status = statusConfig[request.status] || statusConfig.pending_payment;
+  const status =
+    companyStatusConfig[request.status] || companyStatusConfig.pending_payment;
   const StatusIcon = status.icon;
 
   return (
@@ -271,13 +201,18 @@ const CompanyRequestCard = ({ request }) => {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <CompanyIcon />
+                <FaBuilding className="h-4 w-4 text-blue-600" />
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-gray-900 mb-1">
                   {request.company_name}
                 </CardTitle>
                 <p className="text-sm text-gray-600">{request.package_name}</p>
+                {request.package_price && (
+                  <p className="text-xs text-gray-500">
+                    £{request.package_price}
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -300,6 +235,12 @@ const CompanyRequestCard = ({ request }) => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span>ID: {request.id.slice(0, 8)}</span>
+              {request.assigned_admin_id && (
+                <span className="flex items-center gap-1">
+                  <FaBuilding className="h-3 w-3" />
+                  Assigned
+                </span>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -317,7 +258,79 @@ const CompanyRequestCard = ({ request }) => {
   );
 };
 
-// Custom Tab Component to replace Radix Tabs
+// Service Order Card Component
+const ServiceOrderCard = ({ order }) => {
+  const status =
+    serviceStatusConfig[order.status] || serviceStatusConfig.pending;
+  const StatusIcon = status.icon;
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ scale: 1.01 }}
+      className="group"
+    >
+      <Card className="hover:shadow-md transition-all duration-300 border-l-4 border-l-green-500">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <FaShoppingBag className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-gray-900 mb-1">
+                  {order.service_title}
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  {order.service_category}
+                </p>
+                <p className="text-xs text-gray-500">£{order.price_amount}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span
+                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${status.color}`}
+              >
+                <StatusIcon className="mr-1 h-3 w-3" />
+                {status.label}
+              </span>
+              <p className="text-xs text-gray-500 mt-1">
+                {new Date(order.created_at).toLocaleDateString("en-US")}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          <p className="text-sm text-gray-600 mb-3">{status.description}</p>
+
+          {order.delivery_time && (
+            <p className="text-xs text-gray-500 mb-2">
+              Expected delivery: {order.delivery_time}
+            </p>
+          )}
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              <span>Order: {order.id.slice(0, 8)}</span>
+            </div>
+
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/dashboard/orders/${order.id}`}>
+                  <FaEye className="mr-2 h-3 w-3" />
+                  View Order
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+// Custom Tab Component
 const CustomTab = ({ activeTab, setActiveTab, tabs, children }) => {
   return (
     <div className="w-full">
@@ -347,25 +360,42 @@ const CustomTab = ({ activeTab, setActiveTab, tabs, children }) => {
 
 // Main Dashboard Component
 export default function DashboardPage() {
-  const [requests, setRequests] = useState([]);
+  const [companyRequests, setCompanyRequests] = useState([]);
+  const [serviceOrders, setServiceOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
   const [timeGreeting, setTimeGreeting] = useState(null);
+  const [stats, setStats] = useState({
+    totalSpent: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
+    recentActivity: [],
+  });
 
   // Get user and set up greeting
   useEffect(() => {
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+        if (error) throw error;
 
-      if (user) {
-        const userName =
-          user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
-        setTimeGreeting(getTimeBasedGreeting(userName));
+        setUser(user);
+
+        if (user) {
+          const userName =
+            user.user_metadata?.full_name ||
+            user.email?.split("@")[0] ||
+            "User";
+          setTimeGreeting(getTimeBasedGreeting(userName));
+        }
+      } catch (error) {
+        console.error("Error getting user:", error);
+        setError("Failed to load user information");
       }
     };
     getUser();
@@ -384,71 +414,173 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Fetch user requests - sorted by newest first
+  // Fetch user data
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not found");
+    if (!user) return;
 
-        const { data, error } = await supabase
+    const fetchUserData = async () => {
+      try {
+        // Fetch company requests
+        const { data: companyData, error: companyError } = await supabase
           .from("company_requests")
           .select("*")
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false }); // Newest first
+          .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        setRequests(data || []);
+        if (companyError) throw companyError;
+
+        // Fetch service orders
+        const { data: serviceData, error: serviceError } = await supabase
+          .from("service_orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (serviceError) throw serviceError;
+
+        // Fetch recent activity
+        const { data: activityData, error: activityError } = await supabase
+          .from("activity_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (activityError) throw activityError;
+
+        setCompanyRequests(companyData || []);
+        setServiceOrders(serviceData || []);
+
+        // Calculate stats
+        const totalSpent = [
+          ...(companyData || []).map((req) =>
+            parseFloat(req.package_price || 0)
+          ),
+          ...(serviceData || []).map((order) =>
+            parseFloat(order.price_amount || 0)
+          ),
+        ].reduce((sum, amount) => sum + amount, 0);
+
+        const pendingOrders = [
+          ...(companyData || []).filter((req) =>
+            ["pending_payment", "in_review", "processing"].includes(req.status)
+          ),
+          ...(serviceData || []).filter((order) =>
+            ["pending", "confirmed", "in_progress"].includes(order.status)
+          ),
+        ].length;
+
+        const completedOrders = [
+          ...(companyData || []).filter((req) => req.status === "completed"),
+          ...(serviceData || []).filter(
+            (order) => order.status === "completed"
+          ),
+        ].length;
+
+        setStats({
+          totalSpent,
+          pendingOrders,
+          completedOrders,
+          recentActivity: activityData || [],
+        });
       } catch (err) {
+        console.error("Error fetching user data:", err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRequests();
+    fetchUserData();
 
-    // Real-time subscription with auto-refresh
-    const channel = supabase
-      .channel("company_requests_changes")
+    // Real-time subscriptions
+    const companyChannel = supabase
+      .channel("user_company_requests")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "company_requests",
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
           if (payload.eventType === "UPDATE") {
-            setRequests((currentRequests) =>
-              currentRequests
-                .map((req) => (req.id === payload.new.id ? payload.new : req))
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            setCompanyRequests((current) =>
+              current.map((req) =>
+                req.id === payload.new.id ? payload.new : req
+              )
             );
           } else if (payload.eventType === "INSERT") {
-            setRequests((currentRequests) => [payload.new, ...currentRequests]);
+            setCompanyRequests((current) => [payload.new, ...current]);
           }
         }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, []);
+    const serviceChannel = supabase
+      .channel("user_service_orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_orders",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === "UPDATE") {
+            setServiceOrders((current) =>
+              current.map((order) =>
+                order.id === payload.new.id ? payload.new : order
+              )
+            );
+          } else if (payload.eventType === "INSERT") {
+            setServiceOrders((current) => [payload.new, ...current]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(companyChannel);
+      supabase.removeChannel(serviceChannel);
+    };
+  }, [user]);
 
   if (loading) return <Loader />;
 
-  const completedRequests = requests.filter(
-    (r) => r.status === "completed"
-  ).length;
-  const pendingRequests = requests.filter(
-    (r) => r.status !== "completed"
-  ).length;
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Something went wrong
+            </h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const totalOrders = companyRequests.length + serviceOrders.length;
 
   const tabs = [
     { value: "overview", label: "Overview", icon: FaBuilding },
-    { value: "companies", label: "Your Companies", icon: Building2 },
+    {
+      value: "companies",
+      label: `Companies (${companyRequests.length})`,
+      icon: Building2,
+    },
+    {
+      value: "services",
+      label: `Services (${serviceOrders.length})`,
+      icon: FaShoppingBag,
+    },
   ];
 
   return (
@@ -513,7 +645,7 @@ export default function DashboardPage() {
               >
                 <Link to="/dashboard/marketplace">
                   <FaPlus className="h-3 w-3" />
-                  Additional Services
+                  Browse Services
                 </Link>
               </Button>
             </motion.div>
@@ -528,16 +660,16 @@ export default function DashboardPage() {
       >
         {[
           {
-            title: "Total Companies",
-            value: requests.length,
-            icon: FaBuilding,
+            title: "Total Orders",
+            value: totalOrders,
+            icon: Package,
             color: "blue",
             bgColor: "bg-blue-100",
             textColor: "text-blue-600",
           },
           {
             title: "Completed",
-            value: completedRequests,
+            value: stats.completedOrders,
             icon: FaCheckCircle,
             color: "green",
             bgColor: "bg-green-100",
@@ -545,16 +677,16 @@ export default function DashboardPage() {
           },
           {
             title: "In Progress",
-            value: pendingRequests,
+            value: stats.pendingOrders,
             icon: FaClock,
             color: "yellow",
             bgColor: "bg-yellow-100",
             textColor: "text-yellow-600",
           },
           {
-            title: "Success Rate",
-            value: "98%",
-            icon: FaChartBar,
+            title: "Total Spent",
+            value: `£${stats.totalSpent.toFixed(2)}`,
+            icon: DollarSign,
             color: "purple",
             bgColor: "bg-purple-100",
             textColor: "text-purple-600",
@@ -618,54 +750,102 @@ export default function DashboardPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {requests.length === 0 ? (
+                    {stats.recentActivity.length === 0 && totalOrders === 0 ? (
                       <div className="text-center py-8">
                         <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-500">No activity yet</p>
                         <p className="text-sm text-gray-400">
-                          Start your first company to see activity here
+                          Start your first order to see activity here
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {requests.slice(0, 3).map((request) => {
-                          const status =
-                            statusConfig[request.status] ||
-                            statusConfig.pending_payment;
-                          const StatusIcon = status.icon;
-                          return (
+                        {/* Show recent orders if no activity logs */}
+                        {stats.recentActivity.length === 0 ? (
+                          <>
+                            {companyRequests.slice(0, 3).map((request) => (
+                              <div
+                                key={request.id}
+                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                              >
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                  <FaBuilding className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm text-gray-900">
+                                    Company Request: {request.company_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {request.package_name}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(
+                                    request.created_at
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                            {serviceOrders.slice(0, 2).map((order) => (
+                              <div
+                                key={order.id}
+                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                              >
+                                <div className="p-2 bg-green-100 rounded-lg">
+                                  <FaShoppingBag className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm text-gray-900">
+                                    Service Order: {order.service_title}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    £{order.price_amount}
+                                  </p>
+                                </div>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(
+                                    order.created_at
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          stats.recentActivity.map((activity) => (
                             <div
-                              key={request.id}
+                              key={activity.id}
                               className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
                             >
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <CompanyIcon />
+                              <div className="p-2 bg-purple-100 rounded-lg">
+                                <TrendingUp className="h-4 w-4 text-purple-600" />
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium text-sm text-gray-900">
-                                  {request.company_name}
+                                  {activity.action
+                                    .replace(/_/g, " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {request.package_name}
+                                  {activity.description}
                                 </p>
                               </div>
-                              <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.color}`}
-                              >
-                                <StatusIcon className="mr-1 h-3 w-3" />
-                                {status.label}
+                              <span className="text-xs text-gray-400">
+                                {new Date(
+                                  activity.created_at
+                                ).toLocaleDateString()}
                               </span>
                             </div>
-                          );
-                        })}
-                        {requests.length > 3 && (
+                          ))
+                        )}
+
+                        {totalOrders > 5 && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setActiveTab("companies")}
                             className="w-full"
                           >
-                            View All Companies
+                            View All Orders
                           </Button>
                         )}
                       </div>
@@ -689,9 +869,25 @@ export default function DashboardPage() {
                       >
                         <Link to="/dashboard/marketplace">
                           <FaShoppingBag className="mr-3 h-4 w-4" />
-                          Browse Additional Services
+                          Browse Services
                         </Link>
                       </Button>
+
+                      {companyRequests.length > 0 && (
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="w-full justify-start hover:bg-blue-50"
+                        >
+                          <Link
+                            to={`/dashboard/request/${companyRequests[0].id}`}
+                          >
+                            <FaEye className="mr-3 h-4 w-4" />
+                            View Latest Company Request
+                          </Link>
+                        </Button>
+                      )}
+
                       <Button
                         asChild
                         variant="outline"
@@ -712,7 +908,7 @@ export default function DashboardPage() {
           {/* Companies Tab */}
           {activeTab === "companies" && (
             <AnimatePresence>
-              {requests.length === 0 ? (
+              {companyRequests.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -727,8 +923,7 @@ export default function DashboardPage() {
                         Ready to Start Your Business?
                       </h3>
                       <p className="text-gray-600 mb-6">
-                        Choose a service and begin your entrepreneurial journey
-                        with us
+                        Get your UK company formed with our expert service
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Button
@@ -753,7 +948,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-gray-900">
-                      Your Company Requests ({requests.length})
+                      Your Company Requests ({companyRequests.length})
                     </h2>
                     <Button asChild variant="outline" size="sm">
                       <Link to="/dashboard/marketplace">
@@ -762,8 +957,68 @@ export default function DashboardPage() {
                       </Link>
                     </Button>
                   </div>
-                  {requests.map((request) => (
+                  {companyRequests.map((request) => (
                     <CompanyRequestCard key={request.id} request={request} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
+          {/* Services Tab */}
+          {activeTab === "services" && (
+            <AnimatePresence>
+              {serviceOrders.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FaShoppingBag className="h-8 w-8 text-green-600" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        Explore Our Services
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Discover additional services to grow your business
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button
+                          asChild
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Link to="/dashboard/marketplace">
+                            <FaShoppingBag className="mr-2 h-4 w-4" />
+                            Browse Marketplace
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : (
+                <motion.div
+                  className="space-y-4"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Your Service Orders ({serviceOrders.length})
+                    </h2>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/dashboard/marketplace">
+                        <FaShoppingBag className="mr-2 h-4 w-4" />
+                        Browse More Services
+                      </Link>
+                    </Button>
+                  </div>
+                  {serviceOrders.map((order) => (
+                    <ServiceOrderCard key={order.id} order={order} />
                   ))}
                 </motion.div>
               )}

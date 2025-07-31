@@ -74,21 +74,15 @@ export default function CompanyFormationFlow() {
     setCompanyStatus(CompanyStatus.LOADING);
 
     try {
-      const apiKey = import.meta.env.VITE_COMPANIES_HOUSE_API_KEY;
-
-      if (!apiKey) {
-        throw new Error("Companies House API key not configured");
-      }
-
       console.log("Searching for company:", name);
 
-      // Supabase Edge Function çağrısı
+      // ✅ GÜVENLİ: API key artık server-side'da
       const { data, error } = await supabase.functions.invoke(
-        "check-company-name",
+        "check-company-name-secure",
         {
-          body: {
-            companyName: name,
-            apiKey: apiKey,
+          body: { companyName: name },
+          headers: {
+            "Content-Type": "application/json",
           },
         }
       );
