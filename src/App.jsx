@@ -1,5 +1,5 @@
-// src/App.jsx - Fixed admin auth check and profile handling
-import React, { useState, useEffect } from "react";
+// src/App.jsx - INFINITE LOOP DÜZELTİLDİ
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Routes,
   Route,
@@ -35,104 +35,42 @@ import AdminLayout from "./components/layout/AdminLayout";
 import Loader from "./components/ui/Loader";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-// Session timeout: 30 dakika
-const SESSION_TIMEOUT = 30 * 60 * 1000;
+// Session ayarları
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 dakika
+const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // 1 dakikada bir kontrol
+const SESSION_WARNING_TIME = 5 * 60 * 1000; // Son 5 dakikada uyarı
 
 const App = () => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastActivity, setLastActivity] = useState(Date.now());
-  const [initialized, setInitialized] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(0);
+
+  // UseRef kullanarak render loop'unu önle
+  const lastActivityRef = useRef(Date.now());
+  const timeoutIntervalRef = useRef(null);
+  const activityListenersSetRef = useRef(false);
+
   const location = useLocation();
   const navigate = useNavigate();
 
-  // URL hash parametrelerini handle et (Supabase auth callback için)
-  useEffect(() => {
-    const handleAuthCallback = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-      const tokenType = hashParams.get("token_type");
+  // Activity update - sadece ref'i güncellesin, state'i değil
+  const updateActivity = useCallback(() => {
+    const now = Date.now();
+    lastActivityRef.current = now;
+    setShowSessionWarning(false);
+    localStorage.setItem("lastActivity", now.toString());
 
-      if (accessToken && tokenType === "bearer") {
-        console.log("🔑 Processing auth callback...");
-
-        try {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            console.error("Auth callback error:", error);
-          } else {
-            console.log("✅ Auth callback successful");
-            window.history.replaceState(
-              {},
-              document.title,
-              window.location.pathname
-            );
-
-            // Check if admin and redirect accordingly
-            const userRole = await checkUserRole(data.user.id);
-            if (userRole === "admin") {
-              navigate("/admin", { replace: true });
-            } else {
-              navigate("/dashboard", { replace: true });
-            }
-          }
-        } catch (error) {
-          console.error("Session setting error:", error);
-        }
-      }
-    };
-
-    if (window.location.hash.includes("access_token")) {
-      handleAuthCallback();
+    // Sadece dev modunda log
+    if (import.meta.env.DEV) {
+      console.log("👆 Activity at:", new Date(now).toLocaleTimeString());
     }
-  }, [navigate]);
+  }, []);
 
-  // Helper function to check user role with better error handling
-  const checkUserRole = async (userId) => {
-    try {
-      // First check if profile exists
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no rows
-
-      if (error) {
-        console.error("Error checking user role:", error);
-        return "user"; // Default to user role on error
-      }
-
-      // If no profile exists, create one with default user role
-      if (!profile) {
-        console.log("No profile found, creating default profile...");
-        const { error: insertError } = await supabase.from("profiles").insert({
-          id: userId,
-          role: "user",
-        });
-
-        if (insertError) {
-          console.error("Error creating profile:", insertError);
-        }
-        return "user";
-      }
-
-      return profile.role || "user";
-    } catch (error) {
-      console.error("Error in checkUserRole:", error);
-      return "user";
-    }
-  };
-
-  // Kullanıcı aktivitesini takip et
+  // Activity listeners - sadece bir kez kur
   useEffect(() => {
-    const updateActivity = () => {
-      setLastActivity(Date.now());
-    };
+    if (activityListenersSetRef.current) return;
 
     const events = [
       "mousedown",
@@ -141,196 +79,283 @@ const App = () => {
       "scroll",
       "touchstart",
       "click",
+      "keydown",
     ];
+
+    // Throttled activity update - çok sık çağrılmasını önle
+    let activityTimeout;
+    const throttledUpdate = () => {
+      if (activityTimeout) return;
+      activityTimeout = setTimeout(() => {
+        updateActivity();
+        activityTimeout = null;
+      }, 1000); // 1 saniyede maksimum 1 kez
+    };
+
     events.forEach((event) => {
-      document.addEventListener(event, updateActivity, true);
+      document.addEventListener(event, throttledUpdate, { passive: true });
     });
+
+    const handleFocus = () => {
+      const storedActivity = localStorage.getItem("lastActivity");
+      if (storedActivity) {
+        const storedTime = parseInt(storedActivity);
+        if (storedTime > lastActivityRef.current) {
+          lastActivityRef.current = storedTime;
+        }
+      }
+      updateActivity();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", () => {
+      console.log("😴 Tab blurred");
+    });
+
+    activityListenersSetRef.current = true;
 
     return () => {
       events.forEach((event) => {
-        document.removeEventListener(event, updateActivity, true);
+        document.removeEventListener(event, throttledUpdate);
       });
+      window.removeEventListener("focus", handleFocus);
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
     };
-  }, []);
+  }, [updateActivity]);
 
-  // Session timeout kontrolü
+  // Session timeout checker - ayrı interval
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      if (timeoutIntervalRef.current) {
+        clearInterval(timeoutIntervalRef.current);
+        timeoutIntervalRef.current = null;
+      }
+      return;
+    }
 
-    const checkTimeout = () => {
+    const checkSessionTimeout = () => {
       const now = Date.now();
-      if (now - lastActivity > SESSION_TIMEOUT) {
-        handleLogout();
+      const timeSinceActivity = now - lastActivityRef.current;
+      const timeLeft = SESSION_TIMEOUT - timeSinceActivity;
+
+      // Session expired
+      if (timeSinceActivity >= SESSION_TIMEOUT) {
+        console.log("⚠️ Session expired");
+        handleSessionExpired();
+        return;
+      }
+
+      // Show warning
+      if (timeLeft <= SESSION_WARNING_TIME && timeLeft > 0) {
+        const minutesLeft = Math.ceil(timeLeft / 1000 / 60);
+        setSessionTimeLeft(minutesLeft);
+        setShowSessionWarning(true);
+      } else {
+        setShowSessionWarning(false);
       }
     };
 
-    const interval = setInterval(checkTimeout, 60000);
-    return () => clearInterval(interval);
-  }, [session, lastActivity]);
+    // İlk kontrol
+    checkSessionTimeout();
 
-  const handleLogout = async () => {
+    // Interval başlat
+    timeoutIntervalRef.current = setInterval(
+      checkSessionTimeout,
+      ACTIVITY_CHECK_INTERVAL
+    );
+
+    return () => {
+      if (timeoutIntervalRef.current) {
+        clearInterval(timeoutIntervalRef.current);
+        timeoutIntervalRef.current = null;
+      }
+    };
+  }, [session]); // Sadece session değiştiğinde çalışır
+
+  // Session expired handler
+  const handleSessionExpired = useCallback(async () => {
+    console.log("🔒 Session expired, logging out");
+
+    if (timeoutIntervalRef.current) {
+      clearInterval(timeoutIntervalRef.current);
+      timeoutIntervalRef.current = null;
+    }
+
     try {
       await supabase.auth.signOut();
-      setSession(null);
-
-      // Redirect based on current location
-      if (location.pathname.startsWith("/admin")) {
-        navigate("/admin/login");
-      } else {
-        navigate("/login");
-      }
     } catch (error) {
       console.error("Logout error:", error);
     }
+
+    setSession(null);
+    setShowSessionWarning(false);
+    localStorage.removeItem("lastActivity");
+
+    const redirectPath = location.pathname.startsWith("/admin")
+      ? "/admin/login"
+      : "/login";
+    navigate(redirectPath, {
+      replace: true,
+      state: { message: "Your session has expired. Please log in again." },
+    });
+  }, [location.pathname, navigate]);
+
+  // Extend session
+  const handleExtendSession = useCallback(() => {
+    console.log("🔄 Extending session");
+    updateActivity();
+  }, [updateActivity]);
+
+  // User role checker
+  const checkUserRole = async (userId) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ Error checking user role:", error);
+        return "user";
+      }
+
+      if (!profile) {
+        console.log("👤 Creating default profile...");
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: userId,
+          role: "user",
+        });
+
+        if (insertError) {
+          console.error("❌ Error creating profile:", insertError);
+        }
+        return "user";
+      }
+
+      return profile.role || "user";
+    } catch (error) {
+      console.error("❌ Error in checkUserRole:", error);
+      return "user";
+    }
   };
 
-  // Ana auth listener
+  // Initialize auth - SADECE BİR KEZ
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
+        console.log("🔐 Initializing auth...");
+
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Session error:", error);
-          setSession(null);
-        } else if (mounted) {
+          console.error("❌ Session error:", error);
+        }
+
+        if (mounted) {
           setSession(session);
 
-          if (session?.user) {
-            const pendingRequest = localStorage.getItem("pendingRequest");
-            if (pendingRequest) {
-              handlePendingRequest(JSON.parse(pendingRequest), session.user);
-            }
+          if (session) {
+            lastActivityRef.current = Date.now();
+            localStorage.setItem(
+              "lastActivity",
+              lastActivityRef.current.toString()
+            );
           }
+
+          setLoading(false);
+          setAuthChecked(true);
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
-        if (mounted) setSession(null);
-      } finally {
+        console.error("❌ Auth init error:", error);
         if (mounted) {
+          setSession(null);
           setLoading(false);
-          setInitialized(true);
+          setAuthChecked(true);
         }
       }
     };
 
     initializeAuth();
 
+    return () => {
+      mounted = false;
+    };
+  }, []); // Boş dependency - sadece mount'ta çalış
+
+  // Auth listener - SADECE BİR KEZ
+  useEffect(() => {
+    console.log("👂 Setting up auth listener...");
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      console.log("Auth event:", event, session?.user?.email);
+      console.log("🔔 Auth event:", event);
 
       setSession(session);
 
       if (event === "SIGNED_IN" && session) {
-        // Check if user is admin with better error handling
-        const userRole = await checkUserRole(session.user.id);
+        console.log("✅ User signed in");
 
-        // Redirect based on role and current location
-        if (userRole === "admin" && location.pathname === "/admin/login") {
-          navigate("/admin", { replace: true });
-        } else if (
-          userRole !== "admin" &&
-          (location.pathname === "/login" || location.pathname === "/register")
-        ) {
+        lastActivityRef.current = Date.now();
+        localStorage.setItem(
+          "lastActivity",
+          lastActivityRef.current.toString()
+        );
+        setShowSessionWarning(false);
+
+        try {
+          const userRole = await checkUserRole(session.user.id);
+          const redirectPath = userRole === "admin" ? "/admin" : "/dashboard";
+          navigate(redirectPath, { replace: true });
+        } catch (error) {
+          console.error("❌ Role check failed:", error);
           navigate("/dashboard", { replace: true });
         }
       }
 
       if (event === "SIGNED_OUT") {
-        if (location.pathname.startsWith("/admin")) {
-          navigate("/admin/login", { replace: true });
-        } else {
-          navigate("/login", { replace: true });
-        }
-      }
+        console.log("👋 User signed out");
+        setShowSessionWarning(false);
+        localStorage.removeItem("lastActivity");
 
-      if (session?.user) {
-        const pendingRequest = localStorage.getItem("pendingRequest");
-        if (pendingRequest) {
-          handlePendingRequest(JSON.parse(pendingRequest), session.user);
-        }
+        const redirectPath = location.pathname.startsWith("/admin")
+          ? "/admin/login"
+          : "/login";
+        navigate(redirectPath, { replace: true });
       }
     });
 
     return () => {
-      mounted = false;
+      console.log("🧹 Cleaning up auth listener");
       subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, [navigate]); // Sadece navigate değişirse
 
-  // URL hata parametrelerini temizle
-  useEffect(() => {
-    const url = new URL(window.location);
-    if (url.searchParams.has("error")) {
-      const newUrl = new URL(window.location);
-      newUrl.searchParams.delete("error");
-      newUrl.searchParams.delete("error_code");
-      newUrl.searchParams.delete("error_description");
-      window.history.replaceState({}, "", newUrl.pathname);
-    }
-  }, []);
-
-  const handlePendingRequest = async (requestData, user) => {
-    try {
-      // Ensure profile exists
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: user.id,
-        full_name: requestData.fullName,
-        role: "user", // Default role
-      });
-
-      if (profileError) {
-        console.error("Profile upsert error:", profileError);
-        // Don't throw, continue with request creation
-      }
-
-      const { error: requestError } = await supabase
-        .from("company_requests")
-        .insert({
-          user_id: user.id,
-          company_name: requestData.companyName,
-          package_name: requestData.packageName,
-          user_details: {
-            fullName: requestData.fullName,
-            email: requestData.email,
-          },
-        });
-
-      if (requestError) throw requestError;
-
-      localStorage.removeItem("pendingRequest");
-      console.log("Pending request successfully processed");
-    } catch (error) {
-      console.error("Error processing pending request:", error);
-    }
-  };
-
-  // Admin Guard Component
+  // Admin Guard
   const AdminGuard = ({ children }) => {
     const [adminLoading, setAdminLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
       const checkAdmin = async () => {
-        try {
-          if (!session?.user) {
-            setAdminLoading(false);
-            return;
-          }
+        if (!session?.user) {
+          setAdminLoading(false);
+          return;
+        }
 
+        try {
           const userRole = await checkUserRole(session.user.id);
           setIsAdmin(userRole === "admin");
         } catch (error) {
-          console.error("Admin check error:", error);
+          console.error("❌ Admin check error:", error);
           setIsAdmin(false);
         } finally {
           setAdminLoading(false);
@@ -341,20 +366,14 @@ const App = () => {
     }, [session]);
 
     if (adminLoading) return <Loader />;
-
-    if (!session) {
-      return <Navigate to="/admin/login" replace />;
-    }
-
-    if (!isAdmin) {
-      return <Navigate to="/admin/login" replace />;
-    }
+    if (!session) return <Navigate to="/admin/login" replace />;
+    if (!isAdmin) return <Navigate to="/admin/login" replace />;
 
     return children;
   };
 
-  // Loading durumunda
-  if (loading || !initialized) {
+  // Loading state
+  if (loading || !authChecked) {
     return <Loader />;
   }
 
@@ -362,8 +381,60 @@ const App = () => {
 
   return (
     <ErrorBoundary>
+      {/* Session Warning Modal */}
+      {showSessionWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-6 w-6 text-yellow-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Session Expiring Soon
+                </h3>
+              </div>
+            </div>
+            <div className="mb-6">
+              <p className="text-sm text-gray-700">
+                Your session will expire in{" "}
+                <strong>
+                  {sessionTimeLeft} minute{sessionTimeLeft !== 1 ? "s" : ""}
+                </strong>
+                . Would you like to extend your session?
+              </p>
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleSessionExpired}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                Log Out Now
+              </button>
+              <button
+                onClick={handleExtendSession}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Extend Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Routes>
-        {/* Ana sayfa */}
         <Route
           path="/"
           element={
@@ -373,7 +444,6 @@ const App = () => {
           }
         />
 
-        {/* User Auth sayfaları */}
         <Route
           path="/login"
           element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
@@ -391,7 +461,6 @@ const App = () => {
           }
         />
 
-        {/* User Dashboard - korumalı rotalar */}
         <Route
           path="/dashboard"
           element={
@@ -405,10 +474,8 @@ const App = () => {
           <Route path="request/:id" element={<RequestDetailsPage />} />
         </Route>
 
-        {/* Admin Auth */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
 
-        {/* Admin Dashboard - korumalı rotalar */}
         <Route
           path="/admin"
           element={
@@ -438,7 +505,6 @@ const App = () => {
           />
         </Route>
 
-        {/* 404 - Bulunamayan sayfalar */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ErrorBoundary>

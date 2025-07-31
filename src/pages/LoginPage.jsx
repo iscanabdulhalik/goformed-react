@@ -1,6 +1,6 @@
-// src/pages/LoginPage.jsx - Enhanced with better debugging and error handling
+// src/pages/LoginPage.jsx - Session expired mesajı ile
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +10,19 @@ import {
   AuthContent,
   AuthImage,
 } from "@/components/layout/AuthLayout";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Session expired mesajını kontrol et
+  const sessionMessage = location.state?.message;
 
   // Check if already authenticated
   useEffect(() => {
@@ -61,7 +65,6 @@ export default function LoginPage() {
         setGoogleLoading(true);
 
         try {
-          // Wait a bit for Supabase to process the session
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
           const {
@@ -78,7 +81,6 @@ export default function LoginPage() {
 
           if (session) {
             console.log("✅ Session established:", session.user.email);
-            // Clear the hash
             window.history.replaceState(
               {},
               document.title,
@@ -103,10 +105,9 @@ export default function LoginPage() {
     }
   }, [navigate]);
 
-  // Production veya development URL'ini al
   const getRedirectURL = () => {
-    const baseUrl = window.location.origin; // Current origin
-    return `${baseUrl}/login`; // Redirect back to login page
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/login`;
   };
 
   const handlePasswordlessLogin = async (e) => {
@@ -159,7 +160,6 @@ export default function LoginPage() {
         throw error;
       }
 
-      // Don't set loading to false here - let the callback handle it
       console.log("OAuth popup/redirect should have opened...");
     } catch (err) {
       console.error("Google login error:", err);
@@ -195,6 +195,23 @@ export default function LoginPage() {
       <AuthImage />
       <AuthContent>
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          {/* Session Expired Message */}
+          {sessionMessage && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center">
+                <Clock className="h-5 w-5 text-yellow-600 mr-2" />
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Session Expired
+                  </h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    {sessionMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {linkSent ? (
             <div className="flex flex-col items-center space-y-4 text-center">
               <CheckCircle className="h-16 w-16 text-green-500" />
@@ -240,9 +257,14 @@ export default function LoginPage() {
                   />
                 </div>
                 {error && (
-                  <p className="text-sm font-medium text-destructive">
-                    {error}
-                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-center">
+                      <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+                      <p className="text-sm font-medium text-red-800">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
                 )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Sending..." : "Send Sign-In Link"}

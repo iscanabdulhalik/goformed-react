@@ -1,4 +1,4 @@
-// src/main.jsx - Debug script'li
+// src/main.jsx - Router hatası düzeltilmiş versiyon
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -28,7 +28,7 @@ if (import.meta.env.DEV) {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter basename="/">
+    <BrowserRouter>
       <App />
     </BrowserRouter>
   </React.StrictMode>

@@ -1,5 +1,4 @@
-// src/components/layout/Layout.jsx
-
+// src/components/layout/Layout.jsx - Router kullanımı kaldırıldı
 import React from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
