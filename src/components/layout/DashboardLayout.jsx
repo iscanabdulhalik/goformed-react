@@ -1,4 +1,4 @@
-// src/components/layout/DashboardLayout.jsx - Debug ve basitleştirilmiş versiyon
+// src/components/layout/DashboardLayout.jsx - Düzeltilmiş versiyon
 import React, { useState, useCallback, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import { Bell, User, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 const SIDEBAR_WIDTH_DEFAULT = 280;
 const SIDEBAR_WIDTH_COLLAPSED = 80;
@@ -31,8 +30,10 @@ export default function DashboardLayout() {
     ? SIDEBAR_WIDTH_COLLAPSED
     : SIDEBAR_WIDTH_DEFAULT;
 
-  // Get user info
+  // Get user info - basitleştirilmiş
   useEffect(() => {
+    let mounted = true;
+
     const getUser = async () => {
       try {
         console.log("👤 DashboardLayout: Getting user info...");
@@ -44,28 +45,38 @@ export default function DashboardLayout() {
 
         if (error) {
           console.error("❌ DashboardLayout: Error getting user:", error);
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
           return;
         }
 
-        console.log("✅ DashboardLayout: User loaded:", user?.email);
-        setUser(user);
-        setLoading(false);
+        if (mounted) {
+          console.log("✅ DashboardLayout: User loaded:", user?.email);
+          setUser(user);
+          setLoading(false);
+        }
       } catch (error) {
         console.error("❌ DashboardLayout: Exception getting user:", error);
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     getUser();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Eğer user loading'se, loader göster
+  // Eğer user loading'se, basit loader göster
   if (loading) {
     console.log("⏳ DashboardLayout: Loading user...");
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -76,7 +87,7 @@ export default function DashboardLayout() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
             Authentication Error
           </h2>
           <p className="text-gray-600 mb-4">Please try logging in again</p>

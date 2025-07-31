@@ -1,4 +1,4 @@
-// src/App.jsx - INFINITE LOOP DÜZELTİLDİ
+// src/App.jsx - Düzeltilmiş versiyon
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Routes,
@@ -46,11 +46,13 @@ const App = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const [showSessionWarning, setShowSessionWarning] = useState(false);
   const [sessionTimeLeft, setSessionTimeLeft] = useState(0);
+  const [user, setUser] = useState(null);
 
   // UseRef kullanarak render loop'unu önle
   const lastActivityRef = useRef(Date.now());
   const timeoutIntervalRef = useRef(null);
   const activityListenersSetRef = useRef(false);
+  const authListenerSetRef = useRef(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,6 +69,190 @@ const App = () => {
       console.log("👆 Activity at:", new Date(now).toLocaleTimeString());
     }
   }, []);
+
+  // Session expired handler
+  const handleSessionExpired = useCallback(async () => {
+    console.log("🔒 Session expired, logging out");
+
+    if (timeoutIntervalRef.current) {
+      clearInterval(timeoutIntervalRef.current);
+      timeoutIntervalRef.current = null;
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+
+    setSession(null);
+    setUser(null);
+    setShowSessionWarning(false);
+    localStorage.removeItem("lastActivity");
+
+    const redirectPath = location.pathname.startsWith("/admin")
+      ? "/admin/login"
+      : "/login";
+    navigate(redirectPath, {
+      replace: true,
+      state: { message: "Your session has expired. Please log in again." },
+    });
+  }, [location.pathname, navigate]);
+
+  // Extend session
+  const handleExtendSession = useCallback(() => {
+    console.log("🔄 Extending session");
+    updateActivity();
+  }, [updateActivity]);
+
+  // User role checker
+  const checkUserRole = async (userId) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ Error checking user role:", error);
+        return "user";
+      }
+
+      if (!profile) {
+        console.log("👤 Creating default profile...");
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: userId,
+          role: "user",
+        });
+
+        if (insertError) {
+          console.error("❌ Error creating profile:", insertError);
+        }
+        return "user";
+      }
+
+      return profile.role || "user";
+    } catch (error) {
+      console.error("❌ Error in checkUserRole:", error);
+      return "user";
+    }
+  };
+
+  // Initialize auth - SADECE BİR KEZ ve navigation logic'i burada
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        console.log("🔐 Initializing auth...");
+
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("❌ Session error:", error);
+        }
+
+        if (mounted) {
+          console.log("📋 Session status:", session ? "Found" : "Not found");
+          setSession(session);
+          setUser(session?.user || null);
+
+          if (session) {
+            lastActivityRef.current = Date.now();
+            localStorage.setItem(
+              "lastActivity",
+              lastActivityRef.current.toString()
+            );
+
+            // İlk yüklemede kullanıcı rolüne göre yönlendirme yap
+            if (
+              location.pathname === "/" ||
+              location.pathname === "/login" ||
+              location.pathname === "/register"
+            ) {
+              try {
+                const userRole = await checkUserRole(session.user.id);
+                const redirectPath =
+                  userRole === "admin" ? "/admin" : "/dashboard";
+                console.log("🚀 Redirecting to:", redirectPath);
+                navigate(redirectPath, { replace: true });
+              } catch (error) {
+                console.error("❌ Role check failed:", error);
+                navigate("/dashboard", { replace: true });
+              }
+            }
+          }
+
+          setLoading(false);
+          setAuthChecked(true);
+        }
+      } catch (error) {
+        console.error("❌ Auth init error:", error);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          setAuthChecked(true);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []); // Boş dependency - sadece mount'ta çalış
+
+  // Auth listener - SADECE BİR KEZ ve sadece logout için
+  useEffect(() => {
+    if (authListenerSetRef.current) return;
+
+    console.log("👂 Setting up auth listener...");
+    authListenerSetRef.current = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("🔔 Auth event:", event);
+
+      // Sadece session state'ini güncelle, navigation yapma
+      setSession(session);
+      setUser(session?.user || null);
+
+      // Sadece SIGNED_OUT event'inde navigation yap
+      if (event === "SIGNED_OUT") {
+        console.log("👋 User signed out");
+        setShowSessionWarning(false);
+        localStorage.removeItem("lastActivity");
+
+        const redirectPath = location.pathname.startsWith("/admin")
+          ? "/admin/login"
+          : "/login";
+        navigate(redirectPath, { replace: true });
+      }
+
+      // SIGNED_IN durumunda sadece activity'yi güncelle, navigation yapma
+      if (event === "SIGNED_IN" && session) {
+        console.log("✅ User signed in - updating activity");
+        lastActivityRef.current = Date.now();
+        localStorage.setItem(
+          "lastActivity",
+          lastActivityRef.current.toString()
+        );
+        setShowSessionWarning(false);
+      }
+    });
+
+    return () => {
+      console.log("🧹 Cleaning up auth listener");
+      subscription.unsubscribe();
+    };
+  }, []); // Boş dependency array
 
   // Activity listeners - sadece bir kez kur
   useEffect(() => {
@@ -122,6 +308,7 @@ const App = () => {
       if (activityTimeout) {
         clearTimeout(activityTimeout);
       }
+      activityListenersSetRef.current = false;
     };
   }, [updateActivity]);
 
@@ -172,172 +359,7 @@ const App = () => {
         timeoutIntervalRef.current = null;
       }
     };
-  }, [session]); // Sadece session değiştiğinde çalışır
-
-  // Session expired handler
-  const handleSessionExpired = useCallback(async () => {
-    console.log("🔒 Session expired, logging out");
-
-    if (timeoutIntervalRef.current) {
-      clearInterval(timeoutIntervalRef.current);
-      timeoutIntervalRef.current = null;
-    }
-
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-
-    setSession(null);
-    setShowSessionWarning(false);
-    localStorage.removeItem("lastActivity");
-
-    const redirectPath = location.pathname.startsWith("/admin")
-      ? "/admin/login"
-      : "/login";
-    navigate(redirectPath, {
-      replace: true,
-      state: { message: "Your session has expired. Please log in again." },
-    });
-  }, [location.pathname, navigate]);
-
-  // Extend session
-  const handleExtendSession = useCallback(() => {
-    console.log("🔄 Extending session");
-    updateActivity();
-  }, [updateActivity]);
-
-  // User role checker
-  const checkUserRole = async (userId) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ Error checking user role:", error);
-        return "user";
-      }
-
-      if (!profile) {
-        console.log("👤 Creating default profile...");
-        const { error: insertError } = await supabase.from("profiles").insert({
-          id: userId,
-          role: "user",
-        });
-
-        if (insertError) {
-          console.error("❌ Error creating profile:", insertError);
-        }
-        return "user";
-      }
-
-      return profile.role || "user";
-    } catch (error) {
-      console.error("❌ Error in checkUserRole:", error);
-      return "user";
-    }
-  };
-
-  // Initialize auth - SADECE BİR KEZ
-  useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        console.log("🔐 Initializing auth...");
-
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error("❌ Session error:", error);
-        }
-
-        if (mounted) {
-          setSession(session);
-
-          if (session) {
-            lastActivityRef.current = Date.now();
-            localStorage.setItem(
-              "lastActivity",
-              lastActivityRef.current.toString()
-            );
-          }
-
-          setLoading(false);
-          setAuthChecked(true);
-        }
-      } catch (error) {
-        console.error("❌ Auth init error:", error);
-        if (mounted) {
-          setSession(null);
-          setLoading(false);
-          setAuthChecked(true);
-        }
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      mounted = false;
-    };
-  }, []); // Boş dependency - sadece mount'ta çalış
-
-  // Auth listener - SADECE BİR KEZ
-  useEffect(() => {
-    console.log("👂 Setting up auth listener...");
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔔 Auth event:", event);
-
-      setSession(session);
-
-      if (event === "SIGNED_IN" && session) {
-        console.log("✅ User signed in");
-
-        lastActivityRef.current = Date.now();
-        localStorage.setItem(
-          "lastActivity",
-          lastActivityRef.current.toString()
-        );
-        setShowSessionWarning(false);
-
-        try {
-          const userRole = await checkUserRole(session.user.id);
-          const redirectPath = userRole === "admin" ? "/admin" : "/dashboard";
-          navigate(redirectPath, { replace: true });
-        } catch (error) {
-          console.error("❌ Role check failed:", error);
-          navigate("/dashboard", { replace: true });
-        }
-      }
-
-      if (event === "SIGNED_OUT") {
-        console.log("👋 User signed out");
-        setShowSessionWarning(false);
-        localStorage.removeItem("lastActivity");
-
-        const redirectPath = location.pathname.startsWith("/admin")
-          ? "/admin/login"
-          : "/login";
-        navigate(redirectPath, { replace: true });
-      }
-    });
-
-    return () => {
-      console.log("🧹 Cleaning up auth listener");
-      subscription.unsubscribe();
-    };
-  }, [navigate]); // Sadece navigate değişirse
+  }, [session, handleSessionExpired]); // session ve handleSessionExpired'e bağımlı
 
   // Admin Guard
   const AdminGuard = ({ children }) => {
@@ -376,8 +398,6 @@ const App = () => {
   if (loading || !authChecked) {
     return <Loader />;
   }
-
-  const user = session?.user;
 
   return (
     <ErrorBoundary>
