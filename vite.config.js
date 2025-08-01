@@ -1,4 +1,4 @@
-// vite.config.js - Bundle optimizasyonu
+// vite.config.js - ESBuild minify ile (Terser'a gerek yok)
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -10,7 +10,6 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   plugins: [
     react({
-      // ✅ JSX runtime optimization
       jsxRuntime: "automatic",
     }),
   ],
@@ -18,20 +17,23 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // ✅ Lodash import sorunlarını çöz
       "lodash/get": "lodash-es/get",
+      "lodash/isNil": "lodash-es/isNil",
+      "lodash/isString": "lodash-es/isString",
+      "lodash/isFunction": "lodash-es/isFunction",
+      "lodash/flatMap": "lodash-es/flatMap",
+      "lodash/isNaN": "lodash-es/isNaN",
+      "lodash/isNumber": "lodash-es/isNumber",
+      lodash: "lodash-es",
     },
   },
 
-  // ✅ Build optimizations
   build: {
-    // Code splitting configuration
     rollupOptions: {
       output: {
         manualChunks: {
-          // ✅ Vendor chunk - large external libraries
           vendor: ["react", "react-dom", "react-router-dom"],
-
-          // ✅ UI chunk - UI components
           ui: [
             "@radix-ui/react-accordion",
             "@radix-ui/react-dialog",
@@ -40,32 +42,12 @@ export default defineConfig({
             "@radix-ui/react-tabs",
             "lucide-react",
           ],
-
-          // ✅ Charts chunk - data visualization
           charts: ["recharts"],
-
-          // ✅ Animation chunk - motion libraries
           animation: ["framer-motion"],
-
-          // ✅ Auth chunk - authentication
           auth: ["@supabase/supabase-js"],
-
-          // ✅ Utils chunk - utility libraries
           utils: ["clsx", "tailwind-merge", "class-variance-authority"],
         },
-
-        // ✅ Chunk file naming
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId
-            ? chunkInfo.facadeModuleId
-                .split("/")
-                .pop()
-                .replace(/\.\w+$/, "")
-            : "chunk";
-          return `js/${facadeModuleId}-[hash].js`;
-        },
-
-        // ✅ Asset file naming
+        chunkFileNames: "js/[name]-[hash].js",
         assetFileNames: (assetInfo) => {
           const info = assetInfo.name.split(".");
           const ext = info[info.length - 1];
@@ -80,38 +62,27 @@ export default defineConfig({
       },
     },
 
-    // ✅ Minification settings
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.logs in production
-        drop_debugger: true,
-        pure_funcs: [
-          "console.log",
-          "console.info",
-          "console.debug",
-          "console.trace",
-        ],
-      },
-      mangle: {
-        safari10: true,
-      },
+    // ✅ ESBuild kullan (Terser'dan daha hızlı ve dependency gerektirmez)
+    minify: "esbuild",
+
+    // ✅ ESBuild minify options
+    esbuild: {
+      drop: ["console", "debugger"], // Console.log'ları production'da kaldır
+      legalComments: "none", // Yasal yorumları kaldır
+      minifyIdentifiers: true,
+      minifySyntax: true,
+      minifyWhitespace: true,
     },
 
-    // ✅ Size thresholds
-    chunkSizeWarningLimit: 1000, // 1MB warning
-
-    // ✅ Source map for production debugging (optional)
-    sourcemap: false, // Set to true if you need source maps in production
-
-    // ✅ CSS code splitting
+    chunkSizeWarningLimit: 1000,
+    sourcemap: false,
     cssCodeSplit: true,
+    assetsInlineLimit: 4096,
 
-    // ✅ Asset inlining threshold
-    assetsInlineLimit: 4096, // 4KB - files smaller than this will be inlined
+    // ✅ Build target - modern browsers için optimize et
+    target: ["es2020", "edge88", "firefox78", "chrome87", "safari14"],
   },
 
-  // ✅ Development optimizations
   server: {
     port: 5173,
     host: "localhost",
@@ -124,7 +95,6 @@ export default defineConfig({
     strictPort: true,
   },
 
-  // ✅ Dependency pre-bundling
   optimizeDeps: {
     include: [
       "react",
@@ -133,16 +103,23 @@ export default defineConfig({
       "@supabase/supabase-js",
       "framer-motion",
       "lucide-react",
-    ],
-    exclude: [
-      // Large libraries that benefit from lazy loading
       "recharts",
+      "lodash-es",
+      "lodash-es/get",
+      "lodash-es/isNil",
+      "lodash-es/isString",
+      "lodash-es/isFunction",
+      "lodash-es/flatMap",
+      "lodash-es/isNaN",
+      "lodash-es/isNumber",
     ],
+    esbuildOptions: {
+      mainFields: ["module", "main"],
+      conditions: ["module"],
+    },
   },
 
-  // ✅ Define globals to reduce bundle size
   define: {
-    // Remove in production
     __DEV__: JSON.stringify(process.env.NODE_ENV !== "production"),
   },
 });
