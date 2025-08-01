@@ -1,31 +1,47 @@
-// src/components/layout/Sidebar.jsx - Clean version without user section
+// src/components/layout/Sidebar.jsx - Düzeltilmiş ve iyileştirilmiş versiyon
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
 import {
-  FaTachometerAlt,
-  FaStore,
-  FaListAlt,
-  FaCog,
-  FaSignOutAlt,
-  FaChevronLeft,
-  FaChevronRight,
-  FaShoppingBag,
-} from "react-icons/fa";
+  LayoutDashboard,
+  ShoppingBag,
+  FileText,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Building,
+} from "lucide-react";
 import goformedLogo from "@/assets/logos/goformed.png";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+// Menu items with proper icons and descriptions
 const menuItems = [
-  { to: "/dashboard", text: "Dashboard", icon: FaTachometerAlt },
+  {
+    to: "/dashboard",
+    text: "Overview",
+    icon: LayoutDashboard,
+    description: "Dashboard overview",
+  },
   {
     to: "/dashboard/marketplace",
     text: "Marketplace",
-    icon: FaShoppingBag,
+    icon: ShoppingBag,
     description: "Additional Services",
   },
-  { to: "/dashboard/orders", text: "Orders", icon: FaListAlt },
-  { to: "/dashboard/settings", text: "Settings", icon: FaCog },
+  {
+    to: "/dashboard/orders",
+    text: "Your Companies",
+    icon: Building,
+    description: "View company requests",
+  },
+  {
+    to: "/dashboard/settings",
+    text: "Settings",
+    icon: Settings,
+    description: "Account settings",
+  },
 ];
 
 export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
@@ -64,9 +80,9 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
           )}
         >
           {isCollapsed ? (
-            <FaChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3" />
           ) : (
-            <FaChevronLeft className="h-3 w-3" />
+            <ChevronLeft className="h-3 w-3" />
           )}
         </Button>
       </div>
@@ -100,7 +116,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
           )}
           onClick={handleLogout}
         >
-          <FaSignOutAlt className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+          <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
           {!isCollapsed && "Sign Out"}
         </Button>
       </div>
@@ -110,6 +126,7 @@ export default function Sidebar({ isCollapsed, toggleCollapse, width }) {
 
 function SidebarLink({ item, isCollapsed }) {
   const Icon = item.icon;
+
   return (
     <NavLink
       to={item.to}

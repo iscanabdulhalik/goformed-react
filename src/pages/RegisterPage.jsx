@@ -1,4 +1,4 @@
-// src/pages/RegisterPage.jsx - Redirect URL fix
+// src/pages/RegisterPage.jsx - Güncellenmiş Yönlendirme ile
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -11,7 +11,7 @@ import {
   AuthImage,
 } from "@/components/layout/AuthLayout";
 import { CheckCircle } from "lucide-react";
-import { getSecureRedirectURL, AUTH_CONFIG } from "@/config/auth";
+import { getSecureRedirectURL } from "@/config/auth";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -24,30 +24,20 @@ export default function RegisterPage() {
   const handleEmailRegister = async (e) => {
     e.preventDefault();
 
-    // ✅ Enhanced validation
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Please enter a valid email address.");
       return;
     }
-
-    if (!password) {
-      setError("Password is required.");
-      return;
-    }
-
     if (password.length < 8) {
       setError("Password must be at least 8 characters long.");
       return;
     }
-
-    // Check password strength
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
-
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
       setError(
-        "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+        "Password must contain uppercase, lowercase letters, and numbers."
       );
       return;
     }
@@ -60,11 +50,9 @@ export default function RegisterPage() {
         email: email,
         password: password,
         options: {
-          emailRedirectTo: getSecureRedirectURL(
-            AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS
-          ),
+          emailRedirectTo: getSecureRedirectURL("/dashboard"),
           data: {
-            email_confirm: true, // Require email confirmation
+            email_confirm: true,
           },
         },
       });
@@ -73,7 +61,6 @@ export default function RegisterPage() {
 
       setVerificationSent(true);
     } catch (err) {
-      console.error("Registration error:", err);
       setError(err.error_description || err.message);
     } finally {
       setLoading(false);
@@ -81,13 +68,13 @@ export default function RegisterPage() {
   };
 
   const handleGoogleRegister = async () => {
+    setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getSecureRedirectURL(
-            AUTH_CONFIG.REDIRECT_PATHS.LOGIN_SUCCESS
-          ),
+          // ✅ DOĞRU YÖNLENDİRME: Bunu da callback rotasına yönlendiriyoruz.
+          redirectTo: getSecureRedirectURL("/auth/callback"),
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -97,6 +84,7 @@ export default function RegisterPage() {
       if (error) throw error;
     } catch (err) {
       setError(err.error_description || err.message);
+      setLoading(false);
     }
   };
 
@@ -113,16 +101,8 @@ export default function RegisterPage() {
               </h1>
               <p className="text-sm text-muted-foreground">
                 We've sent a verification link to <strong>{email}</strong>.
-                Please check your inbox and follow the link to activate your
-                account.
+                Please check your inbox to activate your account.
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Important:</strong> You must verify your email before
-                  you can sign in. The verification link will expire in 24
-                  hours.
-                </p>
-              </div>
               <Button onClick={() => navigate("/login")}>
                 Back to Sign In
               </Button>
@@ -134,7 +114,7 @@ export default function RegisterPage() {
                   Create an Account
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Enter your email below to create your account.
+                  Enter your details below to create your account.
                 </p>
               </div>
               <form onSubmit={handleEmailRegister} className="grid gap-4">
@@ -161,21 +141,17 @@ export default function RegisterPage() {
                     required
                     disabled={loading}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Must be at least 8 characters with uppercase, lowercase, and
-                    numbers
-                  </p>
                 </div>
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-sm font-medium text-red-800">{error}</p>
-                  </div>
+                  <p className="text-sm font-medium text-destructive">
+                    {error}
+                  </p>
                 )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
-              <div className="relative">
+              <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
                 </div>
@@ -189,10 +165,11 @@ export default function RegisterPage() {
                 variant="outline"
                 onClick={handleGoogleRegister}
                 disabled={loading}
+                className="w-full"
               >
                 Sign Up with Google
               </Button>
-              <p className="px-8 text-center text-sm text-muted-foreground">
+              <p className="px-8 text-center text-sm text-muted-foreground mt-4">
                 Already have an account?{" "}
                 <Link
                   to="/login"
