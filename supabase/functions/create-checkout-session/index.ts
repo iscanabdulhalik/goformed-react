@@ -1,7 +1,6 @@
 // supabase/functions/create-checkout-session/index.ts
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHmac } from "https://deno.land/std@0.177.0/node/_crypto/crypto.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2?dts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -240,22 +239,36 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("=== SHOPIFY CHECKOUT SESSION ERROR ===");
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
+    if (error instanceof Error) {
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-        details: "Checkout session oluşturulamadı",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } else {
+      console.error("Unknown error:", error);
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "An unknown error occurred",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
   }
 });
