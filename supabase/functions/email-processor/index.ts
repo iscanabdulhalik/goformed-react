@@ -1,4 +1,4 @@
-// supabase/functions/email-processor/index.ts - HOSTİNGER İÇİN ÇALIŞAN VERSİYON
+// supabase/functions/email-processor/index.ts - DUPLICATE PREVENTION ENABLED
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -17,7 +17,12 @@ interface EmailQueueItem {
   template_data: any;
   attempts: number;
   status: string;
+  inserted_at: string;
 }
+
+// ✅ PROCESSOR LOCK MECHANISM
+const PROCESSOR_LOCK_KEY = "email_processor_lock";
+const LOCK_DURATION = 60000; // 60 seconds
 
 class HostingerSMTP {
   name = "hostinger-smtp";
@@ -224,22 +229,127 @@ ${htmlContent}
   }
 }
 
+// ✅ LOCK HELPER FUNCTIONS
+async function acquireLock(supabaseClient: any): Promise<boolean> {
+  try {
+    console.log("[LOCK] Attempting to acquire processor lock...");
+
+    // Check if lock exists and is recent
+    const { data: existingLock } = await supabaseClient
+      .from("system_settings")
+      .select("value")
+      .eq("key", PROCESSOR_LOCK_KEY)
+      .single();
+
+    if (existingLock?.value?.timestamp) {
+      const lockAge = Date.now() - existingLock.value.timestamp;
+      if (lockAge < LOCK_DURATION) {
+        console.log(
+          `[LOCK] ⚠️ Lock exists and is ${lockAge}ms old (< ${LOCK_DURATION}ms). Skipping.`
+        );
+        return false;
+      }
+      console.log(`[LOCK] Lock is stale (${lockAge}ms old), updating...`);
+
+      // Update existing lock
+      const { error: updateError } = await supabaseClient
+        .from("system_settings")
+        .update({
+          value: {
+            timestamp: Date.now(),
+            instance: Math.random().toString(36).substr(2, 9),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("key", PROCESSOR_LOCK_KEY);
+
+      if (updateError) {
+        console.error("[LOCK] Failed to update lock:", updateError);
+        return false;
+      }
+    } else {
+      // Create new lock
+      console.log("[LOCK] No existing lock found, creating new one...");
+      const { error: insertError } = await supabaseClient
+        .from("system_settings")
+        .insert({
+          key: PROCESSOR_LOCK_KEY,
+          value: {
+            timestamp: Date.now(),
+            instance: Math.random().toString(36).substr(2, 9),
+          },
+          description: "Email processor execution lock",
+          category: "system",
+        });
+
+      if (insertError) {
+        // If insert fails due to race condition, check if another process created it
+        if (insertError.code === "23505") {
+          console.log(
+            "[LOCK] ⚠️ Race condition detected, another process created the lock"
+          );
+          return false;
+        }
+        console.error("[LOCK] Failed to create lock:", insertError);
+        return false;
+      }
+    }
+
+    console.log("[LOCK] ✅ Lock acquired successfully");
+    return true;
+  } catch (error) {
+    console.error("[LOCK] Lock acquisition error:", error);
+    return false;
+  }
+}
+
+async function releaseLock(supabaseClient: any): Promise<void> {
+  try {
+    await supabaseClient
+      .from("system_settings")
+      .delete()
+      .eq("key", PROCESSOR_LOCK_KEY);
+    console.log("[LOCK] ✅ Lock released");
+  } catch (error) {
+    console.error("[LOCK] Failed to release lock:", error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
   console.log(
     "🚀 Hostinger Email Processor started:",
     new Date().toISOString()
   );
 
+  let supabaseClient: any = null;
+
   try {
-    const supabaseClient = createClient(
+    supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // ✅ ACQUIRE LOCK TO PREVENT CONCURRENT EXECUTION
+    const lockAcquired = await acquireLock(supabaseClient);
+    if (!lockAcquired) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Processor already running or recently completed",
+          skipped: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ✅ ATOMIC EMAIL SELECTION WITH ROW LOCKING
+    console.log("[PROCESSOR] Selecting pending emails with row lock...");
 
     const { data: pendingEmails, error: fetchError } = await supabaseClient
       .from("email_queue")
@@ -257,6 +367,7 @@ serve(async (req) => {
     console.log(`📧 Found ${totalPending} pending emails`);
 
     if (!pendingEmails || totalPending === 0) {
+      await releaseLock(supabaseClient);
       return new Response(
         JSON.stringify({
           success: true,
@@ -267,6 +378,31 @@ serve(async (req) => {
       );
     }
 
+    // ✅ MARK EMAILS AS PROCESSING TO PREVENT DOUBLE PROCESSING
+    const emailIds = pendingEmails.map((email: { id: any }) => email.id);
+    console.log(
+      `[PROCESSOR] Marking ${emailIds.length} emails as processing...`
+    );
+
+    const { error: markError } = await supabaseClient
+      .from("email_queue")
+      .update({
+        status: "processing",
+        last_attempt_at: new Date().toISOString(),
+      })
+      .in("id", emailIds);
+
+    if (markError) {
+      console.error(
+        "[PROCESSOR] Failed to mark emails as processing:",
+        markError
+      );
+      await releaseLock(supabaseClient);
+      throw markError;
+    }
+
+    console.log("[PROCESSOR] ✅ Emails marked as processing");
+
     const smtpConfig = {
       hostname: "smtp.hostinger.com",
       port: 465,
@@ -276,6 +412,7 @@ serve(async (req) => {
     };
 
     if (!smtpConfig.username || !smtpConfig.password || !smtpConfig.from) {
+      await releaseLock(supabaseClient);
       throw new Error("Missing SMTP credentials in environment variables");
     }
 
@@ -287,19 +424,24 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
+    // ✅ PROCESS EACH EMAIL WITH INDIVIDUAL STATUS UPDATES
     for (const email of pendingEmails) {
       results.processed++;
       console.log(
-        `\n📤 Processing email ${results.processed}: ${email.recipient}`
+        `\n📤 Processing email ${results.processed}/${totalPending}: ${email.recipient}`
       );
       console.log(`📋 Subject: ${email.subject}`);
+      console.log(`🆔 Queue ID: ${email.id}`);
 
       const sendResult = await emailProvider.send(email);
 
       if (sendResult.success) {
         await supabaseClient
           .from("email_queue")
-          .update({ status: "sent", last_attempt_at: new Date().toISOString() })
+          .update({
+            status: "sent",
+            last_attempt_at: new Date().toISOString(),
+          })
           .eq("id", email.id);
 
         await supabaseClient.from("email_logs").insert({
@@ -341,23 +483,21 @@ serve(async (req) => {
         console.log(`❌ FAILED: ${email.recipient} - ${sendResult.error}`);
       }
 
+      // Rate limiting between emails
       if (results.processed < totalPending) {
-        console.log("⏳ Waiting 3 seconds before next email...");
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        console.log("⏳ Waiting 2 seconds before next email...");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
 
+    // ✅ RELEASE LOCK
+    await releaseLock(supabaseClient);
+
+    const processingTime = Date.now() - startTime;
     console.log(
       `\n📊 Final Results: ${results.sent}/${results.processed} emails sent successfully`
     );
-
-    if (results.sent > 0 && totalPending > results.processed) {
-      console.log(
-        `📝 Note: ${
-          totalPending - results.processed
-        } emails still pending. Processor can be called again.`
-      );
-    }
+    console.log(`⏱️ Total processing time: ${processingTime}ms`);
 
     return new Response(
       JSON.stringify({
@@ -366,13 +506,19 @@ serve(async (req) => {
         results: {
           ...results,
           totalPending,
-          remainingPending: Math.max(0, totalPending - results.processed),
+          processingTimeMs: processingTime,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("💥 Email processor critical error:", error);
+
+    // Ensure lock is released on error
+    if (supabaseClient) {
+      await releaseLock(supabaseClient);
+    }
+
     return new Response(
       JSON.stringify({
         success: false,

@@ -32,6 +32,7 @@ import {
   Trash2,
   Mail,
   Monitor,
+  Shield,
 } from "lucide-react";
 
 // Notification types
@@ -65,28 +66,88 @@ const DELIVERY_METHODS = {
   both: { icon: Bell, label: "Dashboard + Email", color: "text-purple-600" },
 };
 
-// ✅ YARDIMCI FONKSIYONLAR
+// ✅ DUPLICATE PREVENTION UTILITIES
 const deduplicateEmails = (emails) => {
-  const uniqueEmails = [
-    ...new Set(emails.filter((email) => email && email.trim())),
-  ];
+  console.log(`[DEDUP_EMAILS] Input: ${emails.length} emails`);
+
+  const seen = new Set();
+  const unique = emails.filter((email, index) => {
+    if (!email || !email.trim()) {
+      console.log(`[DEDUP_EMAILS] Skipping empty email at index ${index}`);
+      return false;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (seen.has(normalizedEmail)) {
+      console.log(
+        `[DEDUP_EMAILS] Skipping duplicate email: ${normalizedEmail} (index: ${index})`
+      );
+      return false;
+    }
+
+    seen.add(normalizedEmail);
+    return true;
+  });
+
+  console.log(`[DEDUP_EMAILS] Output: ${unique.length} unique emails`);
   console.log(
-    `[DEDUPLICATION] ${emails.length} email -> ${uniqueEmails.length} unique email`
+    `[DEDUP_EMAILS] Duplicates removed: ${emails.length - unique.length}`
   );
-  return uniqueEmails;
+
+  // Log unique emails for debugging (first 3)
+  unique.slice(0, 3).forEach((email, index) => {
+    console.log(`[DEDUP_EMAILS] Unique ${index + 1}: ${email}`);
+  });
+
+  return unique;
 };
 
 const deduplicateUsers = (users) => {
-  const uniqueUsers = users.filter(
-    (user, index, self) => index === self.findIndex((u) => u.id === user.id)
-  );
+  console.log(`[DEDUP_USERS] Input: ${users.length} users`);
+
+  const seenIds = new Set();
+  const seenEmails = new Set();
+  const unique = users.filter((user, index) => {
+    if (!user || !user.id || !user.email) {
+      console.log(
+        `[DEDUP_USERS] Skipping invalid user at index ${index}:`,
+        user
+      );
+      return false;
+    }
+
+    const idKey = user.id.toLowerCase();
+    const emailKey = user.email.toLowerCase().trim();
+
+    if (seenIds.has(idKey)) {
+      console.log(
+        `[DEDUP_USERS] Skipping duplicate ID: ${user.id} (${user.email})`
+      );
+      return false;
+    }
+
+    if (seenEmails.has(emailKey)) {
+      console.log(
+        `[DEDUP_USERS] Skipping duplicate email: ${user.email} (${user.id})`
+      );
+      return false;
+    }
+
+    seenIds.add(idKey);
+    seenEmails.add(emailKey);
+    return true;
+  });
+
+  console.log(`[DEDUP_USERS] Output: ${unique.length} unique users`);
   console.log(
-    `[DEDUPLICATION] ${users.length} user -> ${uniqueUsers.length} unique user`
+    `[DEDUP_USERS] Duplicates removed: ${users.length - unique.length}`
   );
-  return uniqueUsers;
+
+  return unique;
 };
 
-// Enhanced Send Notification Modal
+// Enhanced Send Notification Modal with Duplicate Prevention
 const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
   const [formData, setFormData] = useState({
     title: "",
@@ -100,10 +161,12 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [duplicateInfo, setDuplicateInfo] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchUsers();
+      setDuplicateInfo(null);
     }
   }, [isOpen]);
 
@@ -122,18 +185,18 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
 
   const fetchUsers = async () => {
     try {
-      console.log("📋 Kullanıcılar yükleniyor...");
+      console.log("📋 Loading users for notification...");
 
-      // ✅ Kullanıcıları daha güvenli şekilde al
       const authUsers = await adminHelpers.getAllUsers();
-
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name, role");
 
-      // ✅ Merge işlemini daha güvenli yap
+      console.log(`[FETCH_USERS] Auth users: ${authUsers.length}`);
+      console.log(`[FETCH_USERS] Profiles: ${profiles?.length || 0}`);
+
       const mergedUsers = authUsers
-        .filter((authUser) => authUser && authUser.id && authUser.email) // Geçersiz kullanıcıları filtrele
+        .filter((authUser) => authUser?.id && authUser?.email)
         .map((authUser) => {
           const profile = profiles?.find((p) => p.id === authUser.id);
           return {
@@ -144,13 +207,49 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
           };
         });
 
-      // ✅ Kullanıcıları deduplicate et
-      const uniqueUsers = deduplicateUsers(mergedUsers);
+      console.log(
+        `[FETCH_USERS] Merged users before dedup: ${mergedUsers.length}`
+      );
 
-      console.log(`✅ ${uniqueUsers.length} unique kullanıcı yüklendi`);
+      // ✅ Enhanced deduplication - by both ID and email
+      const seenIds = new Set();
+      const seenEmails = new Set();
+      const uniqueUsers = mergedUsers.filter((user) => {
+        const idKey = user.id.toLowerCase();
+        const emailKey = user.email.toLowerCase().trim();
+
+        if (seenIds.has(idKey)) {
+          console.log(`[DEDUP] Skipping duplicate ID: ${user.id}`);
+          return false;
+        }
+
+        if (seenEmails.has(emailKey)) {
+          console.log(`[DEDUP] Skipping duplicate email: ${user.email}`);
+          return false;
+        }
+
+        seenIds.add(idKey);
+        seenEmails.add(emailKey);
+        return true;
+      });
+
+      console.log(`[FETCH_USERS] Final unique users: ${uniqueUsers.length}`);
+      console.log(
+        `[FETCH_USERS] Duplicates removed: ${
+          mergedUsers.length - uniqueUsers.length
+        }`
+      );
+
+      // Log first few users for debugging
+      uniqueUsers.slice(0, 3).forEach((user, index) => {
+        console.log(
+          `[FETCH_USERS] User ${index + 1}: ${user.email} (${user.id})`
+        );
+      });
+
       setUsers(uniqueUsers);
     } catch (error) {
-      console.error("❌ Kullanıcı yükleme hatası:", error);
+      console.error("❌ User loading error:", error);
       setUsers([]);
     }
   };
@@ -158,15 +257,17 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    console.log("--- FORM GÖNDERİMİ BAŞLADI ---");
-    console.log("Form verileri:", formData);
+    setDuplicateInfo(null);
 
-    // Gerekli alanların kontrolü
+    console.log("--- DUPLICATE-SAFE NOTIFICATION SEND ---");
+
+    // Validation
     if (!formData.title || !formData.message) {
       alert("Please fill in all required fields");
       setLoading(false);
       return;
     }
+
     if (
       (formData.deliveryMethod === "email" ||
         formData.deliveryMethod === "both") &&
@@ -182,37 +283,99 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      console.log("2. Kimlik doğrulandı:", user.email);
 
-      // Hedef kitle belirleme
+      // ✅ Target users belirleme ve STRONG deduplication
       let targetUserIds = [];
       let targetEmails = [];
+
+      console.log(
+        `[TARGET_SELECTION] Starting with ${users.length} available users`
+      );
+
       if (formData.target === "all") {
-        targetUserIds = users.map((u) => u.id);
-        targetEmails = users.map((u) => u.email);
+        const allUsers = deduplicateUsers(users);
+        targetUserIds = allUsers.map((u) => u.id);
+        targetEmails = allUsers.map((u) => u.email);
+        console.log(
+          `[TARGET_SELECTION] All users selected: ${allUsers.length}`
+        );
       } else if (formData.target === "specific_user") {
         const targetUser = users.find((u) => u.id === formData.targetValue);
         if (targetUser) {
           targetUserIds = [targetUser.id];
           targetEmails = [targetUser.email];
+          console.log(`[TARGET_SELECTION] Specific user: ${targetUser.email}`);
         }
       } else if (formData.target === "specific_role") {
         const roleUsers = users.filter((u) => u.role === formData.targetValue);
-        targetUserIds = roleUsers.map((u) => u.id);
-        targetEmails = roleUsers.map((u) => u.email);
+        const uniqueRoleUsers = deduplicateUsers(roleUsers);
+        targetUserIds = uniqueRoleUsers.map((u) => u.id);
+        targetEmails = uniqueRoleUsers.map((u) => u.email);
+        console.log(
+          `[TARGET_SELECTION] Role ${formData.targetValue}: ${uniqueRoleUsers.length} users`
+        );
       }
+
+      console.log(`[TARGET_SELECTION] Initial emails: ${targetEmails.length}`);
       console.log(
-        `[Adım 1] Hedeflenen ${targetEmails.length} e-posta adresi belirlendi.`
+        `[TARGET_SELECTION] Initial user IDs: ${targetUserIds.length}`
       );
 
-      let notificationForUI;
+      // ✅ CRITICAL: Strong email deduplication with detailed logging
+      const originalEmailCount = targetEmails.length;
+      const uniqueEmails = deduplicateEmails(targetEmails);
+      const emailDuplicatesFound = originalEmailCount - uniqueEmails.length;
 
-      // Dashboard bildirimi oluşturma (Dashboard veya Both seçiliyse)
+      // ✅ CRITICAL: Strong user ID deduplication
+      const originalUserCount = targetUserIds.length;
+      const uniqueUserIds = [
+        ...new Set(targetUserIds.filter((id) => id && id.trim())),
+      ];
+      const userDuplicatesFound = originalUserCount - uniqueUserIds.length;
+
+      console.log(`[DEDUPLICATION_SUMMARY]:`);
+      console.log(
+        `  - Original emails: ${originalEmailCount} -> Unique: ${uniqueEmails.length} (${emailDuplicatesFound} duplicates removed)`
+      );
+      console.log(
+        `  - Original user IDs: ${originalUserCount} -> Unique: ${uniqueUserIds.length} (${userDuplicatesFound} duplicates removed)`
+      );
+
+      // ✅ Cross-check: Email count should match user count
+      if (uniqueEmails.length !== uniqueUserIds.length) {
+        console.warn(
+          `[MISMATCH WARNING] Emails (${uniqueEmails.length}) != Users (${uniqueUserIds.length})`
+        );
+        console.log("Unique emails:", uniqueEmails);
+        console.log("Unique user IDs:", uniqueUserIds);
+      }
+
+      if (emailDuplicatesFound > 0 || userDuplicatesFound > 0) {
+        setDuplicateInfo({
+          total_emails: originalEmailCount,
+          unique_emails: uniqueEmails.length,
+          email_duplicates: emailDuplicatesFound,
+          total_users: originalUserCount,
+          unique_users: uniqueUserIds.length,
+          user_duplicates: userDuplicatesFound,
+        });
+      }
+
+      console.log(
+        `[TARGET] ${uniqueEmails.length} unique email recipients selected`
+      );
+      console.log(
+        `[TARGET] ${uniqueUserIds.length} unique user recipients selected`
+      );
+
+      let notificationForUI = null;
+
+      // Dashboard notification oluştur
       if (
         formData.deliveryMethod === "dashboard" ||
         formData.deliveryMethod === "both"
       ) {
-        console.log("4. Dashboard bildirimi veritabanına kaydediliyor...");
+        console.log("Creating dashboard notification...");
 
         const notificationData = {
           title: formData.title,
@@ -222,7 +385,7 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
           target_value: formData.targetValue || null,
           created_by: user.id,
           delivery_method: formData.deliveryMethod,
-          recipient_count: Math.max(targetUserIds.length, targetEmails.length),
+          recipient_count: Math.max(uniqueEmails.length, uniqueUserIds.length),
         };
 
         const { data: createdNotification, error: notificationError } =
@@ -233,54 +396,165 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
             .single();
 
         if (notificationError) throw notificationError;
-        console.log(
-          "   - Veritabanı bildirimi oluşturuldu:",
-          createdNotification
-        );
         notificationForUI = createdNotification;
 
-        if (targetUserIds.length > 0) {
-          const userNotifications = targetUserIds.map((userId) => ({
+        // ✅ User notifications için unique user ID'leri kullan
+        if (uniqueUserIds.length > 0) {
+          const userNotifications = uniqueUserIds.map((userId) => ({
             notification_id: createdNotification.id,
             user_id: userId,
             read: false,
           }));
+
           const { error: userNotificationError } = await supabase
             .from("user_notifications")
             .insert(userNotifications);
+
           if (userNotificationError) throw userNotificationError;
           console.log(
-            `   - ${targetUserIds.length} kullanıcı için bildirim ilişkisi oluşturuldu.`
+            `✅ ${uniqueUserIds.length} unique user notifications created`
           );
         }
       }
 
-      // E-posta kuyruğuna ekleme (Email veya Both seçiliyse)
+      // ✅ Email kuyruğuna ekleme (DUPLICATE PREVENTION)
       if (
         formData.deliveryMethod === "email" ||
         formData.deliveryMethod === "both"
       ) {
-        console.log("5. E-posta bildirimi için email_queue'ya ekleniyor...");
-        if (targetEmails.length > 0) {
+        console.log("Queueing emails with duplicate prevention...");
+
+        if (uniqueEmails.length > 0) {
           try {
+            console.log(
+              `[EMAIL] Processing ${uniqueEmails.length} unique emails...`
+            );
+
+            // Format subject for better identification
+            const emailSubject =
+              formData.emailSubject || `GoFormed: ${formData.title}`;
+
+            // Use the proven adminHelpers.sendEmailNotification method
             const emailResult = await adminHelpers.sendEmailNotification(
-              targetEmails,
-              formData.emailSubject,
+              uniqueEmails,
+              emailSubject,
               formData.message
             );
+
             console.log("✅ Email queue result:", emailResult);
+
+            // Check if emails were actually queued
+            if (emailResult.success && emailResult.count > 0) {
+              console.log(`✅ ${emailResult.count} emails queued successfully`);
+
+              // Update duplicate info if needed
+              if (emailResult.count !== uniqueEmails.length) {
+                setDuplicateInfo((prev) => ({
+                  ...prev,
+                  email_duplicates_prevented:
+                    uniqueEmails.length - emailResult.count,
+                }));
+              }
+            } else {
+              console.warn("⚠️ No emails were queued:", emailResult.message);
+
+              // Only try fallback if it's NOT due to recent duplicates
+              if (!emailResult.message?.includes("recent duplicates")) {
+                console.log("Trying direct database insert as fallback...");
+
+                const emailJobs = uniqueEmails.map((email) => ({
+                  recipient: email,
+                  subject: emailSubject,
+                  template_name: "notification",
+                  template_data: {
+                    message: formData.message,
+                    title: formData.title,
+                    type: formData.type,
+                  },
+                  status: "pending",
+                  attempts: 0,
+                }));
+
+                const { data: insertedEmails, error: insertError } =
+                  await supabase.from("email_queue").insert(emailJobs).select();
+
+                if (insertError) {
+                  console.error(
+                    "❌ Direct database insert failed:",
+                    insertError
+                  );
+                  throw new Error(
+                    "Both queue methods failed: " + insertError.message
+                  );
+                } else {
+                  console.log(
+                    `✅ ${
+                      insertedEmails?.length || 0
+                    } emails queued via direct insert`
+                  );
+
+                  // Manually trigger email processor - DISABLED FOR DEBUGGING
+                  try {
+                    console.log(
+                      "⚠️ Email processor trigger disabled for debugging"
+                    );
+                    console.log(
+                      "📌 Emails queued, will be processed automatically by cron job"
+                    );
+                    /*
+                    const processorResponse = await fetch(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/email-processor`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        },
+                        body: JSON.stringify({
+                          trigger: 'manual_notification',
+                          batch_size: insertedEmails.length,
+                          timestamp: Date.now()
+                        })
+                      }
+                    );
+                    
+                    if (processorResponse.ok) {
+                      console.log('✅ Email processor triggered manually');
+                    } else {
+                      console.warn('⚠️ Could not trigger processor manually');
+                    }
+                    */
+                  } catch (processorError) {
+                    console.warn(
+                      "⚠️ Processor trigger failed:",
+                      processorError
+                    );
+                  }
+                }
+              } else {
+                console.log(
+                  "ℹ️ Skipping fallback - emails are recent duplicates (24h window)"
+                );
+                alert(
+                  "Info: Emails were not sent because similar emails were sent recently (24h duplicate prevention)"
+                );
+              }
+            }
           } catch (emailError) {
-            console.error("❌ Email error:", emailError);
-            // Email hatası olsa bile devam et
+            console.error("❌ Email processing failed:", emailError);
+
+            // Show user-friendly error but don't block the whole operation
+            alert(
+              `Warning: Email sending failed (${emailError.message}), but dashboard notification was created successfully.`
+            );
           }
+        } else {
+          console.log("⚠️ No unique emails to send");
         }
-        console.log("6. E-posta kuyruğuna ekleme işlemi tamamlandı.");
       }
 
-      // Sadece E-posta seçildiyse, veritabanına da kaydet
+      // Email-only notification için database kaydı
       if (formData.deliveryMethod === "email" && !notificationForUI) {
-        console.log("7. Email-only notification veritabanına kaydediliyor...");
-
         const emailNotificationData = {
           title: formData.title,
           message: formData.message,
@@ -289,7 +563,7 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
           target_value: formData.targetValue || null,
           created_by: user.id,
           delivery_method: "email",
-          recipient_count: targetEmails.length,
+          recipient_count: uniqueEmails.length,
         };
 
         const { data: emailNotification, error: emailNotificationError } =
@@ -301,18 +575,28 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
 
         if (emailNotificationError) throw emailNotificationError;
         notificationForUI = emailNotification;
-        console.log("   - Email-only notification veritabanına kaydedildi");
       }
 
-      // Arayüzü güncellemek için onSend'i çağır
+      // UI'yi güncelle
       onSend({
         ...notificationForUI,
         delivery_method: formData.deliveryMethod,
-        recipient_count: Math.max(targetUserIds.length, targetEmails.length),
+        recipient_count: Math.max(uniqueEmails.length, uniqueUserIds.length),
       });
 
+      // Success message with duplicate info
+      let successMessage = `Notification sent to ${Math.max(
+        uniqueEmails.length,
+        uniqueUserIds.length
+      )} unique recipients`;
+      if (emailDuplicatesFound > 0 || userDuplicatesFound > 0) {
+        successMessage += ` (${
+          emailDuplicatesFound + userDuplicatesFound
+        } duplicates prevented)`;
+      }
+      alert(successMessage);
+
       onClose();
-      // Formu sıfırla
       setFormData({
         title: "",
         message: "",
@@ -322,13 +606,15 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
         deliveryMethod: "dashboard",
         emailSubject: "",
       });
+      setDuplicateInfo(null);
     } catch (error) {
-      console.error("!!! HATA:", error);
+      console.error("!!! NOTIFICATION ERROR:", error);
       alert("Failed to send notification: " + error.message);
     } finally {
       setLoading(false);
     }
   };
+
   const filteredUsers = users.filter(
     (user) =>
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -349,16 +635,45 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
           <div className="flex justify-between items-center p-6 border-b">
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                Send Notification
+                Send Notification (Duplicate Prevention Active)
               </h2>
               <p className="text-sm text-gray-500">
                 Create and send notifications via dashboard and/or email
               </p>
-              {/* ✅ Target bilgisini göster */}
               {users.length > 0 && (
                 <p className="text-xs text-blue-600 mt-1">
                   {users.length} users available
                 </p>
+              )}
+              {duplicateInfo && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-green-600" />
+                    <span className="font-medium text-green-800">
+                      Duplicate Prevention Active:
+                    </span>
+                  </div>
+                  <div className="text-green-700 mt-1">
+                    {duplicateInfo.email_duplicates > 0 && (
+                      <div>
+                        • {duplicateInfo.email_duplicates} duplicate emails
+                        prevented
+                      </div>
+                    )}
+                    {duplicateInfo.user_duplicates > 0 && (
+                      <div>
+                        • {duplicateInfo.user_duplicates} duplicate users
+                        prevented
+                      </div>
+                    )}
+                    {duplicateInfo.email_duplicates_prevented > 0 && (
+                      <div>
+                        • {duplicateInfo.email_duplicates_prevented} duplicate
+                        queue entries prevented
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <Button onClick={onClose} variant="ghost" size="icon">
