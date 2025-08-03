@@ -1,4 +1,4 @@
-// src/pages/HomePage.jsx - CompanyFormationFlow olmadan
+// src/pages/HomePage.jsx - Updated without CompanyFormationFlow
 import React from "react";
 import HeroSection from "../components/sections/HeroSection";
 import TrustedBySection from "../components/sections/TrustedBySection";

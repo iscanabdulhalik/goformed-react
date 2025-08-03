@@ -1,273 +1,214 @@
-// src/App.jsx - Optimized with better route management and error handling
-import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+// src/App.jsx - Projenizdeki dosya yoluna göre son düzeltme
 
-// Components
-import ErrorBoundary from "@/components/ErrorBoundary";
-import SessionWarningModal from "@/components/auth/SessionWarningModal";
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { Toaster } from "@/components/ui/toast";
+import Layout from "@/components/layout/Layout";
 import {
   ProtectedRoute,
-  AdminRoute,
   GuestRoute,
-  PublicRoute,
+  AdminRoute,
 } from "@/components/auth/ProtectedRoute";
-import Loader from "@/components/ui/Loader";
-import AuthCallback from "@/components/AuthCallback";
 
-// Layouts
-import Layout from "@/components/layout/Layout";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import AdminLayout from "@/components/layout/AdminLayout";
-
-// Critical pages (eager loaded)
+// Pages
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import DashboardPage from "@/pages/DashboardPage";
+// ✅ DÜZELTME: Bileşen, projenizdeki doğru konum olan 'sections' altından çağrılıyor.
+import CompanyFormationPage from "@/components/sections/CompanyFormationFlow";
+import MarketplacePage from "@/pages/MarketplacePage";
+import OrdersPage from "@/pages/OrdersPage";
+import RequestDetailsPage from "@/pages/RequestDetailsPage";
+import SettingsPage from "@/pages/SettingsPage";
+import AuthCallback from "@/components/AuthCallback";
 
-// Lazy loaded pages
-const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage"));
-const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
-const MarketplacePage = lazy(() => import("@/pages/MarketplacePage"));
-const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
-const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const RequestDetailsPage = lazy(() => import("@/pages/RequestDetailsPage"));
+// Admin Pages
+import AdminLoginPage from "@/pages/admin/AdminLoginPage";
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+import AdminUserManagement from "@/pages/admin/AdminUserManagement";
+import AdminCompanyManagement from "@/pages/admin/AdminCompanyManagement";
+import AdminNotificationManagement from "@/pages/admin/AdminNotificationManagement";
+import AdminLayout from "@/components/layout/AdminLayout";
 
-// Admin pages
-const AdminLoginPage = lazy(() => import("@/pages/admin/AdminLoginPage"));
-const AdminDashboardPage = lazy(() =>
-  import("@/pages/admin/AdminDashboardPage")
-);
-const AdminUserManagement = lazy(() =>
-  import("@/pages/admin/AdminUserManagement")
-);
-const AdminNotificationManagement = lazy(() =>
-  import("@/pages/admin/AdminNotificationManagement")
-);
-const AdminCompanyManagement = lazy(() =>
-  import("@/pages/admin/AdminCompanyManagement")
-);
-
-// Global loading component
-const PageLoader = () => (
-  <div className="min-h-screen w-full flex items-center justify-center bg-background">
-    <div className="text-center">
-      <Loader />
-      <p className="text-muted-foreground mt-4">Loading...</p>
-    </div>
-  </div>
-);
-
-// Suspense wrapper with error boundary
-const SuspenseWrapper = ({ children }) => (
-  <ErrorBoundary>
-    <Suspense fallback={<PageLoader />}>{children}</Suspense>
-  </ErrorBoundary>
-);
-
-// 404 Not Found component
-const NotFoundPage = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center text-center bg-background">
-    <div className="max-w-md mx-auto">
-      <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
-      <h2 className="text-2xl font-semibold mb-4">Page Not Found</h2>
-      <p className="text-muted-foreground mb-8">
-        The page you are looking for does not exist or has been moved.
-      </p>
-      <div className="space-y-2">
-        <a
-          href="/"
-          className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          Go Home
-        </a>
-        <br />
-        <button
-          onClick={() => window.history.back()}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Go Back
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const App = () => {
+function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        {/* Global session warning modal */}
-        <SessionWarningModal />
+    <AuthProvider>
+      <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <HomePage />
+            </Layout>
+          }
+        />
 
-        <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/"
-            element={
-              <PublicRoute>
-                <Layout>
-                  <HomePage />
-                </Layout>
-              </PublicRoute>
-            }
-          />
+        {/* Auth Callback Route */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Auth Callback */}
-          <Route
-            path="/auth/callback"
-            element={
-              <PublicRoute>
-                <AuthCallback />
-              </PublicRoute>
-            }
-          />
+        {/* Guest Only Routes */}
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestRoute>
+              <RegisterPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <GuestRoute>
+              <ForgotPasswordPage />
+            </GuestRoute>
+          }
+        />
 
-          {/* Guest Only Routes (Logged out users) */}
-          <Route
-            path="/login"
-            element={
-              <GuestRoute>
-                <LoginPage />
-              </GuestRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <GuestRoute>
-                <RegisterPage />
-              </GuestRoute>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <GuestRoute>
-                <SuspenseWrapper>
-                  <ForgotPasswordPage />
-                </SuspenseWrapper>
-              </GuestRoute>
-            }
-          />
+        {/* Protected Dashboard Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <DashboardPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/company-formation"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <CompanyFormationPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/marketplace"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <MarketplacePage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/orders"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <OrdersPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/request/:id"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <RequestDetailsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/settings"
+          element={
+            <ProtectedRoute>
+              <Layout isDashboard>
+                <SettingsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Protected User Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route
-              index
-              element={
-                <SuspenseWrapper>
-                  <DashboardPage />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="marketplace"
-              element={
-                <SuspenseWrapper>
-                  <MarketplacePage />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="orders"
-              element={
-                <SuspenseWrapper>
-                  <OrdersPage />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="settings"
-              element={
-                <SuspenseWrapper>
-                  <SettingsPage />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="request/:id"
-              element={
-                <SuspenseWrapper>
-                  <RequestDetailsPage />
-                </SuspenseWrapper>
-              }
-            />
-          </Route>
+        {/* Admin Routes */}
+        <Route
+          path="/admin/login"
+          element={
+            <GuestRoute>
+              <AdminLoginPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminDashboardPage />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminNotificationManagement />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminUserManagement />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/companies"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <AdminCompanyManagement />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin/login"
-            element={
-              <GuestRoute redirectTo="/admin">
-                <SuspenseWrapper>
-                  <AdminLoginPage />
-                </SuspenseWrapper>
-              </GuestRoute>
-            }
-          />
-
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminLayout />
-              </AdminRoute>
-            }
-          >
-            <Route
-              index
-              element={
-                <SuspenseWrapper>
-                  <AdminDashboardPage />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <SuspenseWrapper>
-                  <AdminUserManagement />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="notifications"
-              element={
-                <SuspenseWrapper>
-                  <AdminNotificationManagement />
-                </SuspenseWrapper>
-              }
-            />
-            <Route
-              path="companies"
-              element={
-                <SuspenseWrapper>
-                  <AdminCompanyManagement />
-                </SuspenseWrapper>
-              }
-            />
-          </Route>
-
-          {/* Legacy admin routes redirect */}
-          <Route
-            path="/admin/dashboard"
-            element={<Navigate to="/admin" replace />}
-          />
-
-          {/* Catch all - 404 */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </AuthProvider>
-    </ErrorBoundary>
+        {/* 404 Not Found */}
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-4xl font-bold">404</h1>
+                  <p className="text-gray-600">Page Not Found</p>
+                  <Link to="/" className="text-blue-600 hover:underline">
+                    Go Home
+                  </Link>
+                </div>
+              </div>
+            </Layout>
+          }
+        />
+      </Routes>
+      <Toaster />
+    </AuthProvider>
   );
-};
+}
 
 export default App;

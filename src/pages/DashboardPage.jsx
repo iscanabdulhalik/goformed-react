@@ -1,44 +1,51 @@
-// src/pages/DashboardPage.jsx - Production Ready with Real Data
+// src/pages/DashboardPage.jsx - Enhanced with package selection and better content
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { CustomTabs, CustomTabContent } from "@/components/ui/CustomTabs";
+import { ukPackages, globalPackages } from "@/lib/packages";
 import Loader from "@/components/ui/Loader";
 import {
-  FaPlus,
-  FaSpinner,
-  FaEye,
-  FaCheckCircle,
-  FaClock,
-  FaExclamationTriangle,
-  FaTimesCircle,
-  FaShoppingBag,
-  FaBuilding,
-  FaChartBar,
-  FaArrowRight,
-  FaGlobe,
-} from "react-icons/fa";
-import {
-  Check,
-  Crown,
-  Sparkles,
-  Star,
   Building2,
+  ShoppingCart,
+  TrendingUp,
+  Package,
+  DollarSign,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Star,
   Zap,
+  Crown,
+  Globe,
+  ArrowRight,
+  Users,
+  Award,
+  Target,
   Sunrise,
   Sun,
   Moon,
   Sunset,
-  ShoppingCart,
-  TrendingUp,
-  Package,
-  AlertCircle,
-  DollarSign,
+  Sparkles,
+  Check,
+  FileText,
+  Mail,
+  Phone,
+  Calendar,
+  CreditCard,
+  Briefcase,
+  MapPin,
+  Shield,
+  Heart,
+  PlusCircle,
 } from "lucide-react";
 
-// Time-based greeting
+// Time-based greeting system
 const getTimeBasedGreeting = (userName) => {
   const hour = new Date().getHours();
 
@@ -54,7 +61,7 @@ const getTimeBasedGreeting = (userName) => {
   } else if (hour >= 12 && hour < 17) {
     return {
       greeting: `Good Afternoon, ${userName}!`,
-      message: "Keep up the great work on your business journey",
+      message: "Keep pushing forward with your business goals",
       icon: <Sun className="w-5 h-5" />,
       gradient: "from-blue-400 via-cyan-400 to-blue-500",
       bgGradient: "from-blue-50 to-cyan-50",
@@ -63,7 +70,7 @@ const getTimeBasedGreeting = (userName) => {
   } else if (hour >= 17 && hour < 21) {
     return {
       greeting: `Good Evening, ${userName}!`,
-      message: "Time to review your progress and plan ahead",
+      message: "Great progress today! Time to plan tomorrow's success",
       icon: <Sunset className="w-5 h-5" />,
       gradient: "from-purple-400 via-pink-400 to-red-500",
       bgGradient: "from-purple-50 to-pink-50",
@@ -72,7 +79,7 @@ const getTimeBasedGreeting = (userName) => {
   } else {
     return {
       greeting: `Good Night, ${userName}!`,
-      message: "Working late? Your dedication will pay off",
+      message: "Burning the midnight oil? Your dedication will pay off",
       icon: <Moon className="w-5 h-5" />,
       gradient: "from-indigo-400 via-purple-400 to-indigo-600",
       bgGradient: "from-indigo-50 to-purple-50",
@@ -81,127 +88,158 @@ const getTimeBasedGreeting = (userName) => {
   }
 };
 
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: {
-      duration: 0.5,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-// Status configurations
-const companyStatusConfig = {
+// Status configurations for different states
+const statusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    icon: FaClock,
+    icon: Clock,
     label: "Pending Payment",
     description: "Complete payment to start your company formation",
+    progress: 10,
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
-    icon: FaCheckCircle,
+    icon: CheckCircle,
     label: "Payment Completed",
     description: "Payment received, starting review process",
+    progress: 25,
   },
   in_review: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
-    icon: FaSpinner,
+    icon: Clock,
     label: "In Review",
     description: "Our team is reviewing your application",
-  },
-  documents_requested: {
-    color: "bg-orange-100 text-orange-800 border-orange-300",
-    icon: FaExclamationTriangle,
-    label: "Documents Required",
-    description: "Please upload the requested documents",
+    progress: 50,
   },
   processing: {
     color: "bg-purple-100 text-purple-800 border-purple-300",
-    icon: FaSpinner,
+    icon: Building2,
     label: "Processing",
-    description: "Your company is being processed with Companies House",
+    description: "Being processed with Companies House",
+    progress: 75,
   },
   completed: {
     color: "bg-green-100 text-green-800 border-green-300",
-    icon: FaCheckCircle,
+    icon: CheckCircle,
     label: "Completed",
-    description: "Your company has been successfully formed",
-  },
-  rejected: {
-    color: "bg-red-100 text-red-800 border-red-300",
-    icon: FaTimesCircle,
-    label: "Rejected",
-    description: "Please contact support for assistance",
+    description: "Successfully completed",
+    progress: 100,
   },
 };
 
-const serviceStatusConfig = {
-  pending: {
-    color: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    icon: FaClock,
-    label: "Pending",
-    description: "Service order is being processed",
-  },
-  confirmed: {
-    color: "bg-blue-100 text-blue-800 border-blue-300",
-    icon: FaCheckCircle,
-    label: "Confirmed",
-    description: "Service order has been confirmed",
-  },
-  in_progress: {
-    color: "bg-purple-100 text-purple-800 border-purple-300",
-    icon: FaSpinner,
-    label: "In Progress",
-    description: "Service is being worked on",
-  },
-  completed: {
-    color: "bg-green-100 text-green-800 border-green-300",
-    icon: FaCheckCircle,
-    label: "Completed",
-    description: "Service has been completed successfully",
-  },
-  cancelled: {
-    color: "bg-red-100 text-red-800 border-red-300",
-    icon: FaTimesCircle,
-    label: "Cancelled",
-    description: "Service order was cancelled",
-  },
+// Package Card Component with Order Button
+const PackageCard = ({ packageData, onOrder, isLoading }) => {
+  return (
+    <motion.div
+      whileHover={{ y: -5, scale: 1.02 }}
+      transition={{ duration: 0.3 }}
+      className="h-full"
+    >
+      <Card
+        className={`h-full flex flex-col transition-all duration-300 hover:shadow-xl relative overflow-hidden ${
+          packageData.badge === "Popular" ||
+          packageData.badge === "Premium" ||
+          packageData.badge === "Elite"
+            ? "border-2 border-blue-500 shadow-lg"
+            : "border hover:border-gray-300"
+        }`}
+      >
+        {/* Gradient background */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+
+        {/* Badge */}
+        {packageData.badge && (
+          <div className="absolute -top-3 right-4 z-10">
+            <Badge
+              className={`${packageData.badgeClass} text-white px-3 py-1 text-xs font-bold shadow-lg`}
+            >
+              {packageData.badge}
+            </Badge>
+          </div>
+        )}
+
+        <CardHeader className="pb-4 pt-6">
+          <div className="text-center">
+            <CardTitle className="text-xl font-bold text-gray-900 mb-2">
+              {packageData.name}
+            </CardTitle>
+
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-lg text-gray-400 line-through">
+                {packageData.oldPrice}
+              </span>
+              <span className="text-3xl font-bold text-blue-600">
+                {packageData.price}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-500">{packageData.feeText}</p>
+          </div>
+        </CardHeader>
+
+        <CardContent className="flex-1 flex flex-col">
+          <ul className="space-y-3 text-sm text-gray-600 flex-1 mb-6">
+            {packageData.features.map((feature, index) => (
+              <motion.li
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-start gap-3"
+              >
+                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>{feature}</span>
+              </motion.li>
+            ))}
+          </ul>
+
+          <Button
+            onClick={() => onOrder(packageData)}
+            disabled={isLoading}
+            className={`w-full font-semibold transition-all duration-300 ${
+              packageData.badge === "Popular" ||
+              packageData.badge === "Premium" ||
+              packageData.badge === "Elite"
+                ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl"
+                : "bg-gray-900 hover:bg-gray-800 text-white"
+            }`}
+          >
+            {isLoading ? (
+              <>
+                <Clock className="animate-spin mr-2 h-4 w-4" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Choose This Package
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
 };
 
 // Company Request Card Component
-const CompanyRequestCard = ({ request }) => {
-  const status =
-    companyStatusConfig[request.status] || companyStatusConfig.pending_payment;
+const CompanyRequestCard = ({ request, onViewDetails }) => {
+  const status = statusConfig[request.status] || statusConfig.pending_payment;
   const StatusIcon = status.icon;
 
   return (
     <motion.div
-      variants={itemVariants}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.01 }}
       className="group"
     >
-      <Card className="hover:shadow-md transition-all duration-300 border-l-4 border-l-blue-500">
-        <CardHeader className="pb-2">
+      <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
+        <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <FaBuilding className="h-4 w-4 text-blue-600" />
+                <Building2 className="h-5 w-5 text-blue-600" />
               </div>
               <div>
                 <CardTitle className="text-base font-bold text-gray-900 mb-1">
@@ -210,20 +248,19 @@ const CompanyRequestCard = ({ request }) => {
                 <p className="text-sm text-gray-600">{request.package_name}</p>
                 {request.package_price && (
                   <p className="text-xs text-gray-500">
-                    £{request.package_price}
+                    £{parseFloat(request.package_price).toFixed(2)}
                   </p>
                 )}
               </div>
             </div>
+
             <div className="text-right">
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${status.color}`}
-              >
+              <Badge className={`${status.color} border text-xs`}>
                 <StatusIcon className="mr-1 h-3 w-3" />
                 {status.label}
-              </span>
+              </Badge>
               <p className="text-xs text-gray-500 mt-1">
-                {new Date(request.created_at).toLocaleDateString("en-US")}
+                {new Date(request.created_at).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -231,148 +268,77 @@ const CompanyRequestCard = ({ request }) => {
 
         <CardContent className="pt-0">
           <p className="text-sm text-gray-600 mb-3">{status.description}</p>
+
+          <div className="mb-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Progress</span>
+              <span>{status.progress}%</span>
+            </div>
+            <Progress value={status.progress} className="h-2" />
+          </div>
 
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span>ID: {request.id.slice(0, 8)}</span>
-              {request.assigned_admin_id && (
-                <span className="flex items-center gap-1">
-                  <FaBuilding className="h-3 w-3" />
-                  Assigned
-                </span>
-              )}
             </div>
 
-            <div className="flex gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/dashboard/request/${request.id}`}>
-                  <FaEye className="mr-2 h-3 w-3" />
-                  View Details
-                </Link>
-              </Button>
-            </div>
+            <Button
+              onClick={() => onViewDetails(request)}
+              variant="outline"
+              size="sm"
+            >
+              <FileText className="mr-2 h-3 w-3" />
+              View Details
+            </Button>
           </div>
         </CardContent>
       </Card>
     </motion.div>
-  );
-};
-
-// Service Order Card Component
-const ServiceOrderCard = ({ order }) => {
-  const status =
-    serviceStatusConfig[order.status] || serviceStatusConfig.pending;
-  const StatusIcon = status.icon;
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ scale: 1.01 }}
-      className="group"
-    >
-      <Card className="hover:shadow-md transition-all duration-300 border-l-4 border-l-green-500">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <FaShoppingBag className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold text-gray-900 mb-1">
-                  {order.service_title}
-                </CardTitle>
-                <p className="text-sm text-gray-600">
-                  {order.service_category}
-                </p>
-                <p className="text-xs text-gray-500">£{order.price_amount}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold border ${status.color}`}
-              >
-                <StatusIcon className="mr-1 h-3 w-3" />
-                {status.label}
-              </span>
-              <p className="text-xs text-gray-500 mt-1">
-                {new Date(order.created_at).toLocaleDateString("en-US")}
-              </p>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="pt-0">
-          <p className="text-sm text-gray-600 mb-3">{status.description}</p>
-
-          {order.delivery_time && (
-            <p className="text-xs text-gray-500 mb-2">
-              Expected delivery: {order.delivery_time}
-            </p>
-          )}
-
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <span>Order: {order.id.slice(0, 8)}</span>
-            </div>
-
-            <div className="flex gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/dashboard/orders/${order.id}`}>
-                  <FaEye className="mr-2 h-3 w-3" />
-                  View Order
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-};
-
-// Custom Tab Component
-const CustomTab = ({ activeTab, setActiveTab, tabs, children }) => {
-  return (
-    <div className="w-full">
-      {/* Tab List */}
-      <div className="flex space-x-1 mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${
-              activeTab === tab.value
-                ? "bg-blue-600 text-white shadow-lg transform scale-105"
-                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="tab-content">{children}</div>
-    </div>
   );
 };
 
 // Main Dashboard Component
 export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState("overview");
   const [companyRequests, setCompanyRequests] = useState([]);
   const [serviceOrders, setServiceOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
   const [timeGreeting, setTimeGreeting] = useState(null);
+  const [selectedPackageType, setSelectedPackageType] = useState("uk");
+  const [orderLoading, setOrderLoading] = useState(false);
   const [stats, setStats] = useState({
     totalSpent: 0,
     pendingOrders: 0,
     completedOrders: 0,
-    recentActivity: [],
+    totalOrders: 0,
   });
+
+  const navigate = useNavigate();
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        duration: 0.5,
+        ease: [0.22, 1, 0.36, 1],
+      },
+    },
+  };
 
   // Get user and set up greeting
   useEffect(() => {
@@ -389,13 +355,13 @@ export default function DashboardPage() {
         if (user) {
           const userName =
             user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
             user.email?.split("@")[0] ||
             "User";
           setTimeGreeting(getTimeBasedGreeting(userName));
         }
       } catch (error) {
         console.error("Error getting user:", error);
-        setError("Failed to load user information");
       }
     };
     getUser();
@@ -407,7 +373,10 @@ export default function DashboardPage() {
 
     const interval = setInterval(() => {
       const userName =
-        user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "User";
       setTimeGreeting(getTimeBasedGreeting(userName));
     }, 60000);
 
@@ -438,16 +407,6 @@ export default function DashboardPage() {
 
         if (serviceError) throw serviceError;
 
-        // Fetch recent activity
-        const { data: activityData, error: activityError } = await supabase
-          .from("activity_logs")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        if (activityError) throw activityError;
-
         setCompanyRequests(companyData || []);
         setServiceOrders(serviceData || []);
 
@@ -461,14 +420,8 @@ export default function DashboardPage() {
           ),
         ].reduce((sum, amount) => sum + amount, 0);
 
-        const pendingOrders = [
-          ...(companyData || []).filter((req) =>
-            ["pending_payment", "in_review", "processing"].includes(req.status)
-          ),
-          ...(serviceData || []).filter((order) =>
-            ["pending", "confirmed", "in_progress"].includes(order.status)
-          ),
-        ].length;
+        const totalOrders =
+          (companyData?.length || 0) + (serviceData?.length || 0);
 
         const completedOrders = [
           ...(companyData || []).filter((req) => req.status === "completed"),
@@ -477,15 +430,16 @@ export default function DashboardPage() {
           ),
         ].length;
 
+        const pendingOrders = totalOrders - completedOrders;
+
         setStats({
           totalSpent,
           pendingOrders,
           completedOrders,
-          recentActivity: activityData || [],
+          totalOrders,
         });
       } catch (err) {
         console.error("Error fetching user data:", err);
-        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -518,70 +472,75 @@ export default function DashboardPage() {
       )
       .subscribe();
 
-    const serviceChannel = supabase
-      .channel("user_service_orders")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "service_orders",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === "UPDATE") {
-            setServiceOrders((current) =>
-              current.map((order) =>
-                order.id === payload.new.id ? payload.new : order
-              )
-            );
-          } else if (payload.eventType === "INSERT") {
-            setServiceOrders((current) => [payload.new, ...current]);
-          }
-        }
-      )
-      .subscribe();
-
     return () => {
       supabase.removeChannel(companyChannel);
-      supabase.removeChannel(serviceChannel);
     };
   }, [user]);
 
-  if (loading) return <Loader />;
+  // Handle package order
+  const handlePackageOrder = async (packageData) => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Something went wrong
-            </h3>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    setOrderLoading(true);
 
-  const totalOrders = companyRequests.length + serviceOrders.length;
+    try {
+      // Log activity
+      await supabase.rpc("log_activity", {
+        p_user_id: user.id,
+        p_action: "package_order_initiated",
+        p_description: `User initiated order for ${packageData.name}`,
+        p_metadata: {
+          package_name: packageData.name,
+          package_price: packageData.price,
+        },
+      });
+
+      // Navigate to company formation flow with selected package
+      navigate("/dashboard/company-formation", {
+        state: { selectedPackage: packageData },
+      });
+    } catch (error) {
+      console.error("Package order error:", error);
+      alert("Failed to start order. Please try again.");
+    } finally {
+      setOrderLoading(false);
+    }
+  };
+
+  const handleViewDetails = (request) => {
+    navigate(`/dashboard/request/${request.id}`);
+  };
 
   const tabs = [
-    { value: "overview", label: "Overview", icon: FaBuilding },
+    {
+      value: "overview",
+      label: "Overview",
+      icon: TrendingUp,
+    },
+    {
+      value: "packages",
+      label: "Start Company",
+      icon: PlusCircle,
+    },
     {
       value: "companies",
-      label: `Companies (${companyRequests.length})`,
+      label: `My Companies (${companyRequests.length})`,
       icon: Building2,
     },
     {
       value: "services",
       label: `Services (${serviceOrders.length})`,
-      icon: FaShoppingBag,
+      icon: Package,
     },
   ];
+
+  if (loading) return <Loader />;
+
+  const packagesToShow =
+    selectedPackageType === "uk" ? ukPackages : globalPackages;
 
   return (
     <motion.div
@@ -600,12 +559,13 @@ export default function DashboardPage() {
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-4 right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
             <div className="absolute bottom-4 left-4 w-16 h-16 bg-white rounded-full animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 w-8 h-8 bg-white rounded-full animate-pulse delay-500"></div>
           </div>
 
           <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
               <motion.div
-                className={`p-3 bg-white rounded-full ${timeGreeting.iconColor}`}
+                className={`p-3 bg-white rounded-full ${timeGreeting.iconColor} shadow-lg`}
                 animate={{
                   rotate: [0, 5, -5, 0],
                   scale: [1, 1.05, 1],
@@ -620,7 +580,7 @@ export default function DashboardPage() {
               </motion.div>
               <div>
                 <motion.h1
-                  className="text-lg font-bold text-gray-900"
+                  className="text-xl font-bold text-gray-900"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
@@ -638,17 +598,36 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                asChild
-                className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-4 py-2 text-sm`}
+            <div className="flex gap-3">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <Link to="/dashboard/marketplace">
-                  <FaPlus className="h-3 w-3" />
-                  Browse Services
-                </Link>
-              </Button>
-            </motion.div>
+                <Button
+                  asChild
+                  className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-4 py-2 text-sm shadow-lg`}
+                >
+                  <Link to="/dashboard/marketplace">
+                    <ShoppingCart className="h-4 w-4" />
+                    Browse Services
+                  </Link>
+                </Button>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  onClick={() => setActiveTab("packages")}
+                  variant="outline"
+                  className="bg-white/90 hover:bg-white border-white font-semibold flex items-center gap-2 px-4 py-2 text-sm shadow-lg"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Start Company
+                </Button>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       )}
@@ -661,35 +640,39 @@ export default function DashboardPage() {
         {[
           {
             title: "Total Orders",
-            value: totalOrders,
+            value: stats.totalOrders,
             icon: Package,
             color: "blue",
             bgColor: "bg-blue-100",
             textColor: "text-blue-600",
+            description: "All your orders",
           },
           {
             title: "Completed",
             value: stats.completedOrders,
-            icon: FaCheckCircle,
+            icon: CheckCircle,
             color: "green",
             bgColor: "bg-green-100",
             textColor: "text-green-600",
+            description: "Successfully completed",
           },
           {
             title: "In Progress",
             value: stats.pendingOrders,
-            icon: FaClock,
+            icon: Clock,
             color: "yellow",
             bgColor: "bg-yellow-100",
             textColor: "text-yellow-600",
+            description: "Currently processing",
           },
           {
-            title: "Total Spent",
-            value: `£${stats.totalSpent.toFixed(2)}`,
+            title: "Total Invested",
+            value: `£${stats.totalSpent.toFixed(0)}`,
             icon: DollarSign,
             color: "purple",
             bgColor: "bg-purple-100",
             textColor: "text-purple-600",
+            description: "Your business investment",
           },
         ].map((stat, index) => (
           <motion.div
@@ -702,21 +685,22 @@ export default function DashboardPage() {
             <Card className="hover:shadow-lg transition-all duration-300 border-0 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center">
-                  <div className={`p-2 ${stat.bgColor} rounded-lg`}>
-                    <stat.icon className={`h-4 w-4 ${stat.textColor}`} />
+                  <div className={`p-3 ${stat.bgColor} rounded-xl`}>
+                    <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
                   </div>
-                  <div className="ml-3">
-                    <p className="text-xs font-medium text-gray-600">
+                  <div className="ml-4 flex-1">
+                    <p className="text-xs font-medium text-gray-600 mb-1">
                       {stat.title}
                     </p>
                     <motion.p
-                      className="text-lg font-bold text-gray-900"
+                      className="text-xl font-bold text-gray-900"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.1 + 0.7, type: "spring" }}
                     >
                       {stat.value}
                     </motion.p>
+                    <p className="text-xs text-gray-500">{stat.description}</p>
                   </div>
                 </div>
               </CardContent>
@@ -727,304 +711,455 @@ export default function DashboardPage() {
 
       {/* Custom Tabs */}
       <motion.div variants={itemVariants}>
-        <CustomTab
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          tabs={tabs}
-        >
+        <CustomTabs tabs={tabs} defaultValue="overview" onChange={setActiveTab}>
           {/* Overview Tab */}
-          {activeTab === "overview" && (
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-              >
-                {/* Recent Activity */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <FaClock className="h-4 w-4 text-blue-600" />
-                      Recent Activity
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {stats.recentActivity.length === 0 && totalOrders === 0 ? (
-                      <div className="text-center py-8">
-                        <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500">No activity yet</p>
-                        <p className="text-sm text-gray-400">
-                          Start your first order to see activity here
+          <CustomTabContent value="overview" activeValue={activeTab}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Quick Start Guide */}
+              <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Sparkles className="h-5 w-5 text-blue-600" />
+                    Quick Start Guide
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <span className="text-blue-600 font-bold text-sm">
+                          1
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 text-sm">
+                          Choose Your Package
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          Select the perfect package for your business needs
                         </p>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Show recent orders if no activity logs */}
-                        {stats.recentActivity.length === 0 ? (
-                          <>
-                            {companyRequests.slice(0, 3).map((request) => (
-                              <div
-                                key={request.id}
-                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                              >
-                                <div className="p-2 bg-blue-100 rounded-lg">
-                                  <FaBuilding className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm text-gray-900">
-                                    Company Request: {request.company_name}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {request.package_name}
-                                  </p>
-                                </div>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(
-                                    request.created_at
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            ))}
-                            {serviceOrders.slice(0, 2).map((order) => (
-                              <div
-                                key={order.id}
-                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                              >
-                                <div className="p-2 bg-green-100 rounded-lg">
-                                  <FaShoppingBag className="h-4 w-4 text-green-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm text-gray-900">
-                                    Service Order: {order.service_title}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    £{order.price_amount}
-                                  </p>
-                                </div>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(
-                                    order.created_at
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          stats.recentActivity.map((activity) => (
-                            <div
-                              key={activity.id}
-                              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                            >
-                              <div className="p-2 bg-purple-100 rounded-lg">
-                                <TrendingUp className="h-4 w-4 text-purple-600" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium text-sm text-gray-900">
-                                  {activity.action
-                                    .replace(/_/g, " ")
-                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {activity.description}
-                                </p>
-                              </div>
-                              <span className="text-xs text-gray-400">
-                                {new Date(
-                                  activity.created_at
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          ))
-                        )}
-
-                        {totalOrders > 5 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setActiveTab("companies")}
-                            className="w-full"
-                          >
-                            View All Orders
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Quick Actions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Zap className="h-4 w-4 text-purple-600" />
-                      Quick Actions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <Button
-                        asChild
-                        className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                      >
-                        <Link to="/dashboard/marketplace">
-                          <FaShoppingBag className="mr-3 h-4 w-4" />
-                          Browse Services
-                        </Link>
-                      </Button>
-
-                      {companyRequests.length > 0 && (
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="w-full justify-start hover:bg-blue-50"
-                        >
-                          <Link
-                            to={`/dashboard/request/${companyRequests[0].id}`}
-                          >
-                            <FaEye className="mr-3 h-4 w-4" />
-                            View Latest Company Request
-                          </Link>
-                        </Button>
-                      )}
-
-                      <Button
-                        asChild
-                        variant="outline"
-                        className="w-full justify-start hover:bg-green-50"
-                      >
-                        <Link to="/dashboard/orders">
-                          <FaEye className="mr-3 h-4 w-4" />
-                          View All Orders
-                        </Link>
-                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </AnimatePresence>
-          )}
 
-          {/* Companies Tab */}
-          {activeTab === "companies" && (
-            <AnimatePresence>
-              {companyRequests.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                >
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Building2 className="h-8 w-8 text-blue-600" />
+                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <span className="text-green-600 font-bold text-sm">
+                          2
+                        </span>
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        Ready to Start Your Business?
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        Get your UK company formed with our expert service
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <Button
-                          asChild
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Link to="/dashboard/marketplace">
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            Browse Services
-                          </Link>
-                        </Button>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 text-sm">
+                          Complete Formation
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          We handle all the paperwork and registrations
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ) : (
-                <motion.div
-                  className="space-y-4"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Your Company Requests ({companyRequests.length})
-                    </h2>
-                    <Button asChild variant="outline" size="sm">
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <span className="text-purple-600 font-bold text-sm">
+                          3
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 text-sm">
+                          Start Trading
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          Access banking, payment processing, and more
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => setActiveTab("packages")}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Start Your Company Now
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Success Stories */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Award className="h-5 w-5 text-green-600" />
+                    Success Stories
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <Users className="w-4 h-4 text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-green-900 text-sm">
+                            2,900+ Companies Formed
+                          </h4>
+                          <p className="text-xs text-green-700">
+                            Entrepreneurs worldwide trust GoFormed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Globe className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-blue-900 text-sm">
+                            150+ Countries Served
+                          </h4>
+                          <p className="text-xs text-blue-700">
+                            Global reach, local expertise
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <Target className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-purple-900 text-sm">
+                            98% Success Rate
+                          </h4>
+                          <p className="text-xs text-purple-700">
+                            Proven track record of excellence
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full border-gray-300 hover:bg-gray-50"
+                    >
                       <Link to="/dashboard/marketplace">
                         <ShoppingCart className="mr-2 h-4 w-4" />
-                        Additional Services
+                        Explore Additional Services
                       </Link>
                     </Button>
                   </div>
-                  {companyRequests.map((request) => (
-                    <CompanyRequestCard key={request.id} request={request} />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
+            {(companyRequests.length > 0 || serviceOrders.length > 0) && (
+              <Card className="mt-6 border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Clock className="h-5 w-5 text-gray-600" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {companyRequests.slice(0, 3).map((request) => (
+                      <div
+                        key={request.id}
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        onClick={() => handleViewDetails(request)}
+                      >
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Building2 className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-gray-900">
+                            {request.company_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {request.package_name} •{" "}
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge
+                          className={
+                            statusConfig[request.status]?.color ||
+                            statusConfig.pending_payment.color
+                          }
+                        >
+                          {statusConfig[request.status]?.label || "Pending"}
+                        </Badge>
+                      </div>
+                    ))}
+
+                    {serviceOrders.slice(0, 2).map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Package className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-gray-900">
+                            {order.service_title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            £{parseFloat(order.price_amount).toFixed(2)} •{" "}
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800">
+                          Service
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </CustomTabContent>
+
+          {/* Packages Tab */}
+          <CustomTabContent value="packages" activeValue={activeTab}>
+            <div className="space-y-6">
+              {/* Package Type Selector */}
+              <div className="flex justify-center">
+                <div className="inline-flex rounded-xl border p-1 bg-gray-100">
+                  <Button
+                    variant={selectedPackageType === "uk" ? "default" : "ghost"}
+                    onClick={() => setSelectedPackageType("uk")}
+                    className="rounded-lg font-semibold"
+                  >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    UK Residents
+                  </Button>
+                  <Button
+                    variant={
+                      selectedPackageType === "global" ? "default" : "ghost"
+                    }
+                    onClick={() => setSelectedPackageType("global")}
+                    className="rounded-lg font-semibold"
+                  >
+                    <Globe className="mr-2 h-4 w-4" />
+                    Non-UK Residents
+                  </Button>
+                </div>
+              </div>
+
+              {/* Package Description */}
+              <div className="text-center max-w-2xl mx-auto">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Choose Your Perfect Package
+                </h2>
+                <p className="text-gray-600">
+                  {selectedPackageType === "uk"
+                    ? "Special packages designed for UK residents with local support and competitive pricing."
+                    : "Comprehensive packages for international entrepreneurs looking to establish their UK presence."}
+                </p>
+              </div>
+
+              {/* Package Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                {packagesToShow.map((packageData) => (
+                  <PackageCard
+                    key={packageData.name}
+                    packageData={packageData}
+                    onOrder={handlePackageOrder}
+                    isLoading={orderLoading}
+                  />
+                ))}
+              </div>
+
+              {/* Additional Features */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 max-w-4xl mx-auto">
+                <h3 className="text-lg font-bold text-center text-gray-900 mb-4">
+                  What's Included in Every Package
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <h4 className="font-semibold text-sm">Secure & Legal</h4>
+                      <p className="text-xs text-gray-600">
+                        Fully compliant with UK regulations
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                    <Zap className="h-5 w-5 text-green-600" />
+                    <div>
+                      <h4 className="font-semibold text-sm">Fast Setup</h4>
+                      <p className="text-xs text-gray-600">
+                        Company formed in 24-48 hours
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                    <Heart className="h-5 w-5 text-red-600" />
+                    <div>
+                      <h4 className="font-semibold text-sm">
+                        Lifetime Support
+                      </h4>
+                      <p className="text-xs text-gray-600">
+                        Ongoing assistance included
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CustomTabContent>
+
+          {/* Companies Tab */}
+          <CustomTabContent value="companies" activeValue={activeTab}>
+            {companyRequests.length === 0 ? (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="text-center py-12">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Ready to Start Your Business?
+                  </h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Get your UK company formed with our expert service. Choose
+                    from our carefully designed packages.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button
+                      onClick={() => setActiveTab("packages")}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Start Company Formation
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link to="/dashboard/marketplace">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Browse Services
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Your Company Requests ({companyRequests.length})
+                  </h2>
+                  <Button
+                    onClick={() => setActiveTab("packages")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Company
+                  </Button>
+                </div>
+                {companyRequests.map((request) => (
+                  <CompanyRequestCard
+                    key={request.id}
+                    request={request}
+                    onViewDetails={handleViewDetails}
+                  />
+                ))}
+              </div>
+            )}
+          </CustomTabContent>
 
           {/* Services Tab */}
-          {activeTab === "services" && (
-            <AnimatePresence>
-              {serviceOrders.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                >
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FaShoppingBag className="h-8 w-8 text-green-600" />
+          <CustomTabContent value="services" activeValue={activeTab}>
+            {serviceOrders.length === 0 ? (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="text-center py-12">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Package className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Explore Our Services
+                  </h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Discover additional services to grow your business including
+                    VAT registration, banking assistance, and more.
+                  </p>
+                  <Button asChild className="bg-green-600 hover:bg-green-700">
+                    <Link to="/dashboard/marketplace">
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Browse Marketplace
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Your Service Orders ({serviceOrders.length})
+                  </h2>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/dashboard/marketplace">
+                      <Package className="mr-2 h-4 w-4" />
+                      Browse More Services
+                    </Link>
+                  </Button>
+                </div>
+                {serviceOrders.map((order) => (
+                  <Card
+                    key={order.id}
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <Package className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base font-bold text-gray-900 mb-1">
+                              {order.service_title}
+                            </CardTitle>
+                            <p className="text-sm text-gray-600">
+                              {order.service_category}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              £{parseFloat(order.price_amount).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-green-100 text-green-800 border border-green-300">
+                            {order.status}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        Explore Our Services
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        Discover additional services to grow your business
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {order.service_description}
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <Button
-                          asChild
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Link to="/dashboard/marketplace">
-                            <FaShoppingBag className="mr-2 h-4 w-4" />
-                            Browse Marketplace
-                          </Link>
-                        </Button>
-                      </div>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/dashboard/orders/${order.id}`}>
+                          <FileText className="mr-2 h-3 w-3" />
+                          View Details
+                        </Link>
+                      </Button>
                     </CardContent>
                   </Card>
-                </motion.div>
-              ) : (
-                <motion.div
-                  className="space-y-4"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Your Service Orders ({serviceOrders.length})
-                    </h2>
-                    <Button asChild variant="outline" size="sm">
-                      <Link to="/dashboard/marketplace">
-                        <FaShoppingBag className="mr-2 h-4 w-4" />
-                        Browse More Services
-                      </Link>
-                    </Button>
-                  </div>
-                  {serviceOrders.map((order) => (
-                    <ServiceOrderCard key={order.id} order={order} />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
-        </CustomTab>
+                ))}
+              </div>
+            )}
+          </CustomTabContent>
+        </CustomTabs>
       </motion.div>
     </motion.div>
   );
