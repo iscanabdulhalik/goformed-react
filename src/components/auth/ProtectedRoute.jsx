@@ -1,126 +1,142 @@
-// src/components/auth/ProtectedRoute.jsx
+// src/components/auth/ProtectedRoute.jsx - Enhanced with better error handling
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext.jsx";
-import Loader from "@/components/ui/Loader";
+import { useAuth } from "@/contexts/AuthContext";
 
-// ✅ Regular user protection
-export function ProtectedRoute({ children, requireAuth = true }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
+// Loading component
+const AuthLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+      <p className="text-muted-foreground">Checking authentication...</p>
+    </div>
+  </div>
+);
 
-  if (loading) {
-    return <Loader />;
-  }
+// Error component for when Supabase is not configured
+const AuthError = ({ children }) => {
+  const { isSupabaseConfigured } = useAuth();
 
-  if (requireAuth && !user) {
+  if (!isSupabaseConfigured) {
     return (
-      <Navigate
-        to="/login"
-        replace
-        state={{
-          from: location.pathname,
-          message: "Please sign in to access this page",
-        }}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-destructive mb-4">
+            Configuration Error
+          </h1>
+          <p className="text-muted-foreground mb-4">
+            The application is not properly configured. Please check the
+            environment variables.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
     );
   }
 
-  if (!requireAuth && user) {
-    // Redirect authenticated users away from auth pages
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return children;
-}
+};
 
-// ✅ Admin protection
-export function AdminRoute({ children }) {
-  const { user, isAdmin, loading, profile } = useAuth();
+// Protected route for authenticated users
+export const ProtectedRoute = ({ children, redirectTo = "/login" }) => {
+  const { user, loading, isInitialized, isSupabaseConfigured } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <Loader />;
+  // Show error if Supabase is not configured
+  if (!isSupabaseConfigured) {
+    return <AuthError>{children}</AuthError>;
   }
 
+  // Show loading while checking authentication
+  if (loading || !isInitialized) {
+    return <AuthLoader />;
+  }
+
+  // Redirect to login if not authenticated
   if (!user) {
     return (
-      <Navigate
-        to="/admin/login"
-        replace
-        state={{
-          from: location.pathname,
-          message: "Please sign in to access admin panel",
-        }}
-      />
+      <Navigate to={redirectTo} state={{ from: location.pathname }} replace />
     );
   }
 
-  if (!isAdmin) {
+  return children;
+};
+
+// Admin route for admin users only
+export const AdminRoute = ({ children, redirectTo = "/dashboard" }) => {
+  const { user, loading, isInitialized, isAdmin, isSupabaseConfigured } =
+    useAuth();
+  const location = useLocation();
+
+  // Show error if Supabase is not configured
+  if (!isSupabaseConfigured) {
+    return <AuthError>{children}</AuthError>;
+  }
+
+  // Show loading while checking authentication
+  if (loading || !isInitialized) {
+    return <AuthLoader />;
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  // Redirect to dashboard if not admin
+  if (!isAdmin()) {
     return (
       <Navigate
-        to="/admin/login"
-        replace
+        to={redirectTo}
         state={{
-          message: "Admin access required",
+          from: location.pathname,
+          error: "Access denied. Admin privileges required.",
         }}
+        replace
       />
     );
   }
 
   return children;
-}
+};
 
-// ✅ Guest only (for login/register pages)
-export function GuestRoute({ children }) {
-  const { user, loading } = useAuth();
+// Guest route for non-authenticated users only
+export const GuestRoute = ({ children, redirectTo = "/dashboard" }) => {
+  const { user, loading, isInitialized, isSupabaseConfigured } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
-    return <Loader />;
+  // Show error if Supabase is not configured
+  if (!isSupabaseConfigured) {
+    return <AuthError>{children}</AuthError>;
   }
 
+  // Show loading while checking authentication
+  if (loading || !isInitialized) {
+    return <AuthLoader />;
+  }
+
+  // Redirect to dashboard if already authenticated
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    const from = location.state?.from || redirectTo;
+    return <Navigate to={from} replace />;
   }
 
   return children;
-}
+};
 
-// ✅ Role-based protection
-export function RoleBasedRoute({ children, allowedRoles = ["user"] }) {
-  const { user, profile, loading } = useAuth();
-  const location = useLocation();
+// Public route (no authentication required)
+export const PublicRoute = ({ children }) => {
+  const { isSupabaseConfigured } = useAuth();
 
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{
-          from: location.pathname,
-          message: "Please sign in to access this page",
-        }}
-      />
-    );
-  }
-
-  const userRole = profile?.role || "user";
-
-  if (!allowedRoles.includes(userRole)) {
-    return (
-      <Navigate
-        to="/dashboard"
-        replace
-        state={{
-          message: "You do not have permission to access this page",
-        }}
-      />
-    );
+  // Show error if Supabase is not configured
+  if (!isSupabaseConfigured) {
+    return <AuthError>{children}</AuthError>;
   }
 
   return children;
-}
+};

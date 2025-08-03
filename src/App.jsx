@@ -1,30 +1,31 @@
-// src/App.jsx - SessionWarningModal Eklendi ve Yapı Optimize Edildi
+// src/App.jsx - Optimized with better route management and error handling
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 
-// Bileşenleri import et
+// Components
 import ErrorBoundary from "@/components/ErrorBoundary";
-import SessionWarningModal from "@/components/auth/SessionWarningModal"; // Oturum uyarı modalı
+import SessionWarningModal from "@/components/auth/SessionWarningModal";
 import {
   ProtectedRoute,
   AdminRoute,
   GuestRoute,
+  PublicRoute,
 } from "@/components/auth/ProtectedRoute";
 import Loader from "@/components/ui/Loader";
 import AuthCallback from "@/components/AuthCallback";
 
-// Layoutları import et
+// Layouts
 import Layout from "@/components/layout/Layout";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdminLayout from "@/components/layout/AdminLayout";
 
-// Hemen yüklenmesi gereken kritik sayfalar
+// Critical pages (eager loaded)
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 
-// İhtiyaç duyulduğunda yüklenecek (Lazy-loaded) sayfalar
+// Lazy loaded pages
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage"));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const MarketplacePage = lazy(() => import("@/pages/MarketplacePage"));
@@ -32,7 +33,7 @@ const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const RequestDetailsPage = lazy(() => import("@/pages/RequestDetailsPage"));
 
-// Lazy-loaded admin sayfaları
+// Admin pages
 const AdminLoginPage = lazy(() => import("@/pages/admin/AdminLoginPage"));
 const AdminDashboardPage = lazy(() =>
   import("@/pages/admin/AdminDashboardPage")
@@ -45,42 +46,84 @@ const AdminNotificationManagement = lazy(() =>
 );
 const AdminCompanyManagement = lazy(() =>
   import("@/pages/admin/AdminCompanyManagement")
-); // Eğer varsa
+);
 
-// Sayfa yüklenirken gösterilecek olan genel yükleyici bileşeni
+// Global loading component
 const PageLoader = () => (
   <div className="min-h-screen w-full flex items-center justify-center bg-background">
-    <Loader />
+    <div className="text-center">
+      <Loader />
+      <p className="text-muted-foreground mt-4">Loading...</p>
+    </div>
   </div>
 );
 
-// Suspense için bir sarmalayıcı bileşen
+// Suspense wrapper with error boundary
 const SuspenseWrapper = ({ children }) => (
   <ErrorBoundary>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </ErrorBoundary>
 );
 
+// 404 Not Found component
+const NotFoundPage = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center text-center bg-background">
+    <div className="max-w-md mx-auto">
+      <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
+      <h2 className="text-2xl font-semibold mb-4">Page Not Found</h2>
+      <p className="text-muted-foreground mb-8">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <div className="space-y-2">
+        <a
+          href="/"
+          className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          Go Home
+        </a>
+        <br />
+        <button
+          onClick={() => window.history.back()}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← Go Back
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const App = () => {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        {/* Oturum Uyarısı Modalı tüm uygulama üzerinde aktif olacak */}
+        {/* Global session warning modal */}
         <SessionWarningModal />
 
         <Routes>
-          {/* Herkese Açık Rotalar */}
+          {/* Public Routes */}
           <Route
             path="/"
             element={
-              <Layout>
-                <HomePage />
-              </Layout>
+              <PublicRoute>
+                <Layout>
+                  <HomePage />
+                </Layout>
+              </PublicRoute>
             }
           />
-          <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Sadece Misafirlerin (Giriş Yapmamış Kullanıcıların) Girebildiği Rotalar */}
+          {/* Auth Callback */}
+          <Route
+            path="/auth/callback"
+            element={
+              <PublicRoute>
+                <AuthCallback />
+              </PublicRoute>
+            }
+          />
+
+          {/* Guest Only Routes (Logged out users) */}
           <Route
             path="/login"
             element={
@@ -107,20 +150,10 @@ const App = () => {
               </GuestRoute>
             }
           />
-          <Route
-            path="/admin/login"
-            element={
-              <GuestRoute>
-                <SuspenseWrapper>
-                  <AdminLoginPage />
-                </SuspenseWrapper>
-              </GuestRoute>
-            }
-          />
 
-          {/* Giriş Yapmış Kullanıcılar İçin Korumalı Rotalar */}
+          {/* Protected User Routes */}
           <Route
-            path="/dashboard/*"
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout />
@@ -169,9 +202,20 @@ const App = () => {
             />
           </Route>
 
-          {/* Sadece Adminlerin Girebildiği Korumalı Rotalar */}
+          {/* Admin Routes */}
           <Route
-            path="/admin/*"
+            path="/admin/login"
+            element={
+              <GuestRoute redirectTo="/admin">
+                <SuspenseWrapper>
+                  <AdminLoginPage />
+                </SuspenseWrapper>
+              </GuestRoute>
+            }
+          />
+
+          <Route
+            path="/admin"
             element={
               <AdminRoute>
                 <AdminLayout />
@@ -210,22 +254,16 @@ const App = () => {
                 </SuspenseWrapper>
               }
             />
-            {/* Diğer admin rotaları buraya eklenebilir... */}
           </Route>
 
-          {/* Bulunamayan Sayfalar İçin "Catch All" Rotası */}
+          {/* Legacy admin routes redirect */}
           <Route
-            path="*"
-            element={
-              <div className="min-h-screen flex flex-col items-center justify-center text-center">
-                <h1 className="text-4xl font-bold">404 - Not Found</h1>
-                <p className="text-muted-foreground mt-2">
-                  The page you are looking for does not exist.
-                </p>
-                <Navigate to="/" replace />
-              </div>
-            }
+            path="/admin/dashboard"
+            element={<Navigate to="/admin" replace />}
           />
+
+          {/* Catch all - 404 */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AuthProvider>
     </ErrorBoundary>

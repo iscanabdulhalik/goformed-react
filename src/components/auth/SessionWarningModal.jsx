@@ -1,81 +1,134 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+// src/components/auth/SessionWarningModal.jsx - Session timeout warning
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { motion } from "framer-motion";
-import { AUTH_CONFIG } from "@/config/auth";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
-export default function SessionWarningModal() {
-  const {
-    showSessionWarning,
-    sessionTimeLeft,
-    extendSession,
-    handleSessionExpired,
-  } = useAuth();
+const SessionWarningModal = () => {
+  const { user, session, refreshSession, signOut } = useAuth();
+  const [showWarning, setShowWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
 
-  if (!showSessionWarning) return null;
+  // Session expiry check
+  const checkSessionExpiry = useCallback(() => {
+    if (!session || !session.expires_at) return;
 
-  // Progress bar'ın yüzdesini hesapla
-  const progressPercentage =
-    (sessionTimeLeft / (AUTH_CONFIG.SESSION.WARNING_TIME / 60000)) * 100;
+    const expiresAt = new Date(session.expires_at * 1000);
+    const now = new Date();
+    const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+
+    // Show warning 5 minutes before expiry
+    const warningThreshold = 5 * 60 * 1000; // 5 minutes
+
+    if (timeUntilExpiry <= warningThreshold && timeUntilExpiry > 0) {
+      setTimeLeft(Math.floor(timeUntilExpiry / 1000));
+      setShowWarning(true);
+    } else if (timeUntilExpiry <= 0) {
+      // Session expired
+      handleSignOut();
+    } else {
+      setShowWarning(false);
+    }
+  }, [session]);
+
+  // Handle session refresh
+  const handleRefreshSession = async () => {
+    try {
+      const newSession = await refreshSession();
+      if (newSession) {
+        setShowWarning(false);
+        setTimeLeft(0);
+      }
+    } catch (error) {
+      console.error("Failed to refresh session:", error);
+      handleSignOut();
+    }
+  };
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setShowWarning(false);
+      setTimeLeft(0);
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    }
+  };
+
+  // Check session expiry every 30 seconds
+  useEffect(() => {
+    if (!user || !session) return;
+
+    const interval = setInterval(checkSessionExpiry, 30000);
+
+    // Check immediately
+    checkSessionExpiry();
+
+    return () => clearInterval(interval);
+  }, [user, session, checkSessionExpiry]);
+
+  // Update countdown timer
+  useEffect(() => {
+    if (!showWarning || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          handleSignOut();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showWarning, timeLeft]);
+
+  // Format time display
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (!showWarning || !user) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-      >
-        <Card className="w-full max-w-md shadow-2xl border-yellow-500/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 p-2 bg-yellow-100 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Session Expiring Soon</CardTitle>
-                <CardDescription className="mt-1">
-                  You will be logged out due to inactivity.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-700 text-center">
-              Your session will expire in approximately{" "}
-              <strong className="text-yellow-700 font-bold">
-                {sessionTimeLeft} minute{sessionTimeLeft > 1 ? "s" : ""}
-              </strong>
-              .
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-yellow-500 h-2.5 rounded-full transition-all duration-1000 ease-linear"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end space-x-3 pt-4">
-            <Button onClick={handleSessionExpired} variant="outline">
-              Log Out
-            </Button>
-            <Button
-              onClick={extendSession}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Stay Signed In
-            </Button>
-          </CardFooter>
-        </Card>
-      </motion.div>
-    </div>
+    <Dialog open={showWarning} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md" closeButton={false}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="text-yellow-500">⚠️</span>
+            Session Expiring Soon
+          </DialogTitle>
+          <DialogDescription>
+            Your session will expire in{" "}
+            <span className="font-mono font-semibold text-destructive">
+              {formatTime(timeLeft)}
+            </span>
+            . Would you like to extend your session?
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter className="flex gap-2 sm:gap-2">
+          <Button variant="outline" onClick={handleSignOut} className="flex-1">
+            Sign Out
+          </Button>
+          <Button onClick={handleRefreshSession} className="flex-1">
+            Extend Session
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-}
+};
+
+export default SessionWarningModal;
