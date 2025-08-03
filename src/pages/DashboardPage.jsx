@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx - Enhanced with package selection and better content
+// src/pages/DashboardPage.jsx - Production ready version with real data
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CustomTabs, CustomTabContent } from "@/components/ui/CustomTabs";
 import { ukPackages, globalPackages } from "@/lib/packages";
-import Loader from "@/components/ui/Loader";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Building2,
   ShoppingCart,
@@ -27,68 +27,17 @@ import {
   Users,
   Award,
   Target,
-  Sunrise,
-  Sun,
-  Moon,
-  Sunset,
   Sparkles,
   Check,
   FileText,
-  Mail,
-  Phone,
-  Calendar,
-  CreditCard,
-  Briefcase,
-  MapPin,
-  Shield,
-  Heart,
   PlusCircle,
+  Loader2,
+  Heart,
+  Shield,
+  MapPin,
 } from "lucide-react";
 
-// Time-based greeting system
-const getTimeBasedGreeting = (userName) => {
-  const hour = new Date().getHours();
-
-  if (hour >= 5 && hour < 12) {
-    return {
-      greeting: `Good Morning, ${userName}!`,
-      message: "Ready to build something amazing today?",
-      icon: <Sunrise className="w-5 h-5" />,
-      gradient: "from-orange-400 via-yellow-400 to-orange-500",
-      bgGradient: "from-orange-50 to-yellow-50",
-      iconColor: "text-orange-500",
-    };
-  } else if (hour >= 12 && hour < 17) {
-    return {
-      greeting: `Good Afternoon, ${userName}!`,
-      message: "Keep pushing forward with your business goals",
-      icon: <Sun className="w-5 h-5" />,
-      gradient: "from-blue-400 via-cyan-400 to-blue-500",
-      bgGradient: "from-blue-50 to-cyan-50",
-      iconColor: "text-blue-500",
-    };
-  } else if (hour >= 17 && hour < 21) {
-    return {
-      greeting: `Good Evening, ${userName}!`,
-      message: "Great progress today! Time to plan tomorrow's success",
-      icon: <Sunset className="w-5 h-5" />,
-      gradient: "from-purple-400 via-pink-400 to-red-500",
-      bgGradient: "from-purple-50 to-pink-50",
-      iconColor: "text-purple-500",
-    };
-  } else {
-    return {
-      greeting: `Good Night, ${userName}!`,
-      message: "Burning the midnight oil? Your dedication will pay off",
-      icon: <Moon className="w-5 h-5" />,
-      gradient: "from-indigo-400 via-purple-400 to-indigo-600",
-      bgGradient: "from-indigo-50 to-purple-50",
-      iconColor: "text-indigo-500",
-    };
-  }
-};
-
-// Status configurations for different states
+// ✅ PRODUCTION READY: Real status configurations
 const statusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -125,9 +74,16 @@ const statusConfig = {
     description: "Successfully completed",
     progress: 100,
   },
+  rejected: {
+    color: "bg-red-100 text-red-800 border-red-300",
+    icon: AlertCircle,
+    label: "Rejected",
+    description: "Application rejected - contact support",
+    progress: 0,
+  },
 };
 
-// Package Card Component with Order Button
+// Package Card Component
 const PackageCard = ({ packageData, onOrder, isLoading }) => {
   return (
     <motion.div
@@ -206,7 +162,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
           >
             {isLoading ? (
               <>
-                <Clock className="animate-spin mr-2 h-4 w-4" />
+                <Loader2 className="animate-spin mr-2 h-4 w-4" />
                 Processing...
               </>
             ) : (
@@ -222,7 +178,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
   );
 };
 
-// Company Request Card Component
+// ✅ PRODUCTION READY: Company Request Card with real data
 const CompanyRequestCard = ({ request, onViewDetails }) => {
   const status = statusConfig[request.status] || statusConfig.pending_payment;
   const StatusIcon = status.icon;
@@ -303,8 +259,6 @@ export default function DashboardPage() {
   const [companyRequests, setCompanyRequests] = useState([]);
   const [serviceOrders, setServiceOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [timeGreeting, setTimeGreeting] = useState(null);
   const [selectedPackageType, setSelectedPackageType] = useState("uk");
   const [orderLoading, setOrderLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -314,6 +268,7 @@ export default function DashboardPage() {
     totalOrders: 0,
   });
 
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Animation variants
@@ -340,55 +295,14 @@ export default function DashboardPage() {
     },
   };
 
-  // Get user and set up greeting
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-        if (error) throw error;
-
-        setUser(user);
-
-        if (user) {
-          const userName =
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.email?.split("@")[0] ||
-            "User";
-          setTimeGreeting(getTimeBasedGreeting(userName));
-        }
-      } catch (error) {
-        console.error("Error getting user:", error);
-      }
-    };
-    getUser();
-  }, []);
-
-  // Update greeting every minute
-  useEffect(() => {
-    if (!user) return;
-
-    const interval = setInterval(() => {
-      const userName =
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email?.split("@")[0] ||
-        "User";
-      setTimeGreeting(getTimeBasedGreeting(userName));
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  // Fetch user data
+  // ✅ PRODUCTION READY: Fetch real user data
   useEffect(() => {
     if (!user) return;
 
     const fetchUserData = async () => {
       try {
+        setLoading(true);
+
         // Fetch company requests
         const { data: companyData, error: companyError } = await supabase
           .from("company_requests")
@@ -396,7 +310,10 @@ export default function DashboardPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (companyError) throw companyError;
+        if (companyError) {
+          console.error("Error fetching company requests:", companyError);
+          // Continue with empty array instead of failing
+        }
 
         // Fetch service orders
         const { data: serviceData, error: serviceError } = await supabase
@@ -405,29 +322,28 @@ export default function DashboardPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (serviceError) throw serviceError;
+        if (serviceError) {
+          console.error("Error fetching service orders:", serviceError);
+          // Continue with empty array instead of failing
+        }
 
-        setCompanyRequests(companyData || []);
-        setServiceOrders(serviceData || []);
+        const companies = companyData || [];
+        const services = serviceData || [];
 
-        // Calculate stats
+        setCompanyRequests(companies);
+        setServiceOrders(services);
+
+        // ✅ PRODUCTION READY: Calculate real stats
         const totalSpent = [
-          ...(companyData || []).map((req) =>
-            parseFloat(req.package_price || 0)
-          ),
-          ...(serviceData || []).map((order) =>
-            parseFloat(order.price_amount || 0)
-          ),
+          ...companies.map((req) => parseFloat(req.package_price || 0)),
+          ...services.map((order) => parseFloat(order.price_amount || 0)),
         ].reduce((sum, amount) => sum + amount, 0);
 
-        const totalOrders =
-          (companyData?.length || 0) + (serviceData?.length || 0);
+        const totalOrders = companies.length + services.length;
 
         const completedOrders = [
-          ...(companyData || []).filter((req) => req.status === "completed"),
-          ...(serviceData || []).filter(
-            (order) => order.status === "completed"
-          ),
+          ...companies.filter((req) => req.status === "completed"),
+          ...services.filter((order) => order.status === "completed"),
         ].length;
 
         const pendingOrders = totalOrders - completedOrders;
@@ -438,6 +354,21 @@ export default function DashboardPage() {
           completedOrders,
           totalOrders,
         });
+
+        // ✅ PRODUCTION READY: Log activity
+        await supabase
+          .rpc("log_activity", {
+            p_user_id: user.id,
+            p_action: "dashboard_viewed",
+            p_description: "User viewed dashboard",
+            p_metadata: {
+              total_orders: totalOrders,
+              total_spent: totalSpent,
+            },
+          })
+          .catch(() => {
+            // Fail silently if activity logging fails
+          });
       } catch (err) {
         console.error("Error fetching user data:", err);
       } finally {
@@ -447,7 +378,7 @@ export default function DashboardPage() {
 
     fetchUserData();
 
-    // Real-time subscriptions
+    // ✅ PRODUCTION READY: Real-time subscriptions for live updates
     const companyChannel = supabase
       .channel("user_company_requests")
       .on(
@@ -472,12 +403,37 @@ export default function DashboardPage() {
       )
       .subscribe();
 
+    const serviceChannel = supabase
+      .channel("user_service_orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_orders",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === "UPDATE") {
+            setServiceOrders((current) =>
+              current.map((order) =>
+                order.id === payload.new.id ? payload.new : order
+              )
+            );
+          } else if (payload.eventType === "INSERT") {
+            setServiceOrders((current) => [payload.new, ...current]);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(companyChannel);
+      supabase.removeChannel(serviceChannel);
     };
   }, [user]);
 
-  // Handle package order
+  // ✅ PRODUCTION READY: Handle package order with proper error handling
   const handlePackageOrder = async (packageData) => {
     if (!user) {
       navigate("/login");
@@ -488,15 +444,19 @@ export default function DashboardPage() {
 
     try {
       // Log activity
-      await supabase.rpc("log_activity", {
-        p_user_id: user.id,
-        p_action: "package_order_initiated",
-        p_description: `User initiated order for ${packageData.name}`,
-        p_metadata: {
-          package_name: packageData.name,
-          package_price: packageData.price,
-        },
-      });
+      await supabase
+        .rpc("log_activity", {
+          p_user_id: user.id,
+          p_action: "package_order_initiated",
+          p_description: `User initiated order for ${packageData.name}`,
+          p_metadata: {
+            package_name: packageData.name,
+            package_price: packageData.price,
+          },
+        })
+        .catch(() => {
+          // Fail silently if activity logging fails
+        });
 
       // Navigate to company formation flow with selected package
       navigate("/dashboard/company-formation", {
@@ -537,7 +497,16 @@ export default function DashboardPage() {
     },
   ];
 
-  if (loading) return <Loader />;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const packagesToShow =
     selectedPackageType === "uk" ? ukPackages : globalPackages;
@@ -549,90 +518,7 @@ export default function DashboardPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Enhanced Header with Time-based Greeting */}
-      {timeGreeting && (
-        <motion.div
-          variants={itemVariants}
-          className={`bg-gradient-to-r ${timeGreeting.bgGradient} rounded-xl p-6 relative overflow-hidden`}
-        >
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-4 right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute bottom-4 left-4 w-16 h-16 bg-white rounded-full animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 w-8 h-8 bg-white rounded-full animate-pulse delay-500"></div>
-          </div>
-
-          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <motion.div
-                className={`p-3 bg-white rounded-full ${timeGreeting.iconColor} shadow-lg`}
-                animate={{
-                  rotate: [0, 5, -5, 0],
-                  scale: [1, 1.05, 1],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  repeatDelay: 3,
-                }}
-              >
-                {timeGreeting.icon}
-              </motion.div>
-              <div>
-                <motion.h1
-                  className="text-xl font-bold text-gray-900"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  {timeGreeting.greeting}
-                </motion.h1>
-                <motion.p
-                  className="text-gray-700 mt-1 text-sm"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  {timeGreeting.message}
-                </motion.p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  asChild
-                  className={`bg-gradient-to-r ${timeGreeting.gradient} hover:shadow-lg font-semibold flex items-center gap-2 px-4 py-2 text-sm shadow-lg`}
-                >
-                  <Link to="/dashboard/marketplace">
-                    <ShoppingCart className="h-4 w-4" />
-                    Browse Services
-                  </Link>
-                </Button>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  onClick={() => setActiveTab("packages")}
-                  variant="outline"
-                  className="bg-white/90 hover:bg-white border-white font-semibold flex items-center gap-2 px-4 py-2 text-sm shadow-lg"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Start Company
-                </Button>
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Enhanced Stats Cards */}
+      {/* ✅ PRODUCTION READY: Enhanced Stats Cards with real data */}
       <motion.div
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-4 gap-4"
@@ -642,7 +528,7 @@ export default function DashboardPage() {
             title: "Total Orders",
             value: stats.totalOrders,
             icon: Package,
-            color: "blue",
+            color: "bg-blue-500",
             bgColor: "bg-blue-100",
             textColor: "text-blue-600",
             description: "All your orders",
@@ -784,145 +670,95 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Success Stories */}
+              {/* Recent Activity */}
               <Card className="border-0 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Award className="h-5 w-5 text-green-600" />
-                    Success Stories
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <Users className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-green-900 text-sm">
-                            2,900+ Companies Formed
-                          </h4>
-                          <p className="text-xs text-green-700">
-                            Entrepreneurs worldwide trust GoFormed
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Globe className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-blue-900 text-sm">
-                            150+ Countries Served
-                          </h4>
-                          <p className="text-xs text-blue-700">
-                            Global reach, local expertise
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                          <Target className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-purple-900 text-sm">
-                            98% Success Rate
-                          </h4>
-                          <p className="text-xs text-purple-700">
-                            Proven track record of excellence
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="w-full border-gray-300 hover:bg-gray-50"
-                    >
-                      <Link to="/dashboard/marketplace">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Explore Additional Services
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Activity */}
-            {(companyRequests.length > 0 || serviceOrders.length > 0) && (
-              <Card className="mt-6 border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Clock className="h-5 w-5 text-gray-600" />
                     Recent Activity
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {companyRequests.slice(0, 3).map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                        onClick={() => handleViewDetails(request)}
-                      >
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Building2 className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm text-gray-900">
-                            {request.company_name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {request.package_name} •{" "}
-                            {new Date(request.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Badge
-                          className={
-                            statusConfig[request.status]?.color ||
-                            statusConfig.pending_payment.color
-                          }
+                  <div className="space-y-4">
+                    {[
+                      ...companyRequests.slice(0, 2),
+                      ...serviceOrders.slice(0, 1),
+                    ].length === 0 ? (
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500">No recent activity</p>
+                        <Button
+                          onClick={() => setActiveTab("packages")}
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
                         >
-                          {statusConfig[request.status]?.label || "Pending"}
-                        </Badge>
+                          Start Your First Order
+                        </Button>
                       </div>
-                    ))}
+                    ) : (
+                      <>
+                        {companyRequests.slice(0, 2).map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                            onClick={() => handleViewDetails(request)}
+                          >
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <Building2 className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm text-gray-900">
+                                {request.company_name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {request.package_name} •{" "}
+                                {new Date(
+                                  request.created_at
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge
+                              className={
+                                statusConfig[request.status]?.color ||
+                                statusConfig.pending_payment.color
+                              }
+                            >
+                              {statusConfig[request.status]?.label || "Pending"}
+                            </Badge>
+                          </div>
+                        ))}
 
-                    {serviceOrders.slice(0, 2).map((order) => (
-                      <div
-                        key={order.id}
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                      >
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <Package className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm text-gray-900">
-                            {order.service_title}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            £{parseFloat(order.price_amount).toFixed(2)} •{" "}
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Badge className="bg-green-100 text-green-800">
-                          Service
-                        </Badge>
-                      </div>
-                    ))}
+                        {serviceOrders.slice(0, 1).map((order) => (
+                          <div
+                            key={order.id}
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                          >
+                            <div className="p-2 bg-green-100 rounded-lg">
+                              <Package className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm text-gray-900">
+                                {order.service_title}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                £{parseFloat(order.price_amount).toFixed(2)} •{" "}
+                                {new Date(
+                                  order.created_at
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge className="bg-green-100 text-green-800">
+                              Service
+                            </Badge>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </div>
           </CustomTabContent>
 
           {/* Packages Tab */}

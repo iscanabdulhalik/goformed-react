@@ -1,6 +1,6 @@
-// src/components/layout/DashboardLayout.jsx - Düzeltilmiş versiyon
+// src/components/layout/DashboardLayout.jsx - Fixed as pure layout component
 import React, { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "./Sidebar";
@@ -41,7 +41,8 @@ const getTimeBasedGreeting = (userName) => {
   }
 };
 
-export default function DashboardLayout() {
+// ✅ FIXED: Pure layout component that just wraps children
+export default function DashboardLayout({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, profile } = useAuth();
   const location = useLocation();
@@ -136,7 +137,7 @@ export default function DashboardLayout() {
           </div>
         </motion.div>
 
-        {/* Page Content */}
+        {/* Page Content - This is where children will be rendered */}
         <div className="p-6">
           <motion.div
             key={location.pathname}
@@ -144,7 +145,7 @@ export default function DashboardLayout() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <Outlet />
+            {children}
           </motion.div>
         </div>
       </main>

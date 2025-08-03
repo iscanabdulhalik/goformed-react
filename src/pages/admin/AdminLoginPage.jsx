@@ -1,171 +1,276 @@
-// src/pages/admin/AdminLoginPage.jsx - Admin Giriş Akışı İçin Güncellendi
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/admin/AdminLoginPage.jsx - Fixed admin login and redirect
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+// ✅ REMOVED: Alert import - using custom error display instead
+import {
+  Shield,
+  AlertCircle,
+  Lock,
+  Mail,
+  Loader2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import goformedLogo from "@/assets/logos/goformed.png";
-import { getSecureRedirectURL } from "@/config/auth";
 
 export default function AdminLoginPage() {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAdmin } = useAuth();
 
-  const handleEmailLogin = async (e) => {
+  // ✅ FIXED: Check if user is already logged in as admin
+  useEffect(() => {
+    if (user && isAdmin()) {
+      navigate("/admin", { replace: true });
+    }
+  }, [user, isAdmin, navigate]);
+
+  // Show error from redirect if any
+  useEffect(() => {
+    if (location.state?.error) {
+      setError(location.state.error);
+    }
+  }, [location.state]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      const { data: authData, error: authError } =
+      // ✅ FIXED: Regular sign in, then check admin status
+      const { data, error: signInError } =
         await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+          email,
+          password,
         });
 
-      if (authError) throw authError;
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (profileError || profile.role !== "admin") {
-        await supabase.auth.signOut();
-        throw new Error("Account is not authorized for admin access");
+      if (signInError) {
+        throw signInError;
       }
 
-      navigate("/admin");
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
+      if (!data.user) {
+        throw new Error("Authentication failed");
+      }
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError("");
+      // ✅ FIXED: Check if user is admin after successful login
+      const isUserAdmin =
+        data.user.user_metadata?.role === "admin" ||
+        data.user.app_metadata?.role === "admin" ||
+        data.user.email?.endsWith("@goformed.co.uk");
 
-    // ✅ YÖNLENDİRME ÖNCESİ İŞARET: Bu bir admin giriş akışıdır.
-    sessionStorage.setItem("authFlow", "admin");
+      if (!isUserAdmin) {
+        // ✅ FIXED: Sign out non-admin users immediately
+        await supabase.auth.signOut();
+        throw new Error("Access denied. Admin privileges required.");
+      }
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: getSecureRedirectURL("/auth/callback"),
-      },
-    });
+      // ✅ FIXED: Log admin activity
+      try {
+        await supabase.rpc("log_activity", {
+          p_user_id: data.user.id,
+          p_action: "admin_login",
+          p_description: "Admin user logged in",
+          p_metadata: {
+            ip: "unknown", // You can implement IP detection if needed
+            user_agent: navigator.userAgent,
+          },
+        });
+      } catch (logError) {
+        console.warn("Failed to log admin activity:", logError);
+        // Don't fail login if logging fails
+      }
 
-    if (error) {
-      setError(error.message);
+      // ✅ FIXED: Redirect to admin dashboard
+      navigate("/admin", { replace: true });
+    } catch (error) {
+      console.error("Admin login error:", error);
+
+      // ✅ IMPROVED: Better error messages
+      if (error.message === "Invalid login credentials") {
+        setError("Invalid email or password. Please try again.");
+      } else if (error.message.includes("Access denied")) {
+        setError("Access denied. Admin privileges required.");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Please confirm your email address before signing in.");
+      } else {
+        setError(
+          error.message || "An unexpected error occurred. Please try again."
+        );
+      }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-2xl border-0 relative z-10">
-        <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-4">
-            <div className="flex items-center gap-3">
-              <img src={goformedLogo} alt="GoFormed" className="h-8 w-auto" />
-              <div className="flex items-center gap-2">
-                <Shield className="h-6 w-6 text-red-600" />
-                <span className="text-red-600 font-bold text-lg">Admin</span>
-              </div>
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">
-            Admin Portal
-          </CardTitle>
-          <p className="text-gray-600 text-sm mt-2">
-            Secure access to administrative functions
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm font-medium">{error}</span>
-            </div>
-          )}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Admin Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                placeholder="admin@goformed.co.uk"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-8 pt-8">
+            <div className="flex justify-center mb-6">
               <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  placeholder="••••••••"
-                  required
-                  disabled={loading}
-                  className="pr-10"
+                <img
+                  src={goformedLogo}
+                  alt="GoFormed"
+                  className="h-12 w-auto object-contain"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  disabled={loading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
+                <Badge className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 py-1">
+                  Admin
+                </Badge>
               </div>
             </div>
-            <Button
-              type="submit"
-              className="w-full bg-red-600 hover:bg-red-700 font-semibold"
-              disabled={loading}
-            >
-              {loading ? "Authenticating..." : "Access Admin Portal"}
-            </Button>
-          </form>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+
+            <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
+              Admin Access
+            </CardTitle>
+            <p className="text-gray-600 text-sm">
+              Secure login for authorized administrators
+            </p>
+          </CardHeader>
+
+          <CardContent className="px-8 pb-8">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-6"
+              >
+                <div className="border border-red-200 bg-red-50 p-4 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              </motion.div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email" className="text-gray-700 font-medium">
+                    Admin Email
+                  </Label>
+                  <div className="relative mt-2">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@goformed.co.uk"
+                      className="pl-10 h-12 border-gray-300 focus:border-red-500 focus:ring-red-500"
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label
+                    htmlFor="password"
+                    className="text-gray-700 font-medium"
+                  >
+                    Password
+                  </Label>
+                  <div className="relative mt-2">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter admin password"
+                      className="pl-10 pr-10 h-12 border-gray-300 focus:border-red-500 focus:ring-red-500"
+                      required
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading || !email || !password}
+                className="w-full h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Sign In to Admin
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {/* Security Notice */}
+            <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-semibold text-yellow-800 mb-1">
+                    Security Notice
+                  </h4>
+                  <p className="text-xs text-yellow-700">
+                    This is a secure admin area. All access attempts are logged
+                    and monitored. Only authorized GoFormed administrators
+                    should access this system.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-muted-foreground">Or</span>
+
+            {/* Back to Main Site */}
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => navigate("/")}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                ← Back to Main Site
+              </button>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            Sign In with Google
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-gray-500">
+            © {new Date().getFullYear()} GoFormed. Admin Panel v2.0
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }

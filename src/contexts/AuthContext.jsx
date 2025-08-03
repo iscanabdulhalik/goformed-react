@@ -1,11 +1,5 @@
-// src/contexts/AuthContext.jsx - Enhanced with better session management
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-} from "react";
+// src/contexts/AuthContext.jsx - MINIMAL TEST VERSION
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "@/supabase";
 
 const AuthContext = createContext({});
@@ -22,255 +16,127 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Session refresh handler
-  const refreshSession = useCallback(async () => {
-    if (!supabase) return null;
+  console.log("🔥 AuthProvider rendering - loading:", loading, "user:", !!user);
 
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Session refresh error:", error);
-        return null;
-      }
-      return session;
-    } catch (error) {
-      console.error("Session refresh failed:", error);
-      return null;
-    }
-  }, []);
+  // ✅ MINIMAL: Simple isAdmin function
+  const isAdmin = () => {
+    if (!user) return false;
+    return (
+      user.user_metadata?.role === "admin" ||
+      user.app_metadata?.role === "admin" ||
+      user.email?.endsWith("@goformed.co.uk")
+    );
+  };
 
-  // Initialize auth state
+  // ✅ MINIMAL: Initialize auth state ONCE
   useEffect(() => {
+    console.log("🚀 AuthContext useEffect starting...");
+
     if (!isSupabaseConfigured()) {
-      console.error("Supabase not configured, skipping auth initialization");
+      console.log("❌ Supabase not configured, setting loading false");
       setLoading(false);
-      setIsInitialized(true);
       return;
     }
 
     let mounted = true;
 
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
-        // Get initial session
+        console.log("📡 Getting initial session...");
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Auth initialization error:", error);
+          console.error("❌ Session error:", error);
         }
+
+        console.log("📥 Initial session:", !!session, session?.user?.email);
 
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
-          setIsInitialized(true);
+          console.log(
+            "✅ Auth state set - loading: false, user:",
+            !!session?.user
+          );
         }
       } catch (error) {
-        console.error("Auth initialization failed:", error);
+        console.error("💥 Init auth error:", error);
         if (mounted) {
           setLoading(false);
-          setIsInitialized(true);
         }
       }
     };
 
-    initializeAuth();
-
-    // Listen for auth changes
+    // ✅ MINIMAL: Auth listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session?.user?.email);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(
+        "🔄 Auth state change:",
+        event,
+        !!session,
+        session?.user?.email
+      );
 
       if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
-
-        // Handle specific auth events
-        switch (event) {
-          case "SIGNED_IN":
-            console.log("User signed in:", session?.user?.email);
-            break;
-          case "SIGNED_OUT":
-            console.log("User signed out");
-            break;
-          case "TOKEN_REFRESHED":
-            console.log("Token refreshed for:", session?.user?.email);
-            break;
-          case "USER_UPDATED":
-            console.log("User updated:", session?.user?.email);
-            break;
-        }
-
-        if (!loading) {
+        if (loading) {
           setLoading(false);
+          console.log("✅ Loading set to false from auth change");
         }
       }
     });
 
+    initAuth();
+
     return () => {
+      console.log("🧹 Cleaning up auth listener");
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loading]);
+  }, []); // ✅ EMPTY DEPENDENCIES
 
-  // Sign in function
-  const signIn = useCallback(async (email, password) => {
-    if (!supabase) {
-      throw new Error("Supabase not configured");
-    }
+  // ✅ MINIMAL: Simple auth functions
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { data, error };
+  };
 
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    return { error };
+  };
 
-      if (error) throw error;
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("Sign in error:", error);
-      return { data: null, error };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Sign up function
-  const signUp = useCallback(async (email, password, options = {}) => {
-    if (!supabase) {
-      throw new Error("Supabase not configured");
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          ...options,
-        },
-      });
-
-      if (error) throw error;
-
-      return { data, error: null };
-    } catch (error) {
-      console.error("Sign up error:", error);
-      return { data: null, error };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Sign out function
-  const signOut = useCallback(async () => {
-    if (!supabase) {
-      throw new Error("Supabase not configured");
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      setUser(null);
-      setSession(null);
-
-      return { error: null };
-    } catch (error) {
-      console.error("Sign out error:", error);
-      return { error };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Reset password function
-  const resetPassword = useCallback(async (email) => {
-    if (!supabase) {
-      throw new Error("Supabase not configured");
-    }
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) throw error;
-
-      return { error: null };
-    } catch (error) {
-      console.error("Reset password error:", error);
-      return { error };
-    }
-  }, []);
-
-  // Update password function
-  const updatePassword = useCallback(async (password) => {
-    if (!supabase) {
-      throw new Error("Supabase not configured");
-    }
-
-    try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-
-      return { error: null };
-    } catch (error) {
-      console.error("Update password error:", error);
-      return { error };
-    }
-  }, []);
-
-  // Check if user is admin
-  const isAdmin = useCallback(() => {
-    if (!user) return false;
-
-    // Check user metadata for admin role
-    return (
-      user.user_metadata?.role === "admin" ||
-      user.app_metadata?.role === "admin" ||
-      user.email?.endsWith("@goformed.co.uk")
-    ); // Fallback for admin emails
-  }, [user]);
-
-  // Auth context value
   const value = {
     user,
     session,
     loading,
-    isInitialized,
+    isInitialized: !loading, // Simple: if not loading, then initialized
     signIn,
-    signUp,
     signOut,
-    resetPassword,
-    updatePassword,
-    refreshSession,
     isAdmin,
     isAuthenticated: !!user,
     isSupabaseConfigured: isSupabaseConfigured(),
   };
 
-  // Don't render children until auth is initialized (except when Supabase is not configured)
-  if (!isInitialized && isSupabaseConfigured()) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  console.log("📊 AuthContext value:", {
+    user: !!user,
+    loading,
+    isInitialized: !loading,
+    isSupabaseConfigured: isSupabaseConfigured(),
+  });
 
+  // ✅ FORCE RENDER: Don't show loading screen, always render children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

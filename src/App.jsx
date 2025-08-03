@@ -1,10 +1,10 @@
-// src/App.jsx - Projenizdeki dosya yoluna göre son düzeltme
-
+// src/App.jsx - Simplified version to fix loading issue
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { Toaster } from "@/components/ui/toast";
+// import { Toaster } from "@/components/ui/toaster"; // ✅ Geçici olarak kapatıldı
 import Layout from "@/components/layout/Layout";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   ProtectedRoute,
   GuestRoute,
@@ -17,7 +17,6 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import DashboardPage from "@/pages/DashboardPage";
-// ✅ DÜZELTME: Bileşen, projenizdeki doğru konum olan 'sections' altından çağrılıyor.
 import CompanyFormationPage from "@/components/sections/CompanyFormationFlow";
 import MarketplacePage from "@/pages/MarketplacePage";
 import OrdersPage from "@/pages/OrdersPage";
@@ -34,6 +33,8 @@ import AdminNotificationManagement from "@/pages/admin/AdminNotificationManageme
 import AdminLayout from "@/components/layout/AdminLayout";
 
 function App() {
+  console.log("🚀 App component rendering...");
+
   return (
     <AuthProvider>
       <Routes>
@@ -81,9 +82,9 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <DashboardPage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -91,9 +92,9 @@ function App() {
           path="/dashboard/company-formation"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <CompanyFormationPage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -101,9 +102,9 @@ function App() {
           path="/dashboard/marketplace"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <MarketplacePage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -111,9 +112,9 @@ function App() {
           path="/dashboard/orders"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <OrdersPage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -121,9 +122,9 @@ function App() {
           path="/dashboard/request/:id"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <RequestDetailsPage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -131,9 +132,9 @@ function App() {
           path="/dashboard/settings"
           element={
             <ProtectedRoute>
-              <Layout isDashboard>
+              <DashboardLayout>
                 <SettingsPage />
-              </Layout>
+              </DashboardLayout>
             </ProtectedRoute>
           }
         />
@@ -206,7 +207,7 @@ function App() {
           }
         />
       </Routes>
-      <Toaster />
+      {/* <Toaster /> */} {/* ✅ Geçici olarak kapatıldı */}
     </AuthProvider>
   );
 }
