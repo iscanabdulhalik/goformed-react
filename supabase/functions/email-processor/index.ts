@@ -1,12 +1,7 @@
-// supabase/functions/email-processor/index.ts - HOSTİNGER İÇİN GÜNCELLENMİŞ TAM SÜRÜM
+// supabase/functions/email-processor/index.ts - HOSTİNGER İÇİN ÇALIŞAN VERSİYON
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
-// Yardımcı base64 fonksiyonu (Deno uyumlu)
-function encodeBase64(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)));
-}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +38,10 @@ class HostingerSMTP {
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       console.log(`[HOSTINGER] Processing email to: ${email.recipient}`);
+      console.log(
+        `[HOSTINGER] Using server: ${this.config.hostname}:${this.config.port}`
+      );
+
       if (this.config.port === 465) {
         return await this.sendViaSSL(email);
       } else {
@@ -63,6 +62,8 @@ class HostingerSMTP {
     let conn: Deno.TlsConn | null = null;
 
     try {
+      console.log("[HOSTINGER] Connecting via SSL/TLS (port 465)...");
+
       conn = await Deno.connectTls({
         hostname: this.config.hostname,
         port: this.config.port,
@@ -81,19 +82,22 @@ class HostingerSMTP {
       await this.sendCommand(
         conn,
         encoder,
-        `${encodeBase64(this.config.username)}\r\n`
+        `${btoa(this.config.username)}\r\n`
       );
       await this.readResponse(conn, decoder);
 
       await this.sendCommand(
         conn,
         encoder,
-        `${encodeBase64(this.config.password)}\r\n`
+        `${btoa(this.config.password)}\r\n`
       );
       const authResponse = await this.readResponse(conn, decoder);
+
       if (!authResponse.startsWith("235")) {
         throw new Error(`Authentication failed: ${authResponse}`);
       }
+
+      console.log("[HOSTINGER] ✅ Authentication successful");
 
       await this.sendCommand(
         conn,
@@ -117,7 +121,11 @@ class HostingerSMTP {
       }
 
       await this.sendCommand(conn, encoder, "QUIT\r\n");
+
       conn.close();
+      console.log(
+        `[HOSTINGER] ✅ Email sent successfully to ${email.recipient}`
+      );
 
       return {
         success: true,
@@ -126,10 +134,12 @@ class HostingerSMTP {
           .substr(2, 9)}@goformed.co.uk`,
       };
     } catch (error) {
-      if (conn)
+      if (conn) {
         try {
           conn.close();
         } catch {}
+      }
+      console.error(`[HOSTINGER] SSL Error:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -149,7 +159,8 @@ class HostingerSMTP {
     encoder: TextEncoder,
     command: string
   ): Promise<void> {
-    await conn.write(encoder.encode(command));
+    const data = encoder.encode(command);
+    await conn.write(data);
     console.log(`[HOSTINGER] >>> ${command.trim()}`);
   }
 
@@ -218,6 +229,11 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  console.log(
+    "🚀 Hostinger Email Processor started:",
+    new Date().toISOString()
+  );
+
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -237,7 +253,8 @@ serve(async (req) => {
       throw new Error(`Failed to fetch emails: ${fetchError.message}`);
     }
 
-    const totalPending = pendingEmails.length;
+    const totalPending = pendingEmails?.length || 0;
+    console.log(`📧 Found ${totalPending} pending emails`);
 
     if (!pendingEmails || totalPending === 0) {
       return new Response(
@@ -272,6 +289,11 @@ serve(async (req) => {
 
     for (const email of pendingEmails) {
       results.processed++;
+      console.log(
+        `\n📤 Processing email ${results.processed}: ${email.recipient}`
+      );
+      console.log(`📋 Subject: ${email.subject}`);
+
       const sendResult = await emailProvider.send(email);
 
       if (sendResult.success) {
@@ -290,6 +312,7 @@ serve(async (req) => {
         });
 
         results.sent++;
+        console.log(`✅ SUCCESS: Email sent to ${email.recipient}`);
       } else {
         const newAttempts = email.attempts + 1;
         const newStatus = newAttempts >= 3 ? "failed" : "pending";
@@ -315,11 +338,25 @@ serve(async (req) => {
 
         results.failed++;
         results.errors.push(`${email.recipient}: ${sendResult.error}`);
+        console.log(`❌ FAILED: ${email.recipient} - ${sendResult.error}`);
       }
 
       if (results.processed < totalPending) {
+        console.log("⏳ Waiting 3 seconds before next email...");
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
+    }
+
+    console.log(
+      `\n📊 Final Results: ${results.sent}/${results.processed} emails sent successfully`
+    );
+
+    if (results.sent > 0 && totalPending > results.processed) {
+      console.log(
+        `📝 Note: ${
+          totalPending - results.processed
+        } emails still pending. Processor can be called again.`
+      );
     }
 
     return new Response(
@@ -328,7 +365,7 @@ serve(async (req) => {
         message: "Email processing completed.",
         results: {
           ...results,
-          totalPending: totalPending,
+          totalPending,
           remainingPending: Math.max(0, totalPending - results.processed),
         },
       }),

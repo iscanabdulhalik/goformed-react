@@ -65,6 +65,27 @@ const DELIVERY_METHODS = {
   both: { icon: Bell, label: "Dashboard + Email", color: "text-purple-600" },
 };
 
+// ✅ YARDIMCI FONKSIYONLAR
+const deduplicateEmails = (emails) => {
+  const uniqueEmails = [
+    ...new Set(emails.filter((email) => email && email.trim())),
+  ];
+  console.log(
+    `[DEDUPLICATION] ${emails.length} email -> ${uniqueEmails.length} unique email`
+  );
+  return uniqueEmails;
+};
+
+const deduplicateUsers = (users) => {
+  const uniqueUsers = users.filter(
+    (user, index, self) => index === self.findIndex((u) => u.id === user.id)
+  );
+  console.log(
+    `[DEDUPLICATION] ${users.length} user -> ${uniqueUsers.length} unique user`
+  );
+  return uniqueUsers;
+};
+
 // Enhanced Send Notification Modal
 const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
   const [formData, setFormData] = useState({
@@ -73,8 +94,8 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
     type: "info",
     target: "all",
     targetValue: "",
-    deliveryMethod: "dashboard", // dashboard, email, both
-    emailSubject: "", // Only for email/both
+    deliveryMethod: "dashboard",
+    emailSubject: "",
   });
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -87,7 +108,6 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
   }, [isOpen]);
 
   useEffect(() => {
-    // Auto-generate email subject from title
     if (
       formData.title &&
       (formData.deliveryMethod === "email" ||
@@ -102,42 +122,36 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
 
   const fetchUsers = async () => {
     try {
-      // ✅ Get users with admin API
+      console.log("📋 Kullanıcılar yükleniyor...");
+
+      // ✅ Kullanıcıları daha güvenli şekilde al
       const authUsers = await adminHelpers.getAllUsers();
 
-      // Get profile data for each user
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name, role");
 
-      // Merge auth users with profiles
-      const mergedUsers = authUsers.map((authUser) => {
-        const profile = profiles?.find((p) => p.id === authUser.id);
-        return {
-          ...authUser,
-          full_name: profile?.full_name || "Unnamed User",
-          role: profile?.role || "user",
-        };
-      });
+      // ✅ Merge işlemini daha güvenli yap
+      const mergedUsers = authUsers
+        .filter((authUser) => authUser && authUser.id && authUser.email) // Geçersiz kullanıcıları filtrele
+        .map((authUser) => {
+          const profile = profiles?.find((p) => p.id === authUser.id);
+          return {
+            id: authUser.id,
+            email: authUser.email,
+            full_name: profile?.full_name || "Unnamed User",
+            role: profile?.role || "user",
+          };
+        });
 
-      setUsers(mergedUsers);
+      // ✅ Kullanıcıları deduplicate et
+      const uniqueUsers = deduplicateUsers(mergedUsers);
+
+      console.log(`✅ ${uniqueUsers.length} unique kullanıcı yüklendi`);
+      setUsers(uniqueUsers);
     } catch (error) {
-      console.error("Error fetching users:", error);
-      // Fallback data
-      setUsers([
-        {
-          id: crypto.randomUUID(),
-          email: "user@example.com",
-          full_name: "Sample User",
-          role: "user",
-        },
-        {
-          id: crypto.randomUUID(),
-          email: "admin@example.com",
-          full_name: "Sample Admin",
-          role: "admin",
-        },
-      ]);
+      console.error("❌ Kullanıcı yükleme hatası:", error);
+      setUsers([]);
     }
   };
 
@@ -248,11 +262,17 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
       ) {
         console.log("5. E-posta bildirimi için email_queue'ya ekleniyor...");
         if (targetEmails.length > 0) {
-          await adminHelpers.sendEmailNotification(
-            targetEmails,
-            formData.emailSubject,
-            formData.message
-          );
+          try {
+            const emailResult = await adminHelpers.sendEmailNotification(
+              targetEmails,
+              formData.emailSubject,
+              formData.message
+            );
+            console.log("✅ Email queue result:", emailResult);
+          } catch (emailError) {
+            console.error("❌ Email error:", emailError);
+            // Email hatası olsa bile devam et
+          }
         }
         console.log("6. E-posta kuyruğuna ekleme işlemi tamamlandı.");
       }
@@ -309,7 +329,6 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
       setLoading(false);
     }
   };
-
   const filteredUsers = users.filter(
     (user) =>
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -335,6 +354,12 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
               <p className="text-sm text-gray-500">
                 Create and send notifications via dashboard and/or email
               </p>
+              {/* ✅ Target bilgisini göster */}
+              {users.length > 0 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  {users.length} users available
+                </p>
+              )}
             </div>
             <Button onClick={onClose} variant="ghost" size="icon">
               <X className="h-5 w-5" />
@@ -396,7 +421,7 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
               />
             </div>
 
-            {/* Email Subject (only for email/both) */}
+            {/* Email Subject */}
             {(formData.deliveryMethod === "email" ||
               formData.deliveryMethod === "both") && (
               <div>
@@ -430,9 +455,8 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
               />
             </div>
 
-            {/* Type and Target in row */}
+            {/* Type and Target */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Type
@@ -451,7 +475,6 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
                 </select>
               </div>
 
-              {/* Target */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Send To
@@ -467,7 +490,7 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
                   }
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 >
-                  <option value="all">All Users</option>
+                  <option value="all">All Users ({users.length})</option>
                   <option value="specific_user">Specific User</option>
                   <option value="specific_role">Specific Role</option>
                 </select>
@@ -512,8 +535,12 @@ const SendNotificationModal = ({ isOpen, onClose, onSend }) => {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               >
                 <option value="">Select Role</option>
-                <option value="user">Users</option>
-                <option value="admin">Admins</option>
+                <option value="user">
+                  Users ({users.filter((u) => u.role === "user").length})
+                </option>
+                <option value="admin">
+                  Admins ({users.filter((u) => u.role === "admin").length})
+                </option>
               </select>
             )}
 
@@ -609,8 +636,6 @@ export default function AdminNotificationManagement() {
     unread: 0,
   });
 
-  // AdminNotificationManagement.jsx - fetchStats fonksiyonunu düzeltin
-
   const fetchStats = useCallback(async () => {
     try {
       console.log("📊 Stats yükleniyor...");
@@ -674,9 +699,9 @@ export default function AdminNotificationManagement() {
       // Stats'ı güncelle
       setStats({
         total: totalNotifications || 0,
-        dashboard: totalNotifications || 0, // Dashboard notifications = total notifications
+        dashboard: totalNotifications || 0,
         email: emailStats.sent,
-        both: 0, // Bu ayrı hesaplanabilir gerekirse
+        both: 0,
         read: readCount,
         unread: unreadCount,
       });
@@ -712,14 +737,12 @@ export default function AdminNotificationManagement() {
     }
   }, []);
 
-  // useEffect'i düzeltin
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       console.log("🚀 Admin notifications sayfası yükleniyor...");
 
       try {
-        // Paralel olarak çalıştırın ama hata durumunda durmasın
         await Promise.allSettled([fetchNotifications(), fetchStats()]);
       } catch (error) {
         console.error("❌ Data loading error:", error);
@@ -732,38 +755,7 @@ export default function AdminNotificationManagement() {
     loadData();
   }, [fetchNotifications, fetchStats]);
 
-  // Ayrıca error boundary ekleyin component'in başına
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading notifications...</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleSendNotification = (newNotification) => {
-    // Eğer email-only notification ise localStorage'a kaydet
-    if (
-      newNotification.delivery_method === "email" &&
-      newNotification.is_email_only
-    ) {
-      const emailOnlyNotifications = JSON.parse(
-        localStorage.getItem("emailOnlyNotifications") || "[]"
-      );
-      emailOnlyNotifications.unshift(newNotification);
-
-      // Sadece son 50 email-only notification'ı sakla
-      const limitedNotifications = emailOnlyNotifications.slice(0, 50);
-      localStorage.setItem(
-        "emailOnlyNotifications",
-        JSON.stringify(limitedNotifications)
-      );
-    }
-
-    // State'i güncelle
     setNotifications((prev) => [newNotification, ...prev]);
     fetchStats();
   };
@@ -796,10 +788,14 @@ export default function AdminNotificationManagement() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading notifications...</p>
+        </div>
       </div>
     );
   }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -809,7 +805,8 @@ export default function AdminNotificationManagement() {
             Notification Management
           </h1>
           <p className="text-gray-600 text-sm mt-1">
-            Send notifications via dashboard and email
+            Send notifications via dashboard and email (Duplicate Prevention
+            Active)
           </p>
         </div>
         <Button
