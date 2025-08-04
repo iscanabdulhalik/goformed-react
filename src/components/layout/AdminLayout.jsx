@@ -1,376 +1,294 @@
-// src/components/layout/AdminLayout.jsx - Admin Dashboard Layout
-import React, { useState, useEffect } from "react";
-import { Outlet, useLocation, useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/supabase";
-import { motion } from "framer-motion";
+// src/components/layout/AdminLayout.jsx - FIXED ADMIN SIGN OUT
+import React from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users,
-  Settings,
-  Bell,
-  BarChart3,
-  FileText,
-  LogOut,
-  Shield,
-  ChevronLeft,
-  ChevronRight,
-  Search,
   User,
   Building,
-  Zap,
+  Users,
+  Settings,
+  LogOut,
+  Bell,
+  Home,
+  Menu,
+  X,
+  Shield,
   MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import goformedLogo from "@/assets/logos/goformed.png";
 
-const SIDEBAR_WIDTH_DEFAULT = 280;
-const SIDEBAR_WIDTH_COLLAPSED = 80;
-
-// Admin menu items
-const adminMenuItems = [
-  {
-    to: "/admin",
-    text: "Dashboard",
-    icon: BarChart3,
-    description: "Overview & Analytics",
-  },
-  {
-    to: "/admin/users",
-    text: "User Management",
-    icon: Users,
-    description: "Manage Users",
-  },
-  {
-    to: "/admin/companies",
-    text: "Company Requests",
-    icon: Building,
-    description: "Review Applications",
-  },
-  {
-    to: "/admin/notifications",
-    text: "Notifications",
-    icon: Bell,
-    description: "Send Notifications",
-  },
-  {
-    to: "/admin/automations",
-    text: "Automations",
-    icon: Zap,
-    description: "Workflow Rules",
-  },
-  {
-    to: "/admin/reports",
-    text: "Reports",
-    icon: FileText,
-    description: "Analytics & Reports",
-  },
-  {
-    to: "/admin/settings",
-    text: "Settings",
-    icon: Settings,
-    description: "System Settings",
-  },
-];
-
-// Page titles mapping
-const pageTitles = {
-  "/admin": "Admin Dashboard",
-  "/admin/users": "User Management",
-  "/admin/companies": "Company Requests",
-  "/admin/notifications": "Notifications",
-  "/admin/automations": "Automations",
-  "/admin/reports": "Reports",
-  "/admin/settings": "Settings",
-};
-
-const AdminSidebarLink = ({ item, isCollapsed }) => {
-  const location = useLocation();
-  const isActive = location.pathname === item.to;
-
-  return (
-    <Link
-      to={item.to}
-      className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 group relative ${
-        isActive
-          ? "bg-red-50 text-red-700 hover:text-red-800 hover:bg-red-100"
-          : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-      } ${isCollapsed && "justify-center"}`}
-    >
-      <item.icon
-        className={`h-5 w-5 flex-shrink-0 transition-colors duration-200 ${
-          !isCollapsed && "mr-3"
-        }`}
-      />
-      {!isCollapsed && (
-        <div className="flex-1">
-          <span className="truncate font-medium text-sm">{item.text}</span>
-          {item.description && (
-            <div className="text-xs text-gray-500 mt-0.5">
-              {item.description}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tooltip for collapsed state */}
-      {isCollapsed && (
-        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-          {item.text}
-          {item.description && (
-            <div className="text-gray-300 text-xs">{item.description}</div>
-          )}
-        </div>
-      )}
-    </Link>
-  );
-};
-
-export default function AdminLayout() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const location = useLocation();
+const AdminLayout = ({ children }) => {
+  const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const currentSidebarWidth = isCollapsed
-    ? SIDEBAR_WIDTH_COLLAPSED
-    : SIDEBAR_WIDTH_DEFAULT;
-
-  // Get current page title
-  const getPageTitle = () => {
-    const path = location.pathname;
-    return pageTitles[path] || "Admin Dashboard";
-  };
-
-  // Check admin authentication
-  useEffect(() => {
-    const checkAdminAuth = async () => {
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          navigate("/admin/login");
-          return;
-        }
-
-        // Check if user is admin
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("role, full_name")
-          .eq("id", user.id)
-          .single();
-
-        if (profileError || !profile || profile.role !== "admin") {
-          navigate("/admin/login");
-          return;
-        }
-
-        setAdmin({
-          ...user,
-          profile,
-        });
-      } catch (error) {
-        console.error("Admin auth check error:", error);
-        navigate("/admin/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminAuth();
-  }, [navigate]);
-
-  const handleLogout = async () => {
+  // ✅ FIXED: Complete admin sign out with navigation
+  const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
-      navigate("/admin/login");
+      console.log("🚪 Admin signing out...");
+
+      // Clear auth state
+      await signOut();
+
+      console.log("✅ Admin sign out successful, redirecting to home");
+
+      // ✅ CRITICAL: Navigate to home page, not admin login
+      navigate("/", { replace: true });
+
+      // Close sidebar if open
+      setSidebarOpen(false);
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("❌ Admin sign out error:", error);
+      // Even if signOut fails, redirect to home
+      navigate("/", { replace: true });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-      </div>
-    );
-  }
-
-  if (!admin) {
-    return null;
-  }
+  const navigation = [
+    {
+      name: "Dashboard",
+      href: "/admin",
+      icon: Home,
+      current: location.pathname === "/admin",
+    },
+    {
+      name: "User Management",
+      href: "/admin/users",
+      icon: Users,
+      current: location.pathname === "/admin/users",
+    },
+    {
+      name: "Company Management",
+      href: "/admin/companies",
+      icon: Building,
+      current: location.pathname === "/admin/companies",
+    },
+    {
+      name: "Notifications",
+      href: "/admin/notifications",
+      icon: MessageSquare,
+      current: location.pathname === "/admin/notifications",
+    },
+    {
+      name: "Reports",
+      href: "/admin/reports",
+      icon: BarChart3,
+      current: location.pathname === "/admin/reports",
+    },
+    {
+      name: "Settings",
+      href: "/admin/settings",
+      icon: Settings,
+      current: location.pathname === "/admin/settings",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Admin Sidebar */}
-      <aside
-        className="fixed top-0 left-0 h-screen bg-white border-r border-gray-200 flex flex-col z-50 transition-all duration-300 ease-out shadow-sm"
-        style={{ width: `${currentSidebarWidth}px` }}
-      >
-        {/* Toggle Button */}
-        <div className="absolute -right-4 top-1/2 transform -translate-y-1/2 z-50">
-          <Button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            variant="outline"
-            size="icon"
-            className="w-8 h-8 rounded-full bg-white border-2 border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 shadow-sm"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-3 w-3" />
-            ) : (
-              <ChevronLeft className="h-3 w-3" />
-            )}
-          </Button>
-        </div>
-
-        {/* Logo Section */}
-        <div className="flex items-center justify-center h-20 border-b border-gray-100 px-4 flex-shrink-0">
-          <div className="flex items-center justify-center">
-            <img
-              src={goformedLogo}
-              alt="GoFormed Admin"
-              className="h-8 w-auto object-contain"
-            />
-            {!isCollapsed && (
-              <Badge className="ml-2 bg-red-600 text-white text-xs">
-                Admin
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation Menu */}
-        <nav className="flex-1 px-3 py-6 space-y-1">
-          {adminMenuItems.map((item) => (
-            <AdminSidebarLink
-              key={item.text}
-              item={item}
-              isCollapsed={isCollapsed}
-            />
-          ))}
-        </nav>
-
-        {/* Admin Profile & Logout */}
-        <div className="p-3 border-t border-gray-100">
-          {!isCollapsed && (
-            <div className="mb-3 p-3 bg-red-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-white" />
+      {/* Mobile sidebar */}
+      <div className={`lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-gray-600 bg-opacity-75"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white">
+            <div className="absolute top-0 right-0 -mr-12 pt-2">
+              <button
+                type="button"
+                className="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="h-6 w-6 text-white" />
+              </button>
+            </div>
+            <div className="h-0 flex-1 overflow-y-auto pt-5 pb-4">
+              <div className="flex flex-shrink-0 items-center px-4">
+                <img className="h-8 w-auto" src={goformedLogo} alt="GoFormed" />
+                <Badge className="ml-2 bg-red-600 text-white text-xs">
+                  Admin
+                </Badge>
+              </div>
+              <nav className="mt-5 space-y-1 px-2">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`${
+                      item.current
+                        ? "bg-red-100 text-red-900"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon
+                      className={`${
+                        item.current
+                          ? "text-red-500"
+                          : "text-gray-400 group-hover:text-gray-500"
+                      } mr-4 h-6 w-6`}
+                    />
+                    {item.name}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <div className="flex flex-shrink-0 p-4 border-t border-gray-200">
+              <div className="flex items-center w-full">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-red-600" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {admin.profile?.full_name || admin.email?.split("@")[0]}
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    {user?.email}
                   </p>
                   <p className="text-xs text-red-600 font-medium">
                     Administrator
                   </p>
                 </div>
-              </div>
-            </div>
-          )}
-
-          <Button
-            variant="ghost"
-            className={`w-full text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors duration-200 font-medium ${
-              isCollapsed ? "justify-center px-0" : "justify-start"
-            }`}
-            onClick={handleLogout}
-          >
-            <LogOut className={`h-4 w-4 ${!isCollapsed && "mr-3"}`} />
-            {!isCollapsed && "Sign Out"}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main
-        className="transition-all duration-300 ease-out"
-        style={{ marginLeft: `${currentSidebarWidth}px` }}
-      >
-        {/* Top Bar */}
-        <motion.div
-          initial={{ y: -10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-40"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <motion.h1
-                key={location.pathname}
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="text-sm font-medium text-gray-900 tracking-tight"
-              >
-                {getPageTitle()}
-              </motion.h1>
-
-              {/* Breadcrumb */}
-              <div className="hidden md:flex items-center text-xs text-gray-500">
-                <Shield className="h-3 w-3 mr-1" />
-                <span>Admin</span>
-                <span className="mx-2">/</span>
-                <span className="text-gray-900">
-                  {getPageTitle().replace("Admin ", "")}
-                </span>
-              </div>
-            </div>
-
-            {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="hidden md:flex relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search users, companies..."
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Quick Actions */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs border-red-200 text-red-600 hover:bg-red-50"
-              >
-                <MessageSquare className="h-3 w-3 mr-2" />
-                Send Notification
-              </Button>
-
-              {/* Admin Profile */}
-              <div className="flex items-center space-x-3">
-                <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {admin.profile?.full_name || admin.email?.split("@")[0]}
-                  </p>
-                  <p className="text-xs text-red-600 font-medium">Admin</p>
-                </div>
-                <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                  <Shield className="h-4 w-4 text-white" />
-                </div>
+                <Button
+                  onClick={handleSignOut}
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 hover:bg-red-50 hover:text-red-600"
+                  title="Sign Out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
-        </motion.div>
-
-        {/* Page Content */}
-        <div className="p-6">
-          <motion.div
-            key={location.pathname}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          >
-            <Outlet />
-          </motion.div>
         </div>
-      </main>
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
+          <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
+            <div className="flex flex-shrink-0 items-center px-4">
+              <img className="h-8 w-auto" src={goformedLogo} alt="GoFormed" />
+              <Badge className="ml-2 bg-red-600 text-white text-xs">
+                Admin
+              </Badge>
+            </div>
+            <nav className="mt-5 flex-1 space-y-1 px-2">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`${
+                    item.current
+                      ? "bg-red-100 text-red-900 border-r-2 border-red-500"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
+                >
+                  <item.icon
+                    className={`${
+                      item.current
+                        ? "text-red-500"
+                        : "text-gray-400 group-hover:text-gray-500"
+                    } mr-3 h-5 w-5`}
+                  />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          {/* Admin user info */}
+          <div className="flex flex-shrink-0 p-4 border-t border-gray-200 bg-red-50">
+            <div className="flex items-center w-full">
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-red-600" />
+                </div>
+              </div>
+              <div className="ml-3 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {user?.email}
+                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-red-600 font-medium">
+                    Administrator
+                  </p>
+                  <Link
+                    to="/dashboard"
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    User View
+                  </Link>
+                </div>
+              </div>
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                size="sm"
+                className="ml-2 hover:bg-red-100 hover:text-red-700"
+                title="Sign Out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="lg:pl-64 flex flex-col flex-1">
+        {/* Top bar for mobile */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 lg:hidden">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center">
+              <img className="h-8 w-auto" src={goformedLogo} alt="GoFormed" />
+              <Badge className="ml-2 bg-red-600 text-white text-xs">
+                Admin
+              </Badge>
+            </div>
+            <Button
+              onClick={() => setSidebarOpen(true)}
+              variant="ghost"
+              size="sm"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="flex-1">
+          <div className="py-6">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              {children}
+            </div>
+          </div>
+        </main>
+
+        {/* Admin footer */}
+        <footer className="bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-8">
+          <div className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4 text-xs text-gray-500">
+                <span>© 2025 GoFormed Admin Panel</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>System Operational</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400">
+                Admin Session • {user?.email}
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
-}
+};
+
+export default AdminLayout;

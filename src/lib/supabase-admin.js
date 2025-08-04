@@ -1,4 +1,4 @@
-// src/lib/supabase-admin.js - TAMAMEN YENİ VERSİYON
+// src/lib/supabase-admin.js - FIXED VERSION to prevent multiple clients
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -11,13 +11,28 @@ if (!supabaseUrl || !supabaseServiceKey) {
   );
 }
 
-// Admin client with service role key (full access)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+// ✅ FIXED: Use singleton pattern to prevent multiple clients
+let supabaseAdminInstance = null;
+
+export const supabaseAdmin = (() => {
+  if (!supabaseAdminInstance) {
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false, // ✅ ADDED: Prevent URL session detection
+      },
+      global: {
+        headers: {
+          "x-client-info": "supabase-admin-client", // ✅ ADDED: Identify this client
+        },
+      },
+    });
+
+    console.log("🔧 Supabase Admin Client initialized");
+  }
+  return supabaseAdminInstance;
+})();
 
 // Helper functions for admin operations
 export const adminHelpers = {
@@ -59,7 +74,7 @@ export const adminHelpers = {
     }
   },
 
-  // Send email notification - GELİŞTİRİLMİŞ VERSİYON
+  // Send email notification - IMPROVED VERSION
   async sendEmailNotification(recipients, subject, message) {
     const MAX_RETRIES = 2;
 
@@ -71,7 +86,7 @@ export const adminHelpers = {
           } recipients (attempt ${retryCount + 1})`
         );
 
-        // Rate limit kontrolü
+        // Rate limit check
         const { data: rateLimitOk, error: rateLimitError } =
           await supabaseAdmin.rpc("check_rate_limit");
 
@@ -84,7 +99,7 @@ export const adminHelpers = {
           throw new Error("Rate limit exceeded. Please try again later.");
         }
 
-        // Email jobs hazırla
+        // Prepare email jobs
         const emailJobs = recipients.map((email) => ({
           recipient: email,
           subject: subject,
@@ -98,7 +113,7 @@ export const adminHelpers = {
           `[AdminHelpers] 📝 Processing ${emailJobs.length} jobs with transaction...`
         );
 
-        // Transaction ile email'leri kuyruğa ekle
+        // Add emails to queue with transaction
         const { data, error } = await supabaseAdmin.rpc("queue_emails", {
           email_jobs: emailJobs,
         });
@@ -121,7 +136,7 @@ export const adminHelpers = {
           };
         }
 
-        // Email processor'ı tetikle
+        // Trigger email processor
         try {
           console.log("[AdminHelpers] 🚀 Triggering email processor...");
 

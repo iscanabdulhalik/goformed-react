@@ -1,16 +1,17 @@
-// src/components/layout/DashboardLayout.jsx - Fixed as pure layout component
+// src/components/layout/DashboardLayout.jsx - BİLDİRİM ENTEGRASYONLU GÜNCEL VE TAM KOD
 import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "./Sidebar";
-import { User, Bell, Sun, Moon, Sunrise, Sunset } from "lucide-react";
+import NotificationBell from "@/components/ui/NotificationBell"; // ✅ YENİ: Bildirim zili bileşeni
+import { User, Sun, Moon, Sunrise, Sunset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SIDEBAR_WIDTH_DEFAULT = 280;
 const SIDEBAR_WIDTH_COLLAPSED = 80;
 
-// Time-based greeting function
+// Saate göre selamlama fonksiyonu
 const getTimeBasedGreeting = (userName) => {
   const hour = new Date().getHours();
 
@@ -41,7 +42,7 @@ const getTimeBasedGreeting = (userName) => {
   }
 };
 
-// ✅ FIXED: Pure layout component that just wraps children
+// Sadece çocuk (children) bileşenleri saran ana layout bileşeni
 export default function DashboardLayout({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, profile } = useAuth();
@@ -55,7 +56,7 @@ export default function DashboardLayout({ children }) {
     setIsCollapsed((prev) => !prev);
   };
 
-  // Get user display name
+  // Kullanıcı adını almak için yardımcı fonksiyon
   const getUserDisplayName = () => {
     if (profile?.full_name) return profile.full_name;
     if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
@@ -74,18 +75,19 @@ export default function DashboardLayout({ children }) {
         width={currentSidebarWidth}
       />
 
-      {/* Main Content */}
+      {/* Ana İçerik Alanı */}
       <main
         className="transition-all duration-300 ease-out"
         style={{ marginLeft: `${currentSidebarWidth}px` }}
       >
-        {/* Top Bar */}
+        {/* Üst Bar (Header) */}
         <motion.div
           initial={{ y: -10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-40"
         >
           <div className="flex items-center justify-between">
+            {/* Sol Taraf: Selamlama ve Breadcrumb */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center gap-2">
                 <div className={`${timeGreeting.color}`}>
@@ -96,7 +98,6 @@ export default function DashboardLayout({ children }) {
                 </h1>
               </div>
 
-              {/* Breadcrumb - Optional */}
               <div className="hidden md:flex items-center text-sm text-gray-500">
                 <span>Dashboard</span>
                 {location.pathname !== "/dashboard" && (
@@ -110,16 +111,12 @@ export default function DashboardLayout({ children }) {
               </div>
             </div>
 
-            {/* Right side actions */}
+            {/* Sağ Taraf: Bildirimler ve Profil */}
             <div className="flex items-center space-x-3">
-              {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-4 w-4" />
-                {/* Notification badge - will be implemented later */}
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-xs"></span>
-              </Button>
+              {/* ✅ GÜNCELLEME: Statik zil, dinamik NotificationBell bileşeni ile değiştirildi */}
+              {user && <NotificationBell userId={user.id} />}
 
-              {/* User Profile */}
+              {/* Kullanıcı Profili */}
               <div className="flex items-center space-x-3">
                 <div className="hidden md:block text-right">
                   <p className="text-sm font-medium text-gray-900">
@@ -137,7 +134,7 @@ export default function DashboardLayout({ children }) {
           </div>
         </motion.div>
 
-        {/* Page Content - This is where children will be rendered */}
+        {/* Sayfa İçeriği - Çocuk bileşenler burada render edilir */}
         <div className="p-6">
           <motion.div
             key={location.pathname}

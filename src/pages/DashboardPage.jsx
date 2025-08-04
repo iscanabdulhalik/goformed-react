@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx - Production ready version with real data
+// src/pages/DashboardPage.jsx - CLEANED UP, NO INTEGRATED HEADER
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link, useNavigate } from "react-router-dom";
@@ -312,7 +312,6 @@ export default function DashboardPage() {
 
         if (companyError) {
           console.error("Error fetching company requests:", companyError);
-          // Continue with empty array instead of failing
         }
 
         // Fetch service orders
@@ -324,7 +323,6 @@ export default function DashboardPage() {
 
         if (serviceError) {
           console.error("Error fetching service orders:", serviceError);
-          // Continue with empty array instead of failing
         }
 
         const companies = companyData || [];
@@ -356,19 +354,20 @@ export default function DashboardPage() {
         });
 
         // ✅ PRODUCTION READY: Log activity
-        await supabase
-          .rpc("log_activity", {
-            p_user_id: user.id,
-            p_action: "dashboard_viewed",
-            p_description: "User viewed dashboard",
-            p_metadata: {
-              total_orders: totalOrders,
-              total_spent: totalSpent,
-            },
-          })
-          .catch(() => {
-            // Fail silently if activity logging fails
-          });
+        const { error } = await supabase.rpc("log_activity", {
+          p_user_id: user.id,
+          p_action: "dashboard_viewed",
+          p_description: "User viewed dashboard",
+          p_metadata: {
+            total_orders: totalOrders,
+            total_spent: totalSpent,
+          },
+        });
+
+        if (error) {
+          console.error("Error logging activity:", error);
+          // Fail silently if activity logging fails
+        }
       } catch (err) {
         console.error("Error fetching user data:", err);
       } finally {
@@ -499,7 +498,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading your dashboard...</p>
@@ -512,491 +511,547 @@ export default function DashboardPage() {
     selectedPackageType === "uk" ? ukPackages : globalPackages;
 
   return (
-    <motion.div
-      className="space-y-6"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* ✅ PRODUCTION READY: Enhanced Stats Cards with real data */}
-      <motion.div
-        variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-4 gap-4"
-      >
-        {[
-          {
-            title: "Total Orders",
-            value: stats.totalOrders,
-            icon: Package,
-            color: "bg-blue-500",
-            bgColor: "bg-blue-100",
-            textColor: "text-blue-600",
-            description: "All your orders",
-          },
-          {
-            title: "Completed",
-            value: stats.completedOrders,
-            icon: CheckCircle,
-            color: "green",
-            bgColor: "bg-green-100",
-            textColor: "text-green-600",
-            description: "Successfully completed",
-          },
-          {
-            title: "In Progress",
-            value: stats.pendingOrders,
-            icon: Clock,
-            color: "yellow",
-            bgColor: "bg-yellow-100",
-            textColor: "text-yellow-600",
-            description: "Currently processing",
-          },
-          {
-            title: "Total Invested",
-            value: `£${stats.totalSpent.toFixed(0)}`,
-            icon: DollarSign,
-            color: "purple",
-            bgColor: "bg-purple-100",
-            textColor: "text-purple-600",
-            description: "Your business investment",
-          },
-        ].map((stat, index) => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      {/* ✅ MAIN CONTENT */}
+      <main className="pb-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <motion.div
-            key={stat.title}
-            whileHover={{ scale: 1.02, y: -2 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 + 0.5 }}
+            className="space-y-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <Card className="hover:shadow-lg transition-all duration-300 border-0 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <div className={`p-3 ${stat.bgColor} rounded-xl`}>
-                    <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <p className="text-xs font-medium text-gray-600 mb-1">
-                      {stat.title}
-                    </p>
-                    <motion.p
-                      className="text-xl font-bold text-gray-900"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: index * 0.1 + 0.7, type: "spring" }}
-                    >
-                      {stat.value}
-                    </motion.p>
-                    <p className="text-xs text-gray-500">{stat.description}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Custom Tabs */}
-      <motion.div variants={itemVariants}>
-        <CustomTabs tabs={tabs} defaultValue="overview" onChange={setActiveTab}>
-          {/* Overview Tab */}
-          <CustomTabContent value="overview" activeValue={activeTab}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Quick Start Guide */}
-              <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Sparkles className="h-5 w-5 text-blue-600" />
-                    Quick Start Guide
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <span className="text-blue-600 font-bold text-sm">
-                          1
-                        </span>
+            {/* ✅ PRODUCTION READY: Enhanced Stats Cards with real data */}
+            <motion.div
+              variants={itemVariants}
+              className="grid grid-cols-1 md:grid-cols-4 gap-4"
+            >
+              {[
+                {
+                  title: "Total Orders",
+                  value: stats.totalOrders,
+                  icon: Package,
+                  color: "bg-blue-500",
+                  bgColor: "bg-blue-100",
+                  textColor: "text-blue-600",
+                  description: "All your orders",
+                },
+                {
+                  title: "Completed",
+                  value: stats.completedOrders,
+                  icon: CheckCircle,
+                  color: "green",
+                  bgColor: "bg-green-100",
+                  textColor: "text-green-600",
+                  description: "Successfully completed",
+                },
+                {
+                  title: "In Progress",
+                  value: stats.pendingOrders,
+                  icon: Clock,
+                  color: "yellow",
+                  bgColor: "bg-yellow-100",
+                  textColor: "text-yellow-600",
+                  description: "Currently processing",
+                },
+                {
+                  title: "Total Invested",
+                  value: `£${stats.totalSpent.toFixed(0)}`,
+                  icon: DollarSign,
+                  color: "purple",
+                  bgColor: "bg-purple-100",
+                  textColor: "text-purple-600",
+                  description: "Your business investment",
+                },
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.title}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 + 0.5 }}
+                >
+                  <Card className="hover:shadow-lg transition-all duration-300 border-0 shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-center">
+                        <div className={`p-3 ${stat.bgColor} rounded-xl`}>
+                          <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <p className="text-xs font-medium text-gray-600 mb-1">
+                            {stat.title}
+                          </p>
+                          <motion.p
+                            className="text-xl font-bold text-gray-900"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{
+                              delay: index * 0.1 + 0.7,
+                              type: "spring",
+                            }}
+                          >
+                            {stat.value}
+                          </motion.p>
+                          <p className="text-xs text-gray-500">
+                            {stat.description}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">
-                          Choose Your Package
-                        </h4>
-                        <p className="text-xs text-gray-600">
-                          Select the perfect package for your business needs
-                        </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Custom Tabs */}
+            <motion.div variants={itemVariants}>
+              <CustomTabs
+                tabs={tabs}
+                defaultValue="overview"
+                onChange={setActiveTab}
+              >
+                {/* Overview Tab */}
+                <CustomTabContent value="overview" activeValue={activeTab}>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Quick Start Guide */}
+                    <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Sparkles className="h-5 w-5 text-blue-600" />
+                          Quick Start Guide
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <span className="text-blue-600 font-bold text-sm">
+                                1
+                              </span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Choose Your Package
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                Select the perfect package for your business
+                                needs
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                            <div className="p-2 bg-green-100 rounded-lg">
+                              <span className="text-green-600 font-bold text-sm">
+                                2
+                              </span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Complete Formation
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                We handle all the paperwork and registrations
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
+                            <div className="p-2 bg-purple-100 rounded-lg">
+                              <span className="text-purple-600 font-bold text-sm">
+                                3
+                              </span>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 text-sm">
+                                Start Trading
+                              </h4>
+                              <p className="text-xs text-gray-600">
+                                Access banking, payment processing, and more
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={() => setActiveTab("packages")}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Start Your Company Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Recent Activity */}
+                    <Card className="border-0 shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Award className="h-5 w-5 text-green-600" />
+                          Recent Activity
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {[
+                            ...companyRequests.slice(0, 2),
+                            ...serviceOrders.slice(0, 1),
+                          ].length === 0 ? (
+                            <div className="text-center py-8">
+                              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                              <p className="text-gray-500">
+                                No recent activity
+                              </p>
+                              <Button
+                                onClick={() => setActiveTab("packages")}
+                                variant="outline"
+                                size="sm"
+                                className="mt-2"
+                              >
+                                Start Your First Order
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              {companyRequests.slice(0, 2).map((request) => (
+                                <div
+                                  key={request.id}
+                                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                  onClick={() => handleViewDetails(request)}
+                                >
+                                  <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Building2 className="h-4 w-4 text-blue-600" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm text-gray-900">
+                                      {request.company_name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {request.package_name} •{" "}
+                                      {new Date(
+                                        request.created_at
+                                      ).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    className={
+                                      statusConfig[request.status]?.color ||
+                                      statusConfig.pending_payment.color
+                                    }
+                                  >
+                                    {statusConfig[request.status]?.label ||
+                                      "Pending"}
+                                  </Badge>
+                                </div>
+                              ))}
+
+                              {serviceOrders.slice(0, 1).map((order) => (
+                                <div
+                                  key={order.id}
+                                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                >
+                                  <div className="p-2 bg-green-100 rounded-lg">
+                                    <Package className="h-4 w-4 text-green-600" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm text-gray-900">
+                                      {order.service_title}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      £
+                                      {parseFloat(order.price_amount).toFixed(
+                                        2
+                                      )}{" "}
+                                      •{" "}
+                                      {new Date(
+                                        order.created_at
+                                      ).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <Badge className="bg-green-100 text-green-800">
+                                    Service
+                                  </Badge>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CustomTabContent>
+
+                {/* Packages Tab */}
+                <CustomTabContent value="packages" activeValue={activeTab}>
+                  <div className="space-y-6">
+                    {/* Package Type Selector */}
+                    <div className="flex justify-center">
+                      <div className="inline-flex rounded-xl border p-1 bg-gray-100">
+                        <Button
+                          variant={
+                            selectedPackageType === "uk" ? "default" : "ghost"
+                          }
+                          onClick={() => setSelectedPackageType("uk")}
+                          className="rounded-lg font-semibold"
+                        >
+                          <MapPin className="mr-2 h-4 w-4" />
+                          UK Residents
+                        </Button>
+                        <Button
+                          variant={
+                            selectedPackageType === "global"
+                              ? "default"
+                              : "ghost"
+                          }
+                          onClick={() => setSelectedPackageType("global")}
+                          className="rounded-lg font-semibold"
+                        >
+                          <Globe className="mr-2 h-4 w-4" />
+                          Non-UK Residents
+                        </Button>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <span className="text-green-600 font-bold text-sm">
-                          2
-                        </span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">
-                          Complete Formation
-                        </h4>
-                        <p className="text-xs text-gray-600">
-                          We handle all the paperwork and registrations
-                        </p>
-                      </div>
+                    {/* Package Description */}
+                    <div className="text-center max-w-2xl mx-auto">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                        Choose Your Perfect Package
+                      </h2>
+                      <p className="text-gray-600">
+                        {selectedPackageType === "uk"
+                          ? "Special packages designed for UK residents with local support and competitive pricing."
+                          : "Comprehensive packages for international entrepreneurs looking to establish their UK presence."}
+                      </p>
                     </div>
 
-                    <div className="flex items-start gap-3 p-3 bg-white rounded-lg shadow-sm">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <span className="text-purple-600 font-bold text-sm">
-                          3
-                        </span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">
-                          Start Trading
-                        </h4>
-                        <p className="text-xs text-gray-600">
-                          Access banking, payment processing, and more
-                        </p>
-                      </div>
+                    {/* Package Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                      {packagesToShow.map((packageData) => (
+                        <PackageCard
+                          key={packageData.name}
+                          packageData={packageData}
+                          onOrder={handlePackageOrder}
+                          isLoading={orderLoading}
+                        />
+                      ))}
                     </div>
 
-                    <Button
-                      onClick={() => setActiveTab("packages")}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Start Your Company Now
-                    </Button>
+                    {/* Additional Features */}
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 max-w-4xl mx-auto">
+                      <h3 className="text-lg font-bold text-center text-gray-900 mb-4">
+                        What's Included in Every Package
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                          <Shield className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <h4 className="font-semibold text-sm">
+                              Secure & Legal
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              Fully compliant with UK regulations
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                          <Zap className="h-5 w-5 text-green-600" />
+                          <div>
+                            <h4 className="font-semibold text-sm">
+                              Fast Setup
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              Company formed in 24-48 hours
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
+                          <Heart className="h-5 w-5 text-red-600" />
+                          <div>
+                            <h4 className="font-semibold text-sm">
+                              Lifetime Support
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              Ongoing assistance included
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </CustomTabContent>
 
-              {/* Recent Activity */}
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Award className="h-5 w-5 text-green-600" />
-                    Recent Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      ...companyRequests.slice(0, 2),
-                      ...serviceOrders.slice(0, 1),
-                    ].length === 0 ? (
-                      <div className="text-center py-8">
-                        <FileText className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500">No recent activity</p>
+                {/* Companies Tab */}
+                <CustomTabContent value="companies" activeValue={activeTab}>
+                  {companyRequests.length === 0 ? (
+                    <Card className="border-0 shadow-lg">
+                      <CardContent className="text-center py-12">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Building2 className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          Ready to Start Your Business?
+                        </h3>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                          Get your UK company formed with our expert service.
+                          Choose from our carefully designed packages.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                          <Button
+                            onClick={() => setActiveTab("packages")}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Start Company Formation
+                          </Button>
+                          <Button asChild variant="outline">
+                            <Link to="/dashboard/marketplace">
+                              <ShoppingCart className="mr-2 h-4 w-4" />
+                              Browse Services
+                            </Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Your Company Requests ({companyRequests.length})
+                        </h2>
                         <Button
                           onClick={() => setActiveTab("packages")}
                           variant="outline"
                           size="sm"
-                          className="mt-2"
                         >
-                          Start Your First Order
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Add New Company
                         </Button>
                       </div>
-                    ) : (
-                      <>
-                        {companyRequests.slice(0, 2).map((request) => (
-                          <div
-                            key={request.id}
-                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                            onClick={() => handleViewDetails(request)}
-                          >
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                              <Building2 className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-sm text-gray-900">
-                                {request.company_name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {request.package_name} •{" "}
-                                {new Date(
-                                  request.created_at
-                                ).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <Badge
-                              className={
-                                statusConfig[request.status]?.color ||
-                                statusConfig.pending_payment.color
-                              }
-                            >
-                              {statusConfig[request.status]?.label || "Pending"}
-                            </Badge>
-                          </div>
-                        ))}
-
-                        {serviceOrders.slice(0, 1).map((order) => (
-                          <div
-                            key={order.id}
-                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                          >
-                            <div className="p-2 bg-green-100 rounded-lg">
-                              <Package className="h-4 w-4 text-green-600" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-sm text-gray-900">
-                                {order.service_title}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                £{parseFloat(order.price_amount).toFixed(2)} •{" "}
-                                {new Date(
-                                  order.created_at
-                                ).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <Badge className="bg-green-100 text-green-800">
-                              Service
-                            </Badge>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </CustomTabContent>
-
-          {/* Packages Tab */}
-          <CustomTabContent value="packages" activeValue={activeTab}>
-            <div className="space-y-6">
-              {/* Package Type Selector */}
-              <div className="flex justify-center">
-                <div className="inline-flex rounded-xl border p-1 bg-gray-100">
-                  <Button
-                    variant={selectedPackageType === "uk" ? "default" : "ghost"}
-                    onClick={() => setSelectedPackageType("uk")}
-                    className="rounded-lg font-semibold"
-                  >
-                    <MapPin className="mr-2 h-4 w-4" />
-                    UK Residents
-                  </Button>
-                  <Button
-                    variant={
-                      selectedPackageType === "global" ? "default" : "ghost"
-                    }
-                    onClick={() => setSelectedPackageType("global")}
-                    className="rounded-lg font-semibold"
-                  >
-                    <Globe className="mr-2 h-4 w-4" />
-                    Non-UK Residents
-                  </Button>
-                </div>
-              </div>
-
-              {/* Package Description */}
-              <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Choose Your Perfect Package
-                </h2>
-                <p className="text-gray-600">
-                  {selectedPackageType === "uk"
-                    ? "Special packages designed for UK residents with local support and competitive pricing."
-                    : "Comprehensive packages for international entrepreneurs looking to establish their UK presence."}
-                </p>
-              </div>
-
-              {/* Package Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                {packagesToShow.map((packageData) => (
-                  <PackageCard
-                    key={packageData.name}
-                    packageData={packageData}
-                    onOrder={handlePackageOrder}
-                    isLoading={orderLoading}
-                  />
-                ))}
-              </div>
-
-              {/* Additional Features */}
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 max-w-4xl mx-auto">
-                <h3 className="text-lg font-bold text-center text-gray-900 mb-4">
-                  What's Included in Every Package
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                    <Shield className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h4 className="font-semibold text-sm">Secure & Legal</h4>
-                      <p className="text-xs text-gray-600">
-                        Fully compliant with UK regulations
-                      </p>
+                      {companyRequests.map((request) => (
+                        <CompanyRequestCard
+                          key={request.id}
+                          request={request}
+                          onViewDetails={handleViewDetails}
+                        />
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                    <Zap className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h4 className="font-semibold text-sm">Fast Setup</h4>
-                      <p className="text-xs text-gray-600">
-                        Company formed in 24-48 hours
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                    <Heart className="h-5 w-5 text-red-600" />
-                    <div>
-                      <h4 className="font-semibold text-sm">
-                        Lifetime Support
-                      </h4>
-                      <p className="text-xs text-gray-600">
-                        Ongoing assistance included
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CustomTabContent>
+                  )}
+                </CustomTabContent>
 
-          {/* Companies Tab */}
-          <CustomTabContent value="companies" activeValue={activeTab}>
-            {companyRequests.length === 0 ? (
-              <Card className="border-0 shadow-lg">
-                <CardContent className="text-center py-12">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Building2 className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Ready to Start Your Business?
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Get your UK company formed with our expert service. Choose
-                    from our carefully designed packages.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button
-                      onClick={() => setActiveTab("packages")}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Start Company Formation
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link to="/dashboard/marketplace">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Browse Services
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Your Company Requests ({companyRequests.length})
-                  </h2>
-                  <Button
-                    onClick={() => setActiveTab("packages")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add New Company
-                  </Button>
-                </div>
-                {companyRequests.map((request) => (
-                  <CompanyRequestCard
-                    key={request.id}
-                    request={request}
-                    onViewDetails={handleViewDetails}
-                  />
-                ))}
-              </div>
-            )}
-          </CustomTabContent>
-
-          {/* Services Tab */}
-          <CustomTabContent value="services" activeValue={activeTab}>
-            {serviceOrders.length === 0 ? (
-              <Card className="border-0 shadow-lg">
-                <CardContent className="text-center py-12">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="h-8 w-8 text-green-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Explore Our Services
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Discover additional services to grow your business including
-                    VAT registration, banking assistance, and more.
-                  </p>
-                  <Button asChild className="bg-green-600 hover:bg-green-700">
-                    <Link to="/dashboard/marketplace">
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Browse Marketplace
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Your Service Orders ({serviceOrders.length})
-                  </h2>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/dashboard/marketplace">
-                      <Package className="mr-2 h-4 w-4" />
-                      Browse More Services
-                    </Link>
-                  </Button>
-                </div>
-                {serviceOrders.map((order) => (
-                  <Card
-                    key={order.id}
-                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <Package className="h-5 w-5 text-green-600" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-base font-bold text-gray-900 mb-1">
-                              {order.service_title}
-                            </CardTitle>
-                            <p className="text-sm text-gray-600">
-                              {order.service_category}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              £{parseFloat(order.price_amount).toFixed(2)}
-                            </p>
-                          </div>
+                {/* Services Tab */}
+                <CustomTabContent value="services" activeValue={activeTab}>
+                  {serviceOrders.length === 0 ? (
+                    <Card className="border-0 shadow-lg">
+                      <CardContent className="text-center py-12">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Package className="h-8 w-8 text-green-600" />
                         </div>
-                        <div className="text-right">
-                          <Badge className="bg-green-100 text-green-800 border border-green-300">
-                            {order.status}
-                          </Badge>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          Explore Our Services
+                        </h3>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                          Discover additional services to grow your business
+                          including VAT registration, banking assistance, and
+                          more.
+                        </p>
+                        <Button
+                          asChild
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Link to="/dashboard/marketplace">
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Browse Marketplace
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                          Your Service Orders ({serviceOrders.length})
+                        </h2>
+                        <Button asChild variant="outline" size="sm">
+                          <Link to="/dashboard/marketplace">
+                            <Package className="mr-2 h-4 w-4" />
+                            Browse More Services
+                          </Link>
+                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-gray-600 mb-3">
-                        {order.service_description}
-                      </p>
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/dashboard/orders/${order.id}`}>
-                          <FileText className="mr-2 h-3 w-3" />
-                          View Details
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                      {serviceOrders.map((order) => (
+                        <Card
+                          key={order.id}
+                          className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500"
+                        >
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-green-100 rounded-lg">
+                                  <Package className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-base font-bold text-gray-900 mb-1">
+                                    {order.service_title}
+                                  </CardTitle>
+                                  <p className="text-sm text-gray-600">
+                                    {order.service_category}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    £{parseFloat(order.price_amount).toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <Badge className="bg-green-100 text-green-800 border border-green-300">
+                                  {order.status}
+                                </Badge>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(
+                                    order.created_at
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <p className="text-sm text-gray-600 mb-3">
+                              {order.service_description}
+                            </p>
+                            <Button asChild variant="outline" size="sm">
+                              <Link to={`/dashboard/orders/${order.id}`}>
+                                <FileText className="mr-2 h-3 w-3" />
+                                View Details
+                              </Link>
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CustomTabContent>
+              </CustomTabs>
+            </motion.div>
+          </motion.div>
+        </div>
+      </main>
+
+      {/* ✅ BEAUTIFUL FOOTER */}
+      <footer className="bg-white/80 backdrop-blur-xl border-t border-gray-200/50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between">
+            <div className="flex items-center gap-6 text-sm text-gray-600">
+              <span>© 2025 GoFormed Ltd.</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>All Systems Operational</span>
               </div>
-            )}
-          </CustomTabContent>
-        </CustomTabs>
-      </motion.div>
-    </motion.div>
+            </div>
+            <div className="mt-4 sm:mt-0 text-sm text-gray-500">
+              Welcome back, {user?.email?.split("@")[0]} 👋
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

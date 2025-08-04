@@ -77,9 +77,35 @@ export default function CompanyFormationPage() {
     getUser();
   }, [navigate]);
 
+  const handleCompanyNameChange = (e) => {
+    const newValue = e.target.value;
+    setCompanyName(newValue);
+
+    // ✅ Input değiştiğinde state'i resetle
+    if (
+      companyStatus !== CompanyStatus.IDLE &&
+      companyStatus !== CompanyStatus.LOADING
+    ) {
+      setCompanyStatus(CompanyStatus.IDLE);
+      setAcceptedName(""); // Kabul edilen ismi de temizle
+    }
+  };
+
   const handleCompanySearch = async () => {
     const name = companyName.toUpperCase().trim();
+
+    // Validation
+    if (!name) {
+      setCompanyStatus(CompanyStatus.INVALID);
+      return;
+    }
+
     if (!name.endsWith("LTD") && !name.endsWith("LIMITED")) {
+      setCompanyStatus(CompanyStatus.INVALID);
+      return;
+    }
+
+    if (name.length < 3 || name.length > 160) {
       setCompanyStatus(CompanyStatus.INVALID);
       return;
     }
@@ -87,46 +113,77 @@ export default function CompanyFormationPage() {
     setCompanyStatus(CompanyStatus.LOADING);
 
     try {
-      console.log("Searching for company:", name);
+      console.log("🔍 Searching for company:", name);
 
+      // ✅ CORRECT: Pass an OBJECT to body, NOT a string
+      // Supabase SDK will automatically:
+      // 1. Convert the object to JSON string
+      // 2. Set Content-Type: application/json header
+      // 3. Send the proper request
       const { data, error } = await supabase.functions.invoke(
         "check-company-name-secure",
         {
-          body: { companyName: name },
-          headers: {
-            "Content-Type": "application/json",
+          body: {
+            companyName: name,
           },
+          // ❌ DON'T DO: body: JSON.stringify({ companyName: name })
+          // ❌ DON'T DO: headers: { "Content-Type": "application/json" }
         }
       );
 
+      console.log("📡 Function response:", { data, error });
+
       if (error) {
-        console.error("Function error:", error);
-        throw error;
+        console.error("❌ Function error:", error);
+
+        // Handle specific error cases - set to ERROR but allow user to proceed
+        setCompanyStatus(CompanyStatus.ERROR);
+        setAcceptedName(name); // Allow them to proceed with the name
+        return;
       }
 
-      console.log("Companies House response:", data);
+      // Check if data has error property
+      if (data?.error) {
+        console.error("❌ API error:", data.error);
+        setCompanyStatus(CompanyStatus.ERROR);
+        setAcceptedName(name); // Allow them to proceed with the name
+        return;
+      }
 
-      // Check for exact match
-      const exactMatch = data.items?.find(
-        (item) => item.title.toUpperCase().trim() === name
+      // Process successful response
+      const results = data?.items || [];
+      console.log("✅ Search results:", results.length, "companies found");
+
+      // Check for exact matches
+      const exactMatch = results.find(
+        (company) => company.title?.toUpperCase().trim() === name
       );
 
       if (exactMatch) {
         setCompanyStatus(CompanyStatus.UNAVAILABLE);
+        console.log("❌ Company name already exists:", exactMatch);
       } else {
         setCompanyStatus(CompanyStatus.AVAILABLE);
         setAcceptedName(name);
+        console.log("✅ Company name is available");
+
+        // Auto-scroll to next section after a short delay
         setTimeout(() => {
           const detailsElement = document.getElementById("details-section");
-          detailsElement?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }, 100);
+          if (detailsElement) {
+            detailsElement.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        }, 500);
       }
-    } catch (error) {
-      console.error("Company search error:", error);
+    } catch (err) {
+      console.error("💥 Company search error:", err);
+
+      // For any unexpected error, allow user to proceed
       setCompanyStatus(CompanyStatus.ERROR);
+      setAcceptedName(name); // Allow them to proceed with the name
     }
   };
 
@@ -235,6 +292,7 @@ export default function CompanyFormationPage() {
 
   const renderCompanyStatus = () => {
     const name = companyName.toUpperCase().trim();
+
     switch (companyStatus) {
       case CompanyStatus.LOADING:
         return (
@@ -243,31 +301,42 @@ export default function CompanyFormationPage() {
             Checking with Companies House...
           </div>
         );
+
       case CompanyStatus.AVAILABLE:
         return (
           <div className="flex items-center justify-center gap-2 font-semibold text-green-600">
             <Check className="h-5 w-5" />"{name}" is available!
           </div>
         );
+
       case CompanyStatus.UNAVAILABLE:
         return (
           <div className="font-semibold text-red-600 text-center">
             ✖ "{name}" is already registered with Companies House.
           </div>
         );
+
       case CompanyStatus.INVALID:
         return (
           <div className="font-semibold text-red-600 text-center">
             ✖ Name must end with "LTD" or "LIMITED".
           </div>
         );
+
       case CompanyStatus.ERROR:
         return (
-          <div className="flex items-center justify-center gap-2 font-semibold text-orange-600">
-            <AlertTriangle className="h-5 w-5" />
-            Could not verify with Companies House. You can still proceed.
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 font-semibold text-orange-600 mb-2">
+              <AlertTriangle className="h-5 w-5" />
+              Could not verify with Companies House
+            </div>
+            <p className="text-sm text-gray-600">
+              You can still proceed with "{name}" - verification will be done
+              during processing.
+            </p>
           </div>
         );
+
       default:
         return (
           <p className="text-sm text-gray-500 text-center">
@@ -408,7 +477,7 @@ export default function CompanyFormationPage() {
                           placeholder="e.g. AVALON CONSULTING LTD"
                           className="text-center sm:text-left uppercase placeholder:normal-case"
                           value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
+                          onChange={handleCompanyNameChange} // ✅ Yeni handler kullan
                           onKeyUp={(e) =>
                             e.key === "Enter" && handleCompanySearch()
                           }
