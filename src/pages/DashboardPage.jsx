@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx - CLEANED UP, NO INTEGRATED HEADER
+// src/pages/DashboardPage.jsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link, useNavigate } from "react-router-dom";
@@ -353,19 +353,19 @@ export default function DashboardPage() {
           totalOrders,
         });
 
-        // ✅ PRODUCTION READY: Log activity
-        const { error } = await supabase.rpc("log_activity", {
-          p_user_id: user.id,
-          p_action: "dashboard_viewed",
-          p_description: "User viewed dashboard",
-          p_metadata: {
-            total_orders: totalOrders,
-            total_spent: totalSpent,
-          },
-        });
-
-        if (error) {
-          console.error("Error logging activity:", error);
+        // ✅ FIXED: Removed .catch() which was causing the error
+        try {
+          await supabase.rpc("log_activity", {
+            p_user_id: user.id,
+            p_action: "dashboard_viewed",
+            p_description: "User viewed dashboard",
+            p_metadata: {
+              total_orders: totalOrders,
+              total_spent: totalSpent,
+            },
+          });
+        } catch (logError) {
+          console.error("Error logging activity:", logError);
           // Fail silently if activity logging fails
         }
       } catch (err) {
@@ -432,7 +432,7 @@ export default function DashboardPage() {
     };
   }, [user]);
 
-  // ✅ PRODUCTION READY: Handle package order with proper error handling
+  // ✅ FIXED: Handle package order with proper error handling
   const handlePackageOrder = async (packageData) => {
     if (!user) {
       navigate("/login");
@@ -442,9 +442,9 @@ export default function DashboardPage() {
     setOrderLoading(true);
 
     try {
-      // Log activity
-      await supabase
-        .rpc("log_activity", {
+      // ✅ FIXED: Removed .catch() chain and used try/catch instead
+      try {
+        await supabase.rpc("log_activity", {
           p_user_id: user.id,
           p_action: "package_order_initiated",
           p_description: `User initiated order for ${packageData.name}`,
@@ -452,10 +452,11 @@ export default function DashboardPage() {
             package_name: packageData.name,
             package_price: packageData.price,
           },
-        })
-        .catch(() => {
-          // Fail silently if activity logging fails
         });
+      } catch (logError) {
+        console.error("Activity logging failed:", logError);
+        // Continue with order process even if logging fails
+      }
 
       // Navigate to company formation flow with selected package
       navigate("/dashboard/company-formation", {
@@ -694,7 +695,7 @@ export default function DashboardPage() {
                       <CardContent>
                         <div className="space-y-4">
                           {[
-                            ...companyRequests.slice(0, 2),
+                            ...companyRequests.slice(0, 4), // ✅ FIXED: Show last 4 companies instead of 2
                             ...serviceOrders.slice(0, 1),
                           ].length === 0 ? (
                             <div className="text-center py-8">
@@ -713,37 +714,41 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <>
-                              {companyRequests.slice(0, 2).map((request) => (
-                                <div
-                                  key={request.id}
-                                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                  onClick={() => handleViewDetails(request)}
-                                >
-                                  <div className="p-2 bg-blue-100 rounded-lg">
-                                    <Building2 className="h-4 w-4 text-blue-600" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="font-medium text-sm text-gray-900">
-                                      {request.company_name}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      {request.package_name} •{" "}
-                                      {new Date(
-                                        request.created_at
-                                      ).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    className={
-                                      statusConfig[request.status]?.color ||
-                                      statusConfig.pending_payment.color
-                                    }
+                              {companyRequests.slice(0, 4).map(
+                                (
+                                  request // ✅ FIXED: Show last 4 companies
+                                ) => (
+                                  <div
+                                    key={request.id}
+                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                    onClick={() => handleViewDetails(request)}
                                   >
-                                    {statusConfig[request.status]?.label ||
-                                      "Pending"}
-                                  </Badge>
-                                </div>
-                              ))}
+                                    <div className="p-2 bg-blue-100 rounded-lg">
+                                      <Building2 className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm text-gray-900">
+                                        {request.company_name}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {request.package_name} •{" "}
+                                        {new Date(
+                                          request.created_at
+                                        ).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <Badge
+                                      className={
+                                        statusConfig[request.status]?.color ||
+                                        statusConfig.pending_payment.color
+                                      }
+                                    >
+                                      {statusConfig[request.status]?.label ||
+                                        "Pending"}
+                                    </Badge>
+                                  </div>
+                                )
+                              )}
 
                               {serviceOrders.slice(0, 1).map((order) => (
                                 <div

@@ -1,4 +1,4 @@
-// src/components/ui/NotificationBell.jsx - Real-time notification bell component
+// src/components/ui/NotificationBell.jsx - Updated with better error handling
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotifications } from "@/hooks/useNotification";
@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   X,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 // Notification type configurations
@@ -49,11 +50,11 @@ const notificationTypes = {
 const NotificationItem = ({ notification, onMarkAsRead, onDelete }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const typeConfig =
-    notificationTypes[notification.type] || notificationTypes.info;
+    notificationTypes[notification?.type] || notificationTypes.info;
   const TypeIcon = typeConfig.icon;
 
   const handleMarkAsRead = async () => {
-    if (notification.read || isProcessing) return;
+    if (notification?.read || isProcessing) return;
 
     setIsProcessing(true);
     const success = await onMarkAsRead(notification.id);
@@ -73,21 +74,36 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete }) => {
   };
 
   const formatTimeAgo = (date) => {
-    const now = new Date();
-    const notificationDate = new Date(date);
-    const diffInMinutes = Math.floor((now - notificationDate) / (1000 * 60));
+    if (!date) return "Unknown time";
 
-    if (diffInMinutes < 1) return "Just now";
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    try {
+      const now = new Date();
+      const notificationDate = new Date(date);
+      const diffInMinutes = Math.floor((now - notificationDate) / (1000 * 60));
 
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
+      if (diffInMinutes < 1) return "Just now";
+      if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
 
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours < 24) return `${diffInHours}h ago`;
 
-    return notificationDate.toLocaleDateString();
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7) return `${diffInDays}d ago`;
+
+      return notificationDate.toLocaleDateString();
+    } catch (error) {
+      return "Unknown time";
+    }
   };
+
+  // Handle missing notification data
+  if (!notification) {
+    return null;
+  }
+
+  const title = notification.title || "Notification";
+  const message = notification.message || "New notification";
+  const isRead = notification.read || false;
 
   return (
     <motion.div
@@ -108,14 +124,14 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete }) => {
           <div className="flex items-start justify-between gap-2">
             <h4
               className={`font-semibold text-sm ${
-                notification.read ? "text-gray-600" : "text-gray-900"
+                isRead ? "text-gray-600" : "text-gray-900"
               }`}
             >
-              {notification.title}
+              {title}
             </h4>
 
             <div className="flex items-center gap-1 flex-shrink-0">
-              {!notification.read && (
+              {!isRead && (
                 <button
                   onClick={handleMarkAsRead}
                   disabled={isProcessing}
@@ -143,10 +159,10 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete }) => {
 
           <p
             className={`text-sm mt-1 ${
-              notification.read ? "text-gray-500" : "text-gray-700"
+              isRead ? "text-gray-500" : "text-gray-700"
             }`}
           >
-            {notification.message}
+            {message}
           </p>
 
           <div className="flex items-center justify-between mt-2">
@@ -154,7 +170,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDelete }) => {
               {formatTimeAgo(notification.created_at)}
             </span>
 
-            {!notification.read && (
+            {!isRead && (
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
             )}
           </div>
@@ -178,6 +194,7 @@ export const NotificationBell = ({ userId }) => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    refetch,
   } = useNotifications(userId);
 
   // Close dropdown when clicking outside
@@ -195,6 +212,12 @@ export const NotificationBell = ({ userId }) => {
   const displayedNotifications = showAll
     ? notifications
     : notifications.slice(0, 5);
+
+  const handleRetry = () => {
+    if (refetch) {
+      refetch();
+    }
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -239,7 +262,19 @@ export const NotificationBell = ({ userId }) => {
                 </h3>
 
                 <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
+                  {error && (
+                    <Button
+                      onClick={handleRetry}
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Retry
+                    </Button>
+                  )}
+
+                  {unreadCount > 0 && !error && (
                     <Button
                       onClick={markAllAsRead}
                       variant="ghost"
@@ -274,9 +309,19 @@ export const NotificationBell = ({ userId }) => {
               {error && (
                 <div className="p-4 text-center">
                   <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-sm mb-2">
                     Failed to load notifications
                   </p>
+                  <p className="text-gray-500 text-xs">{error}</p>
+                  <Button
+                    onClick={handleRetry}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Try Again
+                  </Button>
                 </div>
               )}
 
