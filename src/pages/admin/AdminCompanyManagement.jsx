@@ -144,7 +144,6 @@ export default function AdminCompanyManagement() {
 
       setRequests(data || []);
 
-      // Calculate stats
       const total = data?.length || 0;
       const pending =
         data?.filter((r) => r.status === "pending_payment").length || 0;
@@ -160,10 +159,10 @@ export default function AdminCompanyManagement() {
       const completed =
         data?.filter((r) => r.status === "completed").length || 0;
       const totalRevenue =
-        data?.reduce(
-          (sum, req) => sum + (parseFloat(req.package_price) || 0),
-          0
-        ) || 0;
+        data?.reduce((sum, req) => {
+          const price = parseFloat(req.package_price || 0);
+          return sum + (isNaN(price) ? 0 : price);
+        }, 0) || 0;
 
       setStats({
         total,

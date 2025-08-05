@@ -251,17 +251,20 @@ export default function CompanyFormationPage() {
         return;
       }
 
-      // Create request
-      const { error } = await supabase.from("company_requests").insert({
-        user_id: user.id,
-        company_name: acceptedName,
-        package_name: selectedPackage.name,
-        package_price: selectedPackage.price.replace("£", ""),
-        user_details: {
-          fullName: userDetails.fullName,
-          email: userDetails.email,
-        },
-      });
+      const { data: requestData, error } = await supabase
+        .from("company_requests")
+        .insert({
+          user_id: user.id,
+          company_name: acceptedName,
+          package_name: selectedPackage.name,
+          package_price: selectedPackage.price.replace("£", ""),
+          user_details: {
+            fullName: userDetails.fullName,
+            email: userDetails.email,
+          },
+        })
+        .select()
+        .single(); // ← .select().single() ekle ki request ID'yi alabilelim
 
       if (error) throw error;
 
@@ -277,7 +280,57 @@ export default function CompanyFormationPage() {
         },
       });
 
-      setStep(3);
+      // ✅ YENİ: Payment Integration
+      if (requestData) {
+        try {
+          console.log(
+            "🛒 Starting payment process for request:",
+            requestData.id
+          );
+
+          // Get package info for Shopify
+          const { getShopifyProductInfo } = await import("@/lib/packages");
+          const packageInfo = getShopifyProductInfo(selectedPackage.name);
+
+          if (packageInfo) {
+            // Create checkout session
+            const { data: checkoutData, error: checkoutError } =
+              await supabase.functions.invoke("create-checkout-session", {
+                body: {
+                  variantId: packageInfo.variantId,
+                  productId: packageInfo.shopifyProductId,
+                  requestId: requestData.id,
+                },
+              });
+
+            if (checkoutError) {
+              console.error("Checkout error:", checkoutError);
+              // Fallback to request details page
+              navigate(`/dashboard/request/${requestData.id}`);
+              return;
+            }
+
+            if (checkoutData.success && checkoutData.checkoutUrl) {
+              console.log(
+                "✅ Redirecting to payment:",
+                checkoutData.checkoutUrl
+              );
+              window.location.href = checkoutData.checkoutUrl;
+              return;
+            }
+          }
+
+          // If payment setup fails, go to request details
+          navigate(`/dashboard/request/${requestData.id}`);
+        } catch (paymentError) {
+          console.error("Payment setup error:", paymentError);
+          // Fallback to request details page
+          navigate(`/dashboard/request/${requestData.id}`);
+        }
+      } else {
+        // Fallback if no request data
+        setStep(3);
+      }
       window.scrollTo({
         top: detailsFormRef.current?.offsetTop - 150 || 0,
         behavior: "smooth",

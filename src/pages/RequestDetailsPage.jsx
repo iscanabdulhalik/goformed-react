@@ -1,4 +1,4 @@
-// src/pages/RequestDetailsPage.jsx - İSTENEN DÜZELTMELERİN UYGULANDIĞI TAM VE GÜNCEL KOD
+// src/pages/RequestDetailsPage.jsx - UPDATED WITH PAYMENT INTEGRATION
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -17,6 +17,8 @@ import {
   FaTimesCircle,
   FaSpinner,
   FaPoundSign,
+  FaBuilding,
+  FaShoppingBag,
 } from "react-icons/fa";
 import {
   FileText,
@@ -31,9 +33,12 @@ import {
   MessageSquare,
   Download,
   Trash2,
+  Loader2,
+  CreditCard,
+  ExternalLink,
 } from "lucide-react";
 
-// Status configuration (Değişiklik yok)
+// Status configuration
 const statusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800",
@@ -43,9 +48,10 @@ const statusConfig = {
     progress: 10,
     nextSteps: [
       "Complete payment to start processing",
-      "Upload required documents",
+      "Upload required documents after payment",
       "Wait for review confirmation",
     ],
+    showPaymentButton: true,
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800",
@@ -58,6 +64,7 @@ const statusConfig = {
       "Provide proof of address",
       "Wait for document verification",
     ],
+    showPaymentButton: false,
   },
   in_review: {
     color: "bg-blue-100 text-blue-800",
@@ -70,6 +77,7 @@ const statusConfig = {
       "Document verification in progress",
       "You will be contacted if additional info is needed",
     ],
+    showPaymentButton: false,
   },
   documents_requested: {
     color: "bg-orange-100 text-orange-800",
@@ -82,6 +90,7 @@ const statusConfig = {
       "Upload missing documents",
       "Wait for verification",
     ],
+    showPaymentButton: false,
   },
   processing: {
     color: "bg-purple-100 text-purple-800",
@@ -94,6 +103,7 @@ const statusConfig = {
       "Processing typically takes 24-48 hours",
       "You'll receive confirmation once completed",
     ],
+    showPaymentButton: false,
   },
   completed: {
     color: "bg-green-100 text-green-800",
@@ -106,6 +116,7 @@ const statusConfig = {
       "Set up business banking",
       "Consider additional services",
     ],
+    showPaymentButton: false,
   },
   rejected: {
     color: "bg-red-100 text-red-800",
@@ -118,6 +129,7 @@ const statusConfig = {
       "Review rejection reasons",
       "Consider resubmitting with corrections",
     ],
+    showPaymentButton: false,
   },
   cancelled: {
     color: "bg-gray-100 text-gray-800",
@@ -126,10 +138,11 @@ const statusConfig = {
     description: "This request has been cancelled",
     progress: 0,
     nextSteps: [],
+    showPaymentButton: false,
   },
 };
 
-// Document types configuration (Değişiklik yok)
+// Document types configuration
 const documentTypes = {
   identity: {
     label: "Identity Document",
@@ -161,7 +174,7 @@ export default function RequestDetailsPage() {
   const { id: requestId } = useParams();
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
-  const [userProfile, setUserProfile] = useState(null); // ✅ YENİ: Profile verisi için ayrı state
+  const [userProfile, setUserProfile] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [communications, setCommunications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +183,7 @@ export default function RequestDetailsPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [documentType, setDocumentType] = useState("identity");
   const [user, setUser] = useState(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -184,12 +198,12 @@ export default function RequestDetailsPage() {
         }
         setUser(user);
 
-        // ✅ GÜNCELLEME 1: İlişki (JOIN) olmadan, sadece başvuru verisini çek.
+        // Fetch company request
         const { data: requestData, error: requestError } = await supabase
           .from("company_requests")
           .select("*")
           .eq("id", requestId)
-          .eq("user_id", user.id) // ✅ Güvenlik: Sadece mevcut kullanıcıya ait başvuruyu çek
+          .eq("user_id", user.id)
           .single();
 
         if (requestError) {
@@ -199,8 +213,7 @@ export default function RequestDetailsPage() {
         }
         setRequest(requestData);
 
-        // ✅ GÜNCELLEME 2: Profile verisini ayrı bir sorgu ile çek.
-        // Bu sorgu başarısız olsa bile sayfa çalışmaya devam edecek.
+        // Fetch user profile separately
         try {
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
@@ -209,7 +222,6 @@ export default function RequestDetailsPage() {
             .single();
 
           if (profileError && profileError.code !== "PGRST116") {
-            // 'PGRST116' = no rows found
             console.warn("Could not fetch user profile:", profileError);
           } else if (profileData) {
             setUserProfile(profileData);
@@ -221,7 +233,7 @@ export default function RequestDetailsPage() {
           );
         }
 
-        // Dokümanları ve iletişimleri çekmeye devam et
+        // Fetch documents
         const { data: documentsData } = await supabase
           .from("documents")
           .select("*")
@@ -229,6 +241,7 @@ export default function RequestDetailsPage() {
           .order("created_at", { ascending: false });
         setDocuments(documentsData || []);
 
+        // Fetch communications
         const { data: communicationsData } = await supabase
           .from("order_communications")
           .select(
@@ -248,7 +261,7 @@ export default function RequestDetailsPage() {
       fetchData();
     }
 
-    // ✅ GÜNCELLEME 3: Canlı güncelleme aboneliği korunuyor.
+    // Real-time subscription
     const channel = supabase
       .channel(`request_${requestId}`)
       .on(
@@ -291,7 +304,139 @@ export default function RequestDetailsPage() {
     return () => supabase.removeChannel(channel);
   }, [requestId, navigate]);
 
-  // handleFileChange, handleUpload, handleDownloadDocument, handleDeleteDocument fonksiyonları aynı kalıyor...
+  // Corrected handlePayment function for RequestDetailsPage.jsx
+  const handlePayment = async () => {
+    if (!request || !user) {
+      alert("Request or user information not available");
+      return;
+    }
+
+    try {
+      setPaying(true);
+      console.log("🚀 Starting payment process...");
+      console.log("Request:", {
+        id: request.id,
+        company_name: request.company_name,
+        package_name: request.package_name,
+      });
+
+      // Get package info from lib/packages.jsx
+      let packageInfo;
+      try {
+        const { getShopifyProductInfo } = await import("@/lib/packages");
+        packageInfo = getShopifyProductInfo(request.package_name);
+        console.log("📦 Package info:", packageInfo);
+      } catch (importError) {
+        console.error("❌ Failed to import package info:", importError);
+        throw new Error("Could not load package information");
+      }
+
+      if (!packageInfo) {
+        console.error("❌ Package not found:", request.package_name);
+        throw new Error(
+          `Package "${request.package_name}" not found in system`
+        );
+      }
+
+      if (!packageInfo.variantId) {
+        console.error("❌ No variant ID:", packageInfo);
+        throw new Error("Package variant ID missing");
+      }
+
+      console.log("🛒 Creating checkout session...");
+      console.log("Payload:", {
+        variantId: packageInfo.variantId,
+        productId: packageInfo.shopifyProductId,
+        requestId: request.id,
+      });
+
+      // Create checkout session
+      const { data, error } = await supabase.functions.invoke(
+        "create-checkout-session",
+        {
+          body: {
+            variantId: packageInfo.variantId,
+            productId: packageInfo.shopifyProductId,
+            requestId: request.id,
+          },
+        }
+      );
+
+      console.log("📡 Function response:", { data, error });
+
+      // Check for function invocation error
+      if (error) {
+        console.error("❌ Function invocation error:", error);
+        throw new Error(`Function error: ${error.message}`);
+      }
+
+      // Check if data exists
+      if (!data) {
+        console.error("❌ No data received from function");
+        throw new Error("No response data from checkout function");
+      }
+
+      // Check for function-level errors
+      if (data.error) {
+        console.error("❌ Function returned error:", data.error);
+        throw new Error(`Checkout error: ${data.error}`);
+      }
+
+      // ✅ FIXED: Don't check for data.success, directly check for checkoutUrl
+      if (!data.checkoutUrl) {
+        console.error("❌ No checkout URL in response:", data);
+        throw new Error("Checkout URL not provided by payment service");
+      }
+
+      // Validate URL format
+      try {
+        new URL(data.checkoutUrl);
+      } catch (urlError) {
+        console.error("❌ Invalid checkout URL:", data.checkoutUrl);
+        throw new Error("Invalid checkout URL received");
+      }
+
+      console.log("✅ Checkout URL received:", data.checkoutUrl);
+      console.log("🔗 Redirecting to payment...");
+
+      // Redirect to checkout
+      window.location.href = data.checkoutUrl;
+    } catch (error) {
+      console.error("💥 Payment error details:", {
+        message: error.message,
+        stack: error.stack,
+        request: request
+          ? { id: request.id, package_name: request.package_name }
+          : null,
+        user: user ? { id: user.id, email: user.email } : null,
+      });
+
+      // Show user-friendly error message
+      let userMessage = "Payment setup failed. ";
+
+      if (
+        error.message.includes("Package") &&
+        error.message.includes("not found")
+      ) {
+        userMessage += "Package configuration issue. Please contact support.";
+      } else if (error.message.includes("variant ID")) {
+        userMessage += "Product configuration issue. Please contact support.";
+      } else if (error.message.includes("Function error")) {
+        userMessage += "Server error. Please try again or contact support.";
+      } else if (error.message.includes("Checkout URL")) {
+        userMessage += "Payment service unavailable. Please try again later.";
+      } else {
+        userMessage +=
+          "Please try again or contact support if the problem persists.";
+      }
+
+      alert(userMessage);
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // File handling functions
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -334,18 +479,16 @@ export default function RequestDetailsPage() {
           upsert: false,
         });
       if (uploadError) throw uploadError;
-      await supabase
-        .from("documents")
-        .insert({
-          request_id: requestId,
-          user_id: user.id,
-          file_name: selectedFile.name,
-          storage_path: filePath,
-          file_size: selectedFile.size,
-          mime_type: selectedFile.type,
-          document_type: documentType,
-          uploaded_by: user.id,
-        });
+      await supabase.from("documents").insert({
+        request_id: requestId,
+        user_id: user.id,
+        file_name: selectedFile.name,
+        storage_path: filePath,
+        file_size: selectedFile.size,
+        mime_type: selectedFile.type,
+        document_type: documentType,
+        uploaded_by: user.id,
+      });
       setSelectedFile(null);
       document.getElementById("file-upload").value = "";
       alert("Document uploaded successfully!");
@@ -396,57 +539,50 @@ export default function RequestDetailsPage() {
 
   if (loading) return <Loader />;
 
-  // Hata ve bulunamadı durumları için JSX (Değişiklik yok)
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        {" "}
         <Card className="max-w-md">
-          {" "}
           <CardContent className="p-6 text-center">
-            {" "}
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />{" "}
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Error Loading Request
-            </h3>{" "}
-            <p className="text-gray-600 mb-4">{error}</p>{" "}
+            </h3>
+            <p className="text-gray-600 mb-4">{error}</p>
             <div className="flex gap-2 justify-center">
-              {" "}
               <Button
                 onClick={() => window.location.reload()}
                 variant="outline"
               >
                 Try Again
-              </Button>{" "}
+              </Button>
               <Button onClick={() => navigate("/dashboard")}>
                 Back to Dashboard
-              </Button>{" "}
-            </div>{" "}
-          </CardContent>{" "}
-        </Card>{" "}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
+
   if (!request) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        {" "}
         <Card className="max-w-md">
-          {" "}
           <CardContent className="p-6 text-center">
-            {" "}
-            <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />{" "}
+            <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Request Not Found
-            </h3>{" "}
+            </h3>
             <p className="text-gray-600 mb-4">
               The requested company formation details could not be found.
-            </p>{" "}
+            </p>
             <Button onClick={() => navigate("/dashboard")}>
               Back to Dashboard
-            </Button>{" "}
-          </CardContent>{" "}
-        </Card>{" "}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -456,176 +592,247 @@ export default function RequestDetailsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header (Değişiklik yok) */}
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
       >
-        {" "}
         <div>
-          {" "}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {request.company_name}
-          </h1>{" "}
+          </h1>
           <p className="text-gray-600">
-            {" "}
             Request ID: {request.id.slice(0, 8)} • Created{" "}
-            {new Date(request.created_at).toLocaleDateString()}{" "}
-          </p>{" "}
-        </div>{" "}
+            {new Date(request.created_at).toLocaleDateString()}
+          </p>
+        </div>
         <div className="flex items-center gap-4">
-          {" "}
           <Badge className={`${status.color} border px-3 py-1`}>
-            {" "}
-            <StatusIcon className="mr-2 h-4 w-4" /> {status.label}{" "}
-          </Badge>{" "}
+            <StatusIcon className="mr-2 h-4 w-4" />
+            {status.label}
+          </Badge>
           <Button onClick={() => navigate("/dashboard")} variant="outline">
-            {" "}
-            Back to Dashboard{" "}
-          </Button>{" "}
-        </div>{" "}
+            Back to Dashboard
+          </Button>
+        </div>
       </motion.div>
 
-      {/* Status Progress (Değişiklik yok) */}
+      {/* Status Progress */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        {" "}
         <Card>
-          {" "}
           <CardHeader>
-            {" "}
             <CardTitle className="flex items-center gap-2">
-              {" "}
-              <StatusIcon className="h-5 w-5" /> Current Status: {status.label}{" "}
-            </CardTitle>{" "}
-          </CardHeader>{" "}
+              <StatusIcon className="h-5 w-5" />
+              Current Status: {status.label}
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            {" "}
             <div className="space-y-4">
-              {" "}
               <div>
-                {" "}
                 <div className="flex justify-between text-sm mb-2">
-                  {" "}
-                  <span>Progress</span> <span>{status.progress}%</span>{" "}
-                </div>{" "}
-                <Progress value={status.progress} className="h-2" />{" "}
-              </div>{" "}
-              <p className="text-gray-600">{status.description}</p>{" "}
+                  <span>Progress</span>
+                  <span>{status.progress}%</span>
+                </div>
+                <Progress value={status.progress} className="h-2" />
+              </div>
+              <p className="text-gray-600">{status.description}</p>
+
               {status.nextSteps.length > 0 && (
                 <div>
-                  {" "}
                   <h4 className="font-semibold text-gray-900 mb-2">
                     Next Steps:
-                  </h4>{" "}
+                  </h4>
                   <ul className="space-y-1">
-                    {" "}
                     {status.nextSteps.map((step, index) => (
                       <li
                         key={index}
                         className="flex items-start gap-2 text-sm text-gray-600"
                       >
-                        {" "}
-                        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />{" "}
-                        {step}{" "}
+                        <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        {step}
                       </li>
-                    ))}{" "}
-                  </ul>{" "}
+                    ))}
+                  </ul>
                 </div>
-              )}{" "}
-            </div>{" "}
-          </CardContent>{" "}
-        </Card>{" "}
+              )}
+
+              {/* Payment Button */}
+              {status.showPaymentButton && request.package_price && (
+                <div className="border-t pt-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <h4 className="font-semibold text-blue-900">
+                          Payment Required
+                        </h4>
+                        <p className="text-sm text-blue-700">
+                          Complete your payment to start the company formation
+                          process
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {request.package_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Company Formation Package
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-gray-900">
+                        £{parseFloat(request.package_price).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        + £50 Companies House fee
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handlePayment}
+                    disabled={paying}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3"
+                    size="lg"
+                  >
+                    {paying ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Processing Payment...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        Pay Now - £
+                        {parseFloat(request.package_price).toFixed(2)}
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    Secure payment powered by Shopify
+                  </p>
+                </div>
+              )}
+
+              {/* Payment Info (if paid) */}
+              {request.payment_data && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Payment Information
+                  </h4>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-medium">Order ID:</span>{" "}
+                        {request.payment_data.order_id}
+                      </div>
+                      <div>
+                        <span className="font-medium">Amount:</span>{" "}
+                        {request.payment_data.currency}{" "}
+                        {request.payment_data.total_price}
+                      </div>
+                      {request.payment_data.paid_at && (
+                        <div className="col-span-2">
+                          <span className="font-medium">Paid At:</span>{" "}
+                          {new Date(
+                            request.payment_data.paid_at
+                          ).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Company Details (Değişiklik yok) */}
+        {/* Company Details */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
         >
-          {" "}
           <Card>
-            {" "}
             <CardHeader>
-              {" "}
               <CardTitle className="flex items-center gap-2">
-                {" "}
-                <Building2 className="h-5 w-5" /> Company Details{" "}
-              </CardTitle>{" "}
-            </CardHeader>{" "}
+                <Building2 className="h-5 w-5" />
+                Company Details
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
-              {" "}
               <div>
-                {" "}
                 <Label className="text-sm font-medium text-gray-700">
                   Company Name
-                </Label>{" "}
+                </Label>
                 <p className="text-gray-900 font-semibold">
                   {request.company_name}
-                </p>{" "}
-              </div>{" "}
+                </p>
+              </div>
               <div>
-                {" "}
                 <Label className="text-sm font-medium text-gray-700">
                   Package
-                </Label>{" "}
-                <p className="text-gray-900">{request.package_name}</p>{" "}
-              </div>{" "}
+                </Label>
+                <p className="text-gray-900">{request.package_name}</p>
+              </div>
               {request.package_price && (
                 <div>
-                  {" "}
                   <Label className="text-sm font-medium text-gray-700">
                     Package Price
-                  </Label>{" "}
+                  </Label>
                   <p className="text-gray-900 font-semibold flex items-center gap-1">
-                    {" "}
-                    <FaPoundSign className="h-3 w-3" />{" "}
-                    {parseFloat(request.package_price).toFixed(2)}{" "}
-                  </p>{" "}
+                    <FaPoundSign className="h-3 w-3" />
+                    {parseFloat(request.package_price).toFixed(2)}
+                  </p>
                 </div>
-              )}{" "}
+              )}
               <div>
-                {" "}
                 <Label className="text-sm font-medium text-gray-700">
                   Created
-                </Label>{" "}
+                </Label>
                 <p className="text-gray-900">
                   {new Date(request.created_at).toLocaleString("en-GB")}
-                </p>{" "}
-              </div>{" "}
+                </p>
+              </div>
               {request.completed_at && (
                 <div>
-                  {" "}
                   <Label className="text-sm font-medium text-gray-700">
                     Completed
-                  </Label>{" "}
+                  </Label>
                   <p className="text-gray-900">
                     {new Date(request.completed_at).toLocaleString("en-GB")}
-                  </p>{" "}
+                  </p>
                 </div>
-              )}{" "}
+              )}
               {request.notes && (
                 <div>
-                  {" "}
                   <Label className="text-sm font-medium text-gray-700">
                     Notes
-                  </Label>{" "}
+                  </Label>
                   <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded-lg">
                     {request.notes}
-                  </p>{" "}
+                  </p>
                 </div>
-              )}{" "}
-            </CardContent>{" "}
-          </Card>{" "}
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
-        {/* ✅ GÜNCELLEME 4: Personal Details, request.profiles yerine userProfile state'inden besleniyor. */}
+        {/* Personal Details */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -647,7 +854,7 @@ export default function RequestDetailsPage() {
                   </div>
                   <div>
                     <Label>Email</Label>
-                    <p>{userProfile.email}</p>
+                    <p>{userProfile.email || user?.email}</p>
                   </div>
                   {userProfile.phone && (
                     <div>
@@ -671,173 +878,169 @@ export default function RequestDetailsPage() {
                   )}
                 </>
               ) : (
-                <p className="text-sm text-gray-500">
-                  User profile details could not be loaded.
-                </p>
+                <div className="text-center py-6">
+                  <User className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-sm text-gray-500">
+                    User profile details could not be loaded.
+                  </p>
+                  <Button
+                    onClick={() => navigate("/dashboard/settings")}
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                  >
+                    Complete Profile
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
-      {/* Diğer tüm bölümler (Document Upload, Uploaded Documents, Communications, Help Section) aynı kalıyor. */}
       {/* Document Upload Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        {" "}
-        <Card>
-          {" "}
-          <CardHeader>
-            {" "}
-            <CardTitle className="flex items-center gap-2">
-              {" "}
-              <Upload className="h-5 w-5" /> Document Upload{" "}
-            </CardTitle>{" "}
-          </CardHeader>{" "}
-          <CardContent>
-            {" "}
-            {request.status === "completed" ? (
-              <div className="text-center py-6">
-                {" "}
-                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />{" "}
-                <p className="text-gray-600">
-                  {" "}
-                  Your company formation is complete. No additional documents
-                  required.{" "}
-                </p>{" "}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {" "}
-                <div>
-                  {" "}
-                  <h4 className="font-semibold text-gray-900 mb-3">
-                    Required Documents
-                  </h4>{" "}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {" "}
-                    {Object.entries(documentTypes).map(([type, config]) => {
-                      const hasDocument = documents.some(
-                        (doc) => doc.document_type === type
-                      );
-                      return (
-                        <div
-                          key={type}
-                          className={`p-3 border rounded-lg ${
-                            hasDocument
-                              ? "bg-green-50 border-green-200"
-                              : "bg-gray-50 border-gray-200"
-                          }`}
-                        >
-                          {" "}
-                          <div className="flex items-center gap-2 mb-1">
-                            {" "}
-                            {config.icon}{" "}
-                            <span className="font-medium text-sm">
-                              {config.label}
-                            </span>{" "}
-                            {config.required && (
-                              <Badge variant="outline" className="text-xs">
-                                Required
-                              </Badge>
-                            )}{" "}
-                            {hasDocument && (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            )}{" "}
-                          </div>{" "}
-                          <p className="text-xs text-gray-600">
-                            {config.description}
-                          </p>{" "}
-                        </div>
-                      );
-                    })}{" "}
-                  </div>{" "}
-                </div>{" "}
-                <div className="border-t pt-6">
-                  {" "}
-                  <h4 className="font-semibold text-gray-900 mb-4">
-                    Upload New Document
-                  </h4>{" "}
-                  <div className="space-y-4">
-                    {" "}
-                    <div>
-                      {" "}
-                      <Label htmlFor="document-type">Document Type</Label>{" "}
-                      <select
-                        id="document-type"
-                        value={documentType}
-                        onChange={(e) => setDocumentType(e.target.value)}
-                        className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-                      >
-                        {" "}
-                        {Object.entries(documentTypes).map(([type, config]) => (
-                          <option key={type} value={type}>
-                            {config.label}
-                          </option>
-                        ))}{" "}
-                      </select>{" "}
-                    </div>{" "}
-                    <div>
-                      {" "}
-                      <Label htmlFor="file-upload">Select File</Label>{" "}
-                      <Input
-                        id="file-upload"
-                        type="file"
-                        onChange={handleFileChange}
-                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                        className="mt-1"
-                      />{" "}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Accepted formats: PDF, JPG, PNG, DOC, DOCX. Maximum
-                        size: 10MB
-                      </p>{" "}
-                    </div>{" "}
-                    {selectedFile && (
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        {" "}
-                        <div className="flex items-center justify-between">
-                          {" "}
-                          <div>
-                            {" "}
-                            <p className="text-sm font-medium text-blue-900">
-                              {selectedFile.name}
-                            </p>{" "}
-                            <p className="text-xs text-blue-700">
-                              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                            </p>{" "}
-                          </div>{" "}
-                          <Button
-                            onClick={handleUpload}
-                            disabled={uploading}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
+      {request.status !== "pending_payment" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Document Upload
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {request.status === "completed" ? (
+                <div className="text-center py-6">
+                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    Your company formation is complete. No additional documents
+                    required.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">
+                      Required Documents
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(documentTypes).map(([type, config]) => {
+                        const hasDocument = documents.some(
+                          (doc) => doc.document_type === type
+                        );
+                        return (
+                          <div
+                            key={type}
+                            className={`p-3 border rounded-lg ${
+                              hasDocument
+                                ? "bg-green-50 border-green-200"
+                                : "bg-gray-50 border-gray-200"
+                            }`}
                           >
-                            {" "}
-                            {uploading ? (
-                              <>
-                                <FaSpinner className="animate-spin mr-2 h-4 w-4" />
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload
-                              </>
-                            )}{" "}
-                          </Button>{" "}
-                        </div>{" "}
+                            <div className="flex items-center gap-2 mb-1">
+                              {config.icon}
+                              <span className="font-medium text-sm">
+                                {config.label}
+                              </span>
+                              {config.required && (
+                                <Badge variant="outline" className="text-xs">
+                                  Required
+                                </Badge>
+                              )}
+                              {hasDocument && (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {config.description}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4">
+                      Upload New Document
+                    </h4>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="document-type">Document Type</Label>
+                        <select
+                          id="document-type"
+                          value={documentType}
+                          onChange={(e) => setDocumentType(e.target.value)}
+                          className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        >
+                          {Object.entries(documentTypes).map(
+                            ([type, config]) => (
+                              <option key={type} value={type}>
+                                {config.label}
+                              </option>
+                            )
+                          )}
+                        </select>
                       </div>
-                    )}{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>
-            )}{" "}
-          </CardContent>{" "}
-        </Card>{" "}
-      </motion.div>
+                      <div>
+                        <Label htmlFor="file-upload">Select File</Label>
+                        <Input
+                          id="file-upload"
+                          type="file"
+                          onChange={handleFileChange}
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Accepted formats: PDF, JPG, PNG, DOC, DOCX. Maximum
+                          size: 10MB
+                        </p>
+                      </div>
+                      {selectedFile && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-blue-900">
+                                {selectedFile.name}
+                              </p>
+                              <p className="text-xs text-blue-700">
+                                {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                                MB
+                              </p>
+                            </div>
+                            <Button
+                              onClick={handleUpload}
+                              disabled={uploading}
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              {uploading ? (
+                                <>
+                                  <FaSpinner className="animate-spin mr-2 h-4 w-4" />
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Upload
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Uploaded Documents */}
       {documents.length > 0 && (
         <motion.div
@@ -845,21 +1048,15 @@ export default function RequestDetailsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          {" "}
           <Card>
-            {" "}
             <CardHeader>
-              {" "}
               <CardTitle className="flex items-center gap-2">
-                {" "}
-                <FileText className="h-5 w-5" /> Uploaded Documents (
-                {documents.length}){" "}
-              </CardTitle>{" "}
-            </CardHeader>{" "}
+                <FileText className="h-5 w-5" />
+                Uploaded Documents ({documents.length})
+              </CardTitle>
+            </CardHeader>
             <CardContent>
-              {" "}
               <div className="space-y-3">
-                {" "}
                 {documents.map((document) => {
                   const docType =
                     documentTypes[document.document_type] ||
@@ -869,19 +1066,15 @@ export default function RequestDetailsPage() {
                       key={document.id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
-                      {" "}
                       <div className="flex items-center gap-3">
-                        {" "}
                         <div className="p-2 bg-blue-100 rounded-lg">
                           {docType.icon}
-                        </div>{" "}
+                        </div>
                         <div>
-                          {" "}
                           <p className="font-medium text-sm text-gray-900">
                             {document.file_name}
-                          </p>{" "}
+                          </p>
                           <p className="text-xs text-gray-500">
-                            {" "}
                             {docType.label} •{" "}
                             {document.file_size
                               ? `${(document.file_size / 1024 / 1024).toFixed(
@@ -889,8 +1082,8 @@ export default function RequestDetailsPage() {
                                 )} MB`
                               : ""}{" "}
                             • Uploaded{" "}
-                            {new Date(document.created_at).toLocaleDateString()}{" "}
-                          </p>{" "}
+                            {new Date(document.created_at).toLocaleDateString()}
+                          </p>
                           {document.status && (
                             <Badge
                               className={`text-xs mt-1 ${
@@ -904,11 +1097,10 @@ export default function RequestDetailsPage() {
                               {document.status.charAt(0).toUpperCase() +
                                 document.status.slice(1)}
                             </Badge>
-                          )}{" "}
-                        </div>{" "}
-                      </div>{" "}
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
-                        {" "}
                         <Button
                           onClick={() => handleDownloadDocument(document)}
                           variant="ghost"
@@ -916,7 +1108,7 @@ export default function RequestDetailsPage() {
                           className="text-blue-600 hover:text-blue-700"
                         >
                           <Download className="h-4 w-4" />
-                        </Button>{" "}
+                        </Button>
                         {request.status !== "completed" && (
                           <Button
                             onClick={() => handleDeleteDocument(document.id)}
@@ -926,16 +1118,17 @@ export default function RequestDetailsPage() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        )}{" "}
-                      </div>{" "}
+                        )}
+                      </div>
                     </div>
                   );
-                })}{" "}
-              </div>{" "}
-            </CardContent>{" "}
-          </Card>{" "}
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
+
       {/* Communications */}
       {communications.length > 0 && (
         <motion.div
@@ -943,20 +1136,15 @@ export default function RequestDetailsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          {" "}
           <Card>
-            {" "}
             <CardHeader>
-              {" "}
               <CardTitle className="flex items-center gap-2">
-                {" "}
-                <MessageSquare className="h-5 w-5" /> Communications{" "}
-              </CardTitle>{" "}
-            </CardHeader>{" "}
+                <MessageSquare className="h-5 w-5" />
+                Communications
+              </CardTitle>
+            </CardHeader>
             <CardContent>
-              {" "}
               <div className="space-y-4">
-                {" "}
                 {communications.map((comm) => (
                   <div
                     key={comm.id}
@@ -966,80 +1154,106 @@ export default function RequestDetailsPage() {
                         : "bg-gray-50"
                     }`}
                   >
-                    {" "}
                     <div className="flex justify-between items-start mb-2">
-                      {" "}
                       <div className="flex items-center gap-2">
-                        {" "}
                         <Badge
                           variant={
                             comm.sender_type === "admin" ? "default" : "outline"
                           }
                           className="text-xs"
                         >
-                          {" "}
                           {comm.sender_type === "admin"
                             ? "Support Team"
-                            : "You"}{" "}
-                        </Badge>{" "}
+                            : "You"}
+                        </Badge>
                         <span className="text-xs text-gray-500">
                           {new Date(comm.created_at).toLocaleString("en-GB")}
-                        </span>{" "}
-                      </div>{" "}
-                    </div>{" "}
+                        </span>
+                      </div>
+                    </div>
                     <p className="text-gray-900 whitespace-pre-wrap">
                       {comm.message}
-                    </p>{" "}
+                    </p>
                   </div>
-                ))}{" "}
-              </div>{" "}
-            </CardContent>{" "}
-          </Card>{" "}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
+
+      {/* Additional Services (if completed) */}
+      {request.status === "completed" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <Card className="bg-gradient-to-r from-purple-50 to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <FaShoppingBag className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Company Formation Complete!
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Explore additional services to grow your business
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => navigate("/dashboard/marketplace")}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    <FaShoppingBag className="mr-2 h-4 w-4" />
+                    Browse Services
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Help Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
+        transition={{ delay: 0.8 }}
       >
-        {" "}
         <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
-          {" "}
           <CardContent className="p-6">
-            {" "}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              {" "}
               <div className="flex items-center gap-4">
-                {" "}
                 <div className="p-3 bg-blue-100 rounded-full">
                   <MessageSquare className="h-6 w-6 text-blue-600" />
-                </div>{" "}
+                </div>
                 <div>
-                  {" "}
-                  <h3 className="font-semibold text-gray-900">
-                    Need Help?
-                  </h3>{" "}
+                  <h3 className="font-semibold text-gray-900">Need Help?</h3>
                   <p className="text-sm text-gray-600">
                     Have questions about your company formation? Our support
                     team is here to help.
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
+                  </p>
+                </div>
+              </div>
               <div className="flex gap-2">
-                {" "}
                 <Button variant="outline" size="sm">
                   <Mail className="h-4 w-4 mr-2" />
                   Contact Support
-                </Button>{" "}
+                </Button>
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                   <Phone className="h-4 w-4 mr-2" />
                   Schedule Call
-                </Button>{" "}
-              </div>{" "}
-            </div>{" "}
-          </CardContent>{" "}
-        </Card>{" "}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
     </div>
   );

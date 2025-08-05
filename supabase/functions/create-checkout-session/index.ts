@@ -1,4 +1,4 @@
-// supabase/functions/create-checkout-session/index.ts
+// supabase/functions/create-checkout-session/index.ts - FIXED VERSION
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2?dts";
 
@@ -12,6 +12,7 @@ const corsHeaders = {
 interface CartLine {
   merchandiseId: string;
   quantity: number;
+  attributes?: { key: string; value: string }[];
 }
 
 interface CartAttribute {
@@ -33,7 +34,7 @@ serve(async (req) => {
 
     // Validate input
     if (!variantId || !requestId) {
-      throw new Error("variantId ve requestId gerekli");
+      throw new Error("variantId and requestId are required");
     }
 
     // Environment variables check
@@ -54,7 +55,7 @@ serve(async (req) => {
         SHOPIFY_STORE_DOMAIN: !!SHOPIFY_STORE_DOMAIN,
         SHOPIFY_ACCESS_TOKEN: !!SHOPIFY_ACCESS_TOKEN,
       });
-      throw new Error("Shopify yapılandırması eksik");
+      throw new Error("Shopify configuration missing");
     }
 
     // Initialize Supabase Admin Client
@@ -62,7 +63,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Supabase yapılandırması eksik");
+      throw new Error("Supabase configuration missing");
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -70,7 +71,7 @@ serve(async (req) => {
     // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      throw new Error("Authorization header gerekli");
+      throw new Error("Authorization header required");
     }
 
     const token = authHeader.replace("Bearer ", "");
@@ -79,7 +80,7 @@ serve(async (req) => {
 
     if (authError || !userData.user) {
       console.error("Auth error:", authError);
-      throw new Error("Geçersiz authentication");
+      throw new Error("Invalid authentication");
     }
 
     const user = userData.user;
@@ -95,7 +96,7 @@ serve(async (req) => {
 
     if (requestError || !request) {
       console.error("Request verification failed:", requestError);
-      throw new Error("Request bulunamadı veya yetki yok");
+      throw new Error("Request not found or unauthorized");
     }
 
     console.log("Request verified:", {
@@ -107,7 +108,7 @@ serve(async (req) => {
     // Shopify GraphQL endpoint
     const shopifyEndpoint = `https://${SHOPIFY_STORE_DOMAIN}/api/2024-01/graphql.json`;
 
-    // Create cart mutation
+    // ✅ FIXED: Enhanced cart mutation with proper attributes
     const cartMutation = `
       mutation cartCreate($input: CartInput!) {
         cartCreate(input: $input) {
@@ -121,6 +122,30 @@ serve(async (req) => {
                 currencyCode
               }
             }
+            attributes {
+              key
+              value
+            }
+            lines(first: 10) {
+              edges {
+                node {
+                  id
+                  merchandise {
+                    ... on ProductVariant {
+                      id
+                      title
+                      product {
+                        title
+                      }
+                    }
+                  }
+                  attributes {
+                    key
+                    value
+                  }
+                }
+              }
+            }
           }
           userErrors {
             field
@@ -131,12 +156,18 @@ serve(async (req) => {
       }
     `;
 
+    // ✅ FIXED: Add request ID to BOTH cart attributes AND line item attributes
     const cartInput = {
       input: {
         lines: [
           {
             merchandiseId: variantId,
             quantity: 1,
+            attributes: [
+              { key: "company_request_id", value: requestId.toString() },
+              { key: "user_email", value: user.email || "" },
+              { key: "company_name", value: request.company_name || "" },
+            ],
           },
         ] as CartLine[],
         attributes: [
@@ -144,15 +175,19 @@ serve(async (req) => {
           { key: "user_email", value: user.email || "" },
           { key: "company_name", value: request.company_name || "" },
           { key: "package_name", value: request.package_name || "" },
+          { key: "user_id", value: user.id },
+          { key: "created_from", value: "goformed_app" },
         ] as CartAttribute[],
         buyerIdentity: {
           email: user.email,
         },
+        // ✅ ADDED: Note for webhook processing
+        note: `GoFormed Company Formation - Request ID: ${requestId} - Company: ${request.company_name}`,
       },
     };
 
     console.log(
-      "Creating cart with input:",
+      "Creating cart with enhanced attributes:",
       JSON.stringify(cartInput, null, 2)
     );
 
@@ -177,7 +212,7 @@ serve(async (req) => {
         body: errorText,
       });
       throw new Error(
-        `Shopify API hatası: ${shopifyResponse.status} - ${shopifyResponse.statusText}`
+        `Shopify API error: ${shopifyResponse.status} - ${shopifyResponse.statusText}`
       );
     }
 
@@ -187,27 +222,29 @@ serve(async (req) => {
     // Check for GraphQL errors
     if (shopifyResult.errors && shopifyResult.errors.length > 0) {
       console.error("GraphQL errors:", shopifyResult.errors);
-      throw new Error(`GraphQL hatası: ${shopifyResult.errors[0].message}`);
+      throw new Error(`GraphQL error: ${shopifyResult.errors[0].message}`);
     }
 
     // Check for user errors
     const userErrors = shopifyResult.data?.cartCreate?.userErrors;
     if (userErrors && userErrors.length > 0) {
       console.error("Cart creation errors:", userErrors);
-      throw new Error(`Cart oluşturma hatası: ${userErrors[0].message}`);
+      throw new Error(`Cart creation error: ${userErrors[0].message}`);
     }
 
     // Extract checkout URL
     const cart = shopifyResult.data?.cartCreate?.cart;
     if (!cart || !cart.checkoutUrl) {
       console.error("Invalid cart response:", shopifyResult.data?.cartCreate);
-      throw new Error("Checkout URL alınamadı");
+      throw new Error("Checkout URL not received");
     }
 
     console.log("Cart created successfully:", {
       cartId: cart.id,
       checkoutUrl: cart.checkoutUrl,
       totalQuantity: cart.totalQuantity,
+      attributes: cart.attributes,
+      lineAttributes: cart.lines?.edges?.[0]?.node?.attributes,
     });
 
     // Update request status to indicate payment is being processed
@@ -216,6 +253,11 @@ serve(async (req) => {
       .update({
         status: "pending_payment",
         updated_at: new Date().toISOString(),
+        cart_data: {
+          cart_id: cart.id,
+          checkout_url: cart.checkoutUrl,
+          created_at: new Date().toISOString(),
+        },
       })
       .eq("id", requestId);
 
@@ -226,9 +268,9 @@ serve(async (req) => {
 
     console.log("=== SHOPIFY CHECKOUT SESSION SUCCESS ===");
 
+    // ✅ FIXED: Return checkoutUrl directly (no success wrapper)
     return new Response(
       JSON.stringify({
-        success: true,
         checkoutUrl: cart.checkoutUrl,
         cartId: cart.id,
       }),
@@ -248,7 +290,6 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          success: false,
           error: error.message,
         }),
         {
@@ -261,7 +302,6 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          success: false,
           error: "An unknown error occurred",
         }),
         {
