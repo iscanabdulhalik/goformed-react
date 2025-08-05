@@ -1,7 +1,7 @@
-// src/components/layout/Layout.jsx - Router kullanımı kaldırıldı
+// src/components/layout/Layout.jsx - DÜZELTİLMİŞ VERSİYON
 import React from "react";
 import { useLocation } from "react-router-dom";
-import Header from "./Header";
+import Navbar from "./Navbar"; // ✅ Header değil, Navbar olmalı!
 import Footer from "./Footer";
 
 export default function Layout({ children }) {
@@ -11,10 +11,8 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex flex-col min-h-screen w-full">
-      {!isAuthPage && <Header />}
-
+      {!isAuthPage && <Navbar />} {/* ✅ Header değil, Navbar! */}
       <main className="flex-1 w-full">{children}</main>
-
       {!isAuthPage && <Footer />}
     </div>
   );

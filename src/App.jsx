@@ -1,4 +1,4 @@
-// src/App.jsx - Simplified version to fix loading issue
+// src/App.jsx - Updated with new routes
 import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -17,7 +17,7 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import DashboardPage from "@/pages/DashboardPage";
-import CompanyFormationPage from "@/components/sections/CompanyFormationFlow";
+import CompanyFormationFlow from "@/components/sections/CompanyFormationFlow";
 import MarketplacePage from "@/pages/MarketplacePage";
 import OrdersPage from "@/pages/OrdersPage";
 import RequestDetailsPage from "@/pages/RequestDetailsPage";
@@ -29,6 +29,7 @@ import AdminLoginPage from "@/pages/admin/AdminLoginPage";
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
 import AdminUserManagement from "@/pages/admin/AdminUserManagement";
 import AdminCompanyManagement from "@/pages/admin/AdminCompanyManagement";
+import CompanyRequestDetail from "@/pages/admin/CompanyRequestDetail"; // ✅ New import
 import AdminNotificationManagement from "@/pages/admin/AdminNotificationManagement";
 import AdminLayout from "@/components/layout/AdminLayout";
 
@@ -88,13 +89,12 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* ✅ Updated route - now uses standalone component without DashboardLayout */}
         <Route
           path="/dashboard/company-formation"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <CompanyFormationPage />
-              </DashboardLayout>
+              <CompanyFormationFlow />
             </ProtectedRoute>
           }
         />
@@ -184,6 +184,17 @@ function App() {
             <AdminRoute>
               <AdminLayout>
                 <AdminCompanyManagement />
+              </AdminLayout>
+            </AdminRoute>
+          }
+        />
+        {/* ✅ New admin route for company request details */}
+        <Route
+          path="/admin/companies/:id"
+          element={
+            <AdminRoute>
+              <AdminLayout>
+                <CompanyRequestDetail />
               </AdminLayout>
             </AdminRoute>
           }
