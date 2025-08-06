@@ -120,61 +120,165 @@ export default function AdminCompanyManagement() {
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      console.log("🔍 Fetching company requests...");
 
-      let query = supabase.from("company_requests").select(`
-          *,
-          profiles!company_requests_user_id_fkey (
-            id,
-            full_name,
-            role
-          )
-        `);
+      let query = supabase.from("company_requests").select("*");
 
-      // Apply status filter
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);
       }
 
-      // Apply sorting
       query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
-      const { data, error } = await query;
+      const { data: requests, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error fetching requests:", error);
+        throw error;
+      }
 
-      setRequests(data || []);
+      console.log("✅ Fetched requests:", requests?.length || 0);
 
-      const total = data?.length || 0;
-      const pending =
-        data?.filter((r) => r.status === "pending_payment").length || 0;
-      const inProgress =
-        data?.filter((r) =>
-          [
-            "payment_completed",
-            "in_review",
-            "documents_requested",
-            "processing",
-          ].includes(r.status)
-        ).length || 0;
-      const completed =
-        data?.filter((r) => r.status === "completed").length || 0;
-      const totalRevenue =
-        data?.reduce((sum, req) => {
-          const price = parseFloat(req.package_price || 0);
-          return sum + (isNaN(price) ? 0 : price);
-        }, 0) || 0;
+      // ✅ Debug: İlk request'in user_details'ını kontrol et
+      if (requests && requests.length > 0) {
+        console.log(
+          "🔍 Sample request user_details:",
+          requests[0].user_details
+        );
+      }
 
-      setStats({
-        total,
-        pending,
-        inProgress,
-        completed,
-        totalRevenue,
+      // ✅ Profiles'ları çek
+      const userIds = [
+        ...new Set(requests?.map((r) => r.user_id).filter(Boolean)),
+      ];
+
+      let userProfiles = {};
+
+      if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+
+        if (!profileError && profiles) {
+          profiles.forEach((profile) => {
+            userProfiles[profile.id] = profile;
+          });
+          console.log("✅ Fetched profiles for", profiles.length, "users");
+        }
+      }
+
+      // ✅ FIXED: Multiple fallback sources for user info
+      const requestsWithProfiles = (requests || []).map((request) => {
+        const userProfile = userProfiles[request.user_id];
+        const userDetails = request.user_details;
+
+        // ✅ Better name handling
+        let fullName = "Unknown User";
+
+        if (userProfile?.full_name && userProfile.full_name !== null) {
+          fullName = userProfile.full_name;
+        } else if (userDetails?.fullName) {
+          fullName = userDetails.fullName;
+        } else if (userDetails?.personalDetails?.fullName) {
+          fullName = userDetails.personalDetails.fullName;
+        } else if (
+          userDetails?.personalDetails?.firstName &&
+          userDetails?.personalDetails?.lastName
+        ) {
+          fullName = `${userDetails.personalDetails.firstName} ${userDetails.personalDetails.lastName}`;
+        } else if (userDetails?.firstName && userDetails?.lastName) {
+          fullName = `${userDetails.firstName} ${userDetails.lastName}`;
+        }
+
+        // ✅ Better email handling
+        const email =
+          userDetails?.personalDetails?.contactEmail ||
+          userDetails?.personalDetails?.email ||
+          userDetails?.contactEmail ||
+          userDetails?.email ||
+          "No email provided";
+
+        console.log(`👤 User ${request.user_id}:`, {
+          fullName,
+          email,
+          userProfile: userProfile?.full_name,
+          userDetails: userDetails?.personalDetails || userDetails,
+        });
+
+        return {
+          ...request,
+          user_profile: {
+            full_name: fullName,
+            email: email,
+          },
+        };
       });
+
+      setRequests(requestsWithProfiles);
+
+      // Stats hesaplama
+      const total = requestsWithProfiles.length;
+      const pending = requestsWithProfiles.filter(
+        (r) => r.status === "pending_payment"
+      ).length;
+      const inProgress = requestsWithProfiles.filter((r) =>
+        [
+          "payment_completed",
+          "in_review",
+          "documents_requested",
+          "processing",
+        ].includes(r.status)
+      ).length;
+      const completed = requestsWithProfiles.filter(
+        (r) => r.status === "completed"
+      ).length;
+
+      const totalRevenue = requestsWithProfiles.reduce((sum, req) => {
+        const price = parseFloat(req.package_price || 0);
+        return sum + (isNaN(price) ? 0 : price);
+      }, 0);
+
+      const newStats = { total, pending, inProgress, completed, totalRevenue };
+      console.log("📈 Calculated stats:", newStats);
+      setStats(newStats);
     } catch (error) {
-      console.error("Error fetching requests:", error);
+      console.error("💥 Error in fetchRequests:", error);
+      alert(`Error loading requests: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserProfiles = async (requests) => {
+    try {
+      console.log("👥 Fetching user profiles...");
+
+      const userIds = [...new Set(requests.map((r) => r.user_id))];
+
+      if (userIds.length === 0) return {};
+
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      if (error) {
+        console.warn("⚠️ Could not fetch profiles:", error.message);
+        return {};
+      }
+
+      // Create a lookup object
+      const profileLookup = {};
+      profiles?.forEach((profile) => {
+        profileLookup[profile.id] = profile;
+      });
+
+      console.log("✅ Fetched profiles for", profiles?.length, "users");
+      return profileLookup;
+    } catch (error) {
+      console.warn("⚠️ Error fetching profiles:", error);
+      return {};
     }
   };
 
@@ -208,6 +312,26 @@ export default function AdminCompanyManagement() {
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading company requests...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!requests && !loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Error Loading Data
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Could not load company requests from database
+          </p>
+          <Button onClick={fetchRequests} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -460,11 +584,11 @@ export default function AdminCompanyManagement() {
                         <TableCell>
                           <div>
                             <p className="text-gray-900">
-                              {request.profiles?.full_name || "No name"}
+                              {request.user_profile?.full_name ||
+                                "Unknown User"}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {request.user_details?.personalDetails
-                                ?.contactEmail || "No email"}
+                              {request.user_profile?.email || "No email"}
                             </p>
                           </div>
                         </TableCell>

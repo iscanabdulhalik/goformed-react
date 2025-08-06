@@ -458,209 +458,320 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  // ✅ Fetch real activities from activity_logs table
-  useEffect(() => {
-    const fetchRealActivities = async () => {
-      try {
-        const { data: activities, error } = await supabase
-          .from("activity_logs")
-          .select(
-            `
-            *,
-            profiles:user_id(full_name, email)
-          `
-          )
-          .order("created_at", { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.warn("Activity logs table error:", error.message);
-          setRecentActivities([]);
-          return;
-        }
-
-        const formattedActivities =
-          activities?.map((activity) => ({
-            id: activity.id,
-            title: formatActivityTitle(activity.action),
-            description:
-              activity.description || formatActivityDescription(activity),
-            time: formatRelativeTime(activity.created_at),
-            icon: getActivityIcon(activity.action),
-            bgColor: getActivityBgColor(activity.action),
-            iconColor: getActivityIconColor(activity.action),
-          })) || [];
-
-        setRecentActivities(formattedActivities);
-        console.log(`📋 Loaded ${formattedActivities.length} real activities`);
-      } catch (error) {
-        console.error("❌ Error fetching activities:", error);
-        setRecentActivities([]);
-      }
-    };
-
-    fetchRealActivities();
-  }, []);
-
-  // ✅ Generate real chart data based on your schema
+  // ✅ Generate real chart data based on your schema (WITHOUT auth.admin)
   const generateRealChartData = async (
     companies,
     serviceOrders,
     payments,
     totalUsers
   ) => {
-    // Generate monthly data for the last 6 months
-    const months = [];
-    const now = new Date();
+    try {
+      console.log("📊 Generating chart data...");
 
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      // Generate monthly data for the last 6 months
+      const months = [];
+      const now = new Date();
 
-      // Count companies created in this month
-      const monthCompanies = companies.filter((c) => {
-        const createdAt = new Date(c.created_at);
-        return createdAt >= monthStart && createdAt <= monthEnd;
-      }).length;
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-      // Count service orders created in this month
-      const monthServices = serviceOrders.filter((s) => {
-        const createdAt = new Date(s.created_at);
-        return createdAt >= monthStart && createdAt <= monthEnd;
-      }).length;
+        // Count companies created in this month
+        const monthCompanies = companies.filter((c) => {
+          const createdAt = new Date(c.created_at);
+          return createdAt >= monthStart && createdAt <= monthEnd;
+        }).length;
 
-      // Calculate revenue for this month
-      const monthRevenue =
-        companies
-          .filter((c) => {
-            const createdAt = new Date(c.created_at);
-            return (
-              createdAt >= monthStart &&
-              createdAt <= monthEnd &&
-              c.package_price
-            );
-          })
-          .reduce((sum, c) => sum + (parseFloat(c.package_price) || 0), 0) +
-        serviceOrders
-          .filter((s) => {
-            const createdAt = new Date(s.created_at);
-            return (
-              createdAt >= monthStart && createdAt <= monthEnd && s.price_amount
-            );
-          })
-          .reduce((sum, s) => sum + (parseFloat(s.price_amount) || 0), 0);
+        // Count service orders created in this month
+        const monthServices = serviceOrders.filter((s) => {
+          const createdAt = new Date(s.created_at);
+          return createdAt >= monthStart && createdAt <= monthEnd;
+        }).length;
 
-      months.push({
-        month: date.toLocaleDateString("en-US", { month: "short" }),
-        users: Math.max(1, Math.floor(totalUsers / 6)), // Approximate distribution
-        companies: monthCompanies,
-        services: monthServices,
-        revenue: monthRevenue,
+        // ✅ FIXED: Calculate users by month from profiles table (if possible)
+        let monthUsers = 0;
+        try {
+          const { count: profilesThisMonth } = await supabase
+            .from("profiles")
+            .select("*", { count: "exact", head: true })
+            .gte("created_at", monthStart.toISOString())
+            .lte("created_at", monthEnd.toISOString());
+
+          monthUsers = profilesThisMonth || 0;
+        } catch (error) {
+          // Fallback: distribute total users evenly
+          monthUsers = Math.max(1, Math.floor(totalUsers / 6));
+          console.warn(
+            "Could not get monthly users, using fallback:",
+            monthUsers
+          );
+        }
+
+        // Calculate revenue for this month
+        const monthRevenue =
+          companies
+            .filter((c) => {
+              const createdAt = new Date(c.created_at);
+              return (
+                createdAt >= monthStart &&
+                createdAt <= monthEnd &&
+                c.package_price
+              );
+            })
+            .reduce((sum, c) => sum + (parseFloat(c.package_price) || 0), 0) +
+          serviceOrders
+            .filter((s) => {
+              const createdAt = new Date(s.created_at);
+              return (
+                createdAt >= monthStart &&
+                createdAt <= monthEnd &&
+                s.price_amount &&
+                s.status === "completed"
+              );
+            })
+            .reduce((sum, s) => sum + (parseFloat(s.price_amount) || 0), 0) +
+          payments
+            .filter((p) => {
+              const createdAt = new Date(p.created_at);
+              return (
+                createdAt >= monthStart &&
+                createdAt <= monthEnd &&
+                p.status === "succeeded" &&
+                p.amount
+              );
+            })
+            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+        months.push({
+          month: date.toLocaleDateString("en-US", { month: "short" }),
+          users: monthUsers,
+          companies: monthCompanies,
+          services: monthServices,
+          revenue: Math.round(monthRevenue * 100) / 100, // Round to 2 decimals
+        });
+      }
+
+      console.log("📈 Monthly data:", months);
+
+      // ✅ Real company status distribution
+      const statusCounts = {
+        completed: companies.filter((c) => c.status === "completed").length,
+        in_review: companies.filter((c) => c.status === "in_review").length,
+        processing: companies.filter((c) => c.status === "processing").length,
+        pending_payment: companies.filter((c) => c.status === "pending_payment")
+          .length,
+        documents_requested: companies.filter(
+          (c) => c.status === "documents_requested"
+        ).length,
+        rejected: companies.filter((c) => c.status === "rejected").length,
+        cancelled: companies.filter((c) => c.status === "cancelled").length,
+      };
+
+      const total = Object.values(statusCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+      console.log("📊 Status counts:", statusCounts, "Total:", total);
+
+      const statusData =
+        total > 0
+          ? [
+              {
+                name: "Completed",
+                value: Math.round((statusCounts.completed / total) * 100),
+                count: statusCounts.completed,
+                color: "#10B981",
+              },
+              {
+                name: "In Review",
+                value: Math.round((statusCounts.in_review / total) * 100),
+                count: statusCounts.in_review,
+                color: "#3B82F6",
+              },
+              {
+                name: "Processing",
+                value: Math.round((statusCounts.processing / total) * 100),
+                count: statusCounts.processing,
+                color: "#8B5CF6",
+              },
+              {
+                name: "Pending Payment",
+                value: Math.round((statusCounts.pending_payment / total) * 100),
+                count: statusCounts.pending_payment,
+                color: "#F59E0B",
+              },
+              {
+                name: "Documents Requested",
+                value: Math.round(
+                  (statusCounts.documents_requested / total) * 100
+                ),
+                count: statusCounts.documents_requested,
+                color: "#F97316",
+              },
+              {
+                name: "Rejected",
+                value: Math.round((statusCounts.rejected / total) * 100),
+                count: statusCounts.rejected,
+                color: "#EF4444",
+              },
+              {
+                name: "Cancelled",
+                value: Math.round((statusCounts.cancelled / total) * 100),
+                count: statusCounts.cancelled,
+                color: "#6B7280",
+              },
+            ].filter((item) => item.count > 0) // Only show statuses that have data
+          : [];
+
+      // ✅ Real payment status distribution
+      const paymentStatusCounts = {
+        succeeded: payments.filter((p) => p.status === "succeeded").length,
+        pending: payments.filter((p) => p.status === "pending").length,
+        failed: payments.filter((p) => p.status === "failed").length,
+        processing: payments.filter((p) => p.status === "processing").length,
+        cancelled: payments.filter((p) => p.status === "cancelled").length,
+      };
+
+      const paymentTotal = Object.values(paymentStatusCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+      console.log(
+        "💳 Payment status counts:",
+        paymentStatusCounts,
+        "Total:",
+        paymentTotal
+      );
+
+      const paymentStatusData =
+        paymentTotal > 0
+          ? [
+              {
+                name: "Succeeded",
+                value: Math.round(
+                  (paymentStatusCounts.succeeded / paymentTotal) * 100
+                ),
+                count: paymentStatusCounts.succeeded,
+                color: "#10B981",
+              },
+              {
+                name: "Pending",
+                value: Math.round(
+                  (paymentStatusCounts.pending / paymentTotal) * 100
+                ),
+                count: paymentStatusCounts.pending,
+                color: "#F59E0B",
+              },
+              {
+                name: "Processing",
+                value: Math.round(
+                  (paymentStatusCounts.processing / paymentTotal) * 100
+                ),
+                count: paymentStatusCounts.processing,
+                color: "#3B82F6",
+              },
+              {
+                name: "Failed",
+                value: Math.round(
+                  (paymentStatusCounts.failed / paymentTotal) * 100
+                ),
+                count: paymentStatusCounts.failed,
+                color: "#EF4444",
+              },
+              {
+                name: "Cancelled",
+                value: Math.round(
+                  (paymentStatusCounts.cancelled / paymentTotal) * 100
+                ),
+                count: paymentStatusCounts.cancelled,
+                color: "#6B7280",
+              },
+            ].filter((item) => item.count > 0) // Only show statuses that have data
+          : [];
+
+      // ✅ Service order status distribution (bonus chart data)
+      const serviceStatusCounts = {
+        completed: serviceOrders.filter((s) => s.status === "completed").length,
+        in_progress: serviceOrders.filter((s) => s.status === "in_progress")
+          .length,
+        confirmed: serviceOrders.filter((s) => s.status === "confirmed").length,
+        pending: serviceOrders.filter((s) => s.status === "pending").length,
+        cancelled: serviceOrders.filter((s) => s.status === "cancelled").length,
+      };
+
+      const serviceTotal = Object.values(serviceStatusCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+
+      const serviceStatusData =
+        serviceTotal > 0
+          ? [
+              {
+                name: "Completed",
+                value: Math.round(
+                  (serviceStatusCounts.completed / serviceTotal) * 100
+                ),
+                count: serviceStatusCounts.completed,
+                color: "#10B981",
+              },
+              {
+                name: "In Progress",
+                value: Math.round(
+                  (serviceStatusCounts.in_progress / serviceTotal) * 100
+                ),
+                count: serviceStatusCounts.in_progress,
+                color: "#3B82F6",
+              },
+              {
+                name: "Confirmed",
+                value: Math.round(
+                  (serviceStatusCounts.confirmed / serviceTotal) * 100
+                ),
+                count: serviceStatusCounts.confirmed,
+                color: "#8B5CF6",
+              },
+              {
+                name: "Pending",
+                value: Math.round(
+                  (serviceStatusCounts.pending / serviceTotal) * 100
+                ),
+                count: serviceStatusCounts.pending,
+                color: "#F59E0B",
+              },
+              {
+                name: "Cancelled",
+                value: Math.round(
+                  (serviceStatusCounts.cancelled / serviceTotal) * 100
+                ),
+                count: serviceStatusCounts.cancelled,
+                color: "#6B7280",
+              },
+            ].filter((item) => item.count > 0)
+          : [];
+
+      setChartData({
+        registrationData: months,
+        revenueData: months,
+        statusData,
+        paymentStatusData,
+        serviceStatusData, // ✅ Added service status data
+      });
+
+      console.log("✅ Chart data generated successfully");
+    } catch (error) {
+      console.error("❌ Error generating chart data:", error);
+
+      // ✅ Fallback data to prevent empty charts
+      setChartData({
+        registrationData: [],
+        revenueData: [],
+        statusData: [],
+        paymentStatusData: [],
+        serviceStatusData: [],
       });
     }
-
-    // Real company status distribution
-    const statusCounts = {
-      completed: companies.filter((c) => c.status === "completed").length,
-      in_progress: companies.filter((c) => c.status === "in_progress").length,
-      pending_payment: companies.filter((c) => c.status === "pending_payment")
-        .length,
-      documents_requested: companies.filter(
-        (c) => c.status === "documents_requested"
-      ).length,
-      rejected: companies.filter((c) => c.status === "rejected").length,
-    };
-
-    const total = Object.values(statusCounts).reduce(
-      (sum, count) => sum + count,
-      0
-    );
-    const statusData =
-      total > 0
-        ? [
-            {
-              name: "Completed",
-              value: Math.round((statusCounts.completed / total) * 100),
-              count: statusCounts.completed,
-              color: "#10B981",
-            },
-            {
-              name: "In Progress",
-              value: Math.round((statusCounts.in_progress / total) * 100),
-              count: statusCounts.in_progress,
-              color: "#3B82F6",
-            },
-            {
-              name: "Pending Payment",
-              value: Math.round((statusCounts.pending_payment / total) * 100),
-              count: statusCounts.pending_payment,
-              color: "#F59E0B",
-            },
-            {
-              name: "Documents Requested",
-              value: Math.round(
-                (statusCounts.documents_requested / total) * 100
-              ),
-              count: statusCounts.documents_requested,
-              color: "#8B5CF6",
-            },
-            {
-              name: "Rejected",
-              value: Math.round((statusCounts.rejected / total) * 100),
-              count: statusCounts.rejected,
-              color: "#EF4444",
-            },
-          ].filter((item) => item.count > 0)
-        : [];
-
-    // Real payment status distribution
-    const paymentStatusCounts = {
-      succeeded: payments.filter((p) => p.status === "succeeded").length,
-      pending: payments.filter((p) => p.status === "pending").length,
-      failed: payments.filter((p) => p.status === "failed").length,
-    };
-
-    const paymentTotal = Object.values(paymentStatusCounts).reduce(
-      (sum, count) => sum + count,
-      0
-    );
-    const paymentStatusData =
-      paymentTotal > 0
-        ? [
-            {
-              name: "Succeeded",
-              value: Math.round(
-                (paymentStatusCounts.succeeded / paymentTotal) * 100
-              ),
-              count: paymentStatusCounts.succeeded,
-              color: "#10B981",
-            },
-            {
-              name: "Pending",
-              value: Math.round(
-                (paymentStatusCounts.pending / paymentTotal) * 100
-              ),
-              count: paymentStatusCounts.pending,
-              color: "#F59E0B",
-            },
-            {
-              name: "Failed",
-              value: Math.round(
-                (paymentStatusCounts.failed / paymentTotal) * 100
-              ),
-              count: paymentStatusCounts.failed,
-              color: "#EF4444",
-            },
-          ].filter((item) => item.count > 0)
-        : [];
-
-    setChartData({
-      registrationData: months,
-      revenueData: months,
-      statusData,
-      paymentStatusData,
-    });
   };
 
   // ✅ Calculate real processing time from completed_at and created_at
@@ -682,7 +793,7 @@ export default function AdminDashboardPage() {
     return Math.round((totalDays / completedCompanies.length) * 10) / 10;
   };
 
-  // ✅ Calculate real email delivery rate
+  // ✅ Calculate real email delivery rate (without auth admin)
   const calculateEmailDeliveryRate = async () => {
     try {
       const { count: totalEmails } = await supabase
@@ -698,7 +809,7 @@ export default function AdminDashboardPage() {
       return Math.round((successfulEmails / totalEmails) * 100);
     } catch (error) {
       console.warn("Email delivery rate calculation failed:", error);
-      return 95;
+      return 95; // Fallback value
     }
   };
 

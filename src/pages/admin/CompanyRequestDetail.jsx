@@ -121,6 +121,12 @@ export default function CompanyRequestDetail() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
 
+  const [userProfile, setUserProfile] = useState(null);
+
+  const [communications, setCommunications] = useState([]);
+
+  const [user, setUser] = useState(null);
+
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
   const [editedStatus, setEditedStatus] = useState("");
@@ -132,6 +138,9 @@ export default function CompanyRequestDetail() {
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [sendingCommunication, setSendingCommunication] = useState(false);
 
+  const [userEmail, setUserEmail] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
+
   useEffect(() => {
     if (requestId) {
       fetchRequestDetails();
@@ -141,45 +150,113 @@ export default function CompanyRequestDetail() {
   const fetchRequestDetails = async () => {
     try {
       setLoading(true);
-      setError(null);
+      console.log("🔍 Fetching request details for ID:", requestId);
 
-      // Fetch company request with user profile
+      // ✅ 1. Get current user first
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error("User not authenticated");
+      }
+      setUser(user);
+
+      // ✅ 2. Company request'i çek
       const { data: requestData, error: requestError } = await supabase
         .from("company_requests")
-        .select(
-          `
-          *,
-          profiles!company_requests_user_id_fkey (
-            id,
-            full_name,
-            role,
-            created_at,
-            updated_at
-          )
-        `
-        )
+        .select("*")
         .eq("id", requestId)
         .single();
 
-      if (requestError) throw requestError;
+      if (requestError) {
+        console.error("❌ Request fetch error:", requestError);
+        throw new Error("Request not found");
+      }
 
       setRequest(requestData);
-      setEditedStatus(requestData.status);
-      setAdminNotes(requestData.admin_notes || "");
+      console.log("✅ Request data:", requestData);
 
-      // Fetch associated documents
+      // ✅ 3. User profile'ını çek (request'teki user_id ile)
+      if (requestData.user_id) {
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", requestData.user_id)
+            .single();
+
+          if (!profileError && profileData) {
+            setUserProfile(profileData);
+            console.log("✅ Profile data:", profileData);
+          } else {
+            console.warn("⚠️ Profile not found:", profileError?.message);
+          }
+        } catch (profileErr) {
+          console.warn("⚠️ Profile fetch failed:", profileErr);
+        }
+      }
+
       const { data: documentsData, error: documentsError } = await supabase
         .from("documents")
-        .select("*")
+        .select(
+          `
+    *,
+    uploader:uploaded_by(
+      id,
+      email
+    )
+  `
+        )
         .eq("request_id", requestId)
         .order("created_at", { ascending: false });
 
-      if (documentsError) throw documentsError;
+      if (!documentsError) {
+        setDocuments(documentsData || []);
+        console.log("✅ Documents:", documentsData?.length || 0);
+        console.log("📄 Documents data:", documentsData);
+      } else {
+        console.warn("⚠️ Documents error:", documentsError);
+        setDocuments([]);
+      }
 
-      setDocuments(documentsData || []);
-    } catch (err) {
-      console.error("Error fetching request details:", err);
-      setError(err.message);
+      // ✅ 5. Activity logs'ları çek (sadece bu request için)
+      const { data: activityData, error: activityError } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .eq("request_id", requestId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (!activityError) {
+        setActivityLogs(activityData || []);
+        console.log("✅ Activity logs:", activityData?.length || 0);
+      } else {
+        console.warn("⚠️ Activity logs error:", activityError);
+      }
+
+      // ✅ 6. Communications'ları çek - FIXED query
+      try {
+        const { data: communicationsData, error: commError } = await supabase
+          .from("order_communications")
+          .select("*")
+          .or(`order_id.eq.${requestId},company_request_id.eq.${requestId}`)
+          .order("created_at", { ascending: false });
+
+        if (!commError) {
+          setCommunications(communicationsData || []);
+          console.log("✅ Communications:", communicationsData?.length || 0);
+        } else {
+          console.warn("⚠️ Communications error:", commError);
+          setCommunications([]);
+        }
+      } catch (commErr) {
+        console.warn("⚠️ Communications fetch failed:", commErr);
+        setCommunications([]);
+      }
+    } catch (error) {
+      console.error("💥 Error fetching request details:", error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -408,80 +485,115 @@ export default function CompanyRequestDetail() {
       </div>
 
       {/* Status and Progress */}
+      {/* Personal Details Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <StatusIcon className="h-5 w-5" />
-            Current Status: {status.label}
+            <User className="h-5 w-5" />
+            Personal Details
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span>Progress</span>
-                <span>{status.progress}%</span>
-              </div>
-              <Progress value={status.progress} className="h-2" />
-            </div>
-            <p className="text-gray-600">{status.description}</p>
+        <CardContent className="space-y-4">
+          {(() => {
+            // ✅ FIXED: Safe data extraction
+            const userDetails =
+              request?.user_details?.personalDetails ||
+              request?.user_details ||
+              {};
+            const profileData = userProfile || {};
 
-            {isEditing && (
-              <div className="border-t pt-4 space-y-4">
+            console.log("🔍 User details debug:", {
+              userDetails,
+              profileData,
+              fullUserDetails: request?.user_details,
+            });
+
+            const fullName =
+              profileData.full_name ||
+              userDetails.fullName ||
+              (userDetails.firstName && userDetails.lastName
+                ? `${userDetails.firstName} ${userDetails.lastName}`
+                : "") ||
+              "Not provided";
+
+            const email =
+              userDetails.contactEmail ||
+              userDetails.email ||
+              userEmail ||
+              user?.email ||
+              "Not provided";
+
+            const phone =
+              userDetails.phoneNumber || userDetails.phone || "Not provided";
+
+            const country =
+              userDetails.country || userDetails.nationality || "Not provided";
+
+            const address =
+              userDetails.address || userDetails.homeAddress || "Not provided";
+
+            return (
+              <>
                 <div>
-                  <Label>Update Status</Label>
-                  <Select value={editedStatus} onValueChange={setEditedStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(statusConfig).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>
-                          <div className="flex items-center gap-2">
-                            <config.icon className="h-4 w-4" />
-                            {config.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Full Name
+                  </Label>
+                  <p className="text-gray-900">{fullName}</p>
                 </div>
-
                 <div>
-                  <Label>Admin Notes</Label>
-                  <Textarea
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="Add internal notes about this request..."
-                    rows={3}
-                  />
+                  <Label className="text-sm font-medium text-gray-700">
+                    Email
+                  </Label>
+                  <p className="text-gray-900">{email}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Phone
+                  </Label>
+                  <p className="text-gray-900">{phone}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Country
+                  </Label>
+                  <p className="text-gray-900">{country}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Address
+                  </Label>
+                  <p className="text-gray-900 whitespace-pre-line">{address}</p>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleUpdate}
-                    disabled={updating}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {updating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                  <Button onClick={() => setIsEditing(false)} variant="outline">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+                {/* ✅ Debug info (sadece development'ta görünür) */}
+                {import.meta.env.DEV && (
+                  <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Debug Info
+                    </Label>
+                    <pre className="text-xs text-gray-600 mt-2 overflow-auto max-h-32">
+                      {JSON.stringify(
+                        {
+                          userDetails,
+                          profileData,
+                          userEmail,
+                          calculatedValues: {
+                            fullName,
+                            email,
+                            phone,
+                            country,
+                            address,
+                          },
+                        },
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
@@ -567,7 +679,6 @@ export default function CompanyRequestDetail() {
           </CardContent>
         </Card>
 
-        {/* Personal Details */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -576,105 +687,99 @@ export default function CompanyRequestDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {userDetails.fullName && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Full Name
-                </Label>
-                <p className="text-gray-900">{userDetails.fullName}</p>
-              </div>
-            )}
+            {/* ✅ FIXED: Multiple data sources for user info */}
+            {(() => {
+              const userDetails =
+                request.user_details?.personalDetails ||
+                request.user_details ||
+                {};
+              const profileData = userProfile || {};
 
-            {userDetails.dateOfBirth && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Date of Birth
-                </Label>
-                <p className="text-gray-900">
-                  {new Date(userDetails.dateOfBirth).toLocaleDateString()}
-                </p>
-              </div>
-            )}
+              console.log("🔍 User details debug:", {
+                userDetails,
+                profileData,
+                fullUserDetails: request.user_details,
+              });
 
-            {userDetails.nationality && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Nationality
-                </Label>
-                <p className="text-gray-900">{userDetails.nationality}</p>
-              </div>
-            )}
+              const fullName =
+                profileData.full_name ||
+                userDetails.fullName ||
+                userDetails.firstName + " " + userDetails.lastName ||
+                "Not provided";
 
-            {userDetails.countryOfResidence && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Country of Residence
-                </Label>
-                <p className="text-gray-900">
-                  {userDetails.countryOfResidence}
-                </p>
-              </div>
-            )}
+              const email =
+                userDetails.contactEmail ||
+                userDetails.email ||
+                userEmail ||
+                user?.email ||
+                "Not provided";
 
-            {userDetails.occupation && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Occupation
-                </Label>
-                <p className="text-gray-900">{userDetails.occupation}</p>
-              </div>
-            )}
+              const phone =
+                userDetails.phoneNumber || userDetails.phone || "Not provided";
 
-            {userDetails.address && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Address
-                </Label>
-                <p className="text-gray-900 whitespace-pre-line">
-                  {userDetails.address}
-                </p>
-              </div>
-            )}
+              const country =
+                userDetails.country ||
+                userDetails.nationality ||
+                "Not provided";
 
-            {userDetails.contactEmail && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Contact Email
-                </Label>
-                <p className="text-gray-900">{userDetails.contactEmail}</p>
-              </div>
-            )}
+              const address =
+                userDetails.address ||
+                userDetails.homeAddress ||
+                "Not provided";
 
-            {userDetails.contactPhone && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Contact Phone
-                </Label>
-                <p className="text-gray-900">{userDetails.contactPhone}</p>
-              </div>
-            )}
+              return (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Full Name
+                    </Label>
+                    <p className="text-gray-900">{fullName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Email
+                    </Label>
+                    <p className="text-gray-900">{email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Phone
+                    </Label>
+                    <p className="text-gray-900">{phone}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Country
+                    </Label>
+                    <p className="text-gray-900">{country}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Address
+                    </Label>
+                    <p className="text-gray-900 whitespace-pre-line">
+                      {address}
+                    </p>
+                  </div>
 
-            {/* User Profile Info */}
-            {request.profiles && (
-              <div className="border-t pt-4">
-                <Label className="text-sm font-medium text-gray-700">
-                  User Account
-                </Label>
-                <div className="bg-gray-50 p-3 rounded text-sm">
-                  <p>
-                    <strong>Profile Name:</strong>{" "}
-                    {request.profiles.full_name || "Not set"}
-                  </p>
-                  <p>
-                    <strong>Account Created:</strong>{" "}
-                    {new Date(request.profiles.created_at).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Role:</strong> {request.profiles.role}
-                  </p>
-                </div>
-              </div>
-            )}
+                  {/* ✅ Debug info (remove in production) */}
+                  {import.meta.env.DEV && (
+                    <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Debug Info
+                      </Label>
+                      <pre className="text-xs text-gray-600 mt-2 overflow-auto">
+                        {JSON.stringify(
+                          { userDetails, profileData, userEmail },
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
