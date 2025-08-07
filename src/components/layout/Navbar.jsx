@@ -1,4 +1,5 @@
-// src/components/layout/Navbar.jsx - Updated with Google profile photo and notifications
+// src/components/layout/Navbar.jsx - Updated with working section navigation
+
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +19,9 @@ import {
   Shield,
   ChevronDown,
   Globe,
+  Home,
+  Mail,
+  Info,
 } from "lucide-react";
 
 // Profile dropdown menu
@@ -107,17 +111,7 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
     },
   ];
 
-  // Add admin menu if user is admin
-  if (isAdmin) {
-    menuItems.splice(-1, 0, {
-      icon: Shield,
-      label: "Admin Panel",
-      onClick: () => {
-        navigate("/admin");
-        setIsOpen(false);
-      },
-    });
-  }
+  // Admin menu removed - no admin access from profile dropdown
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -245,6 +239,21 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
   );
 };
 
+// Smooth scroll to section function
+const scrollToSection = (sectionId) => {
+  const element = document.getElementById(sectionId);
+  if (element) {
+    const offset = 80; // Height of fixed navbar
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: "smooth",
+    });
+  }
+};
+
 // Main Navbar Component
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -257,15 +266,39 @@ export default function Navbar() {
     navigate("/login");
   };
 
+  const handleNavigation = (href) => {
+    if (href.startsWith("/#")) {
+      // If we're not on homepage, navigate there first
+      if (location.pathname !== "/") {
+        navigate("/");
+        // Small delay to ensure page loads before scrolling
+        setTimeout(() => {
+          const sectionId = href.substring(2); // Remove "/#"
+          scrollToSection(sectionId);
+        }, 100);
+      } else {
+        // If already on homepage, just scroll
+        const sectionId = href.substring(2); // Remove "/#"
+        scrollToSection(sectionId);
+      }
+    } else {
+      navigate(href);
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   const isActive = (path) => {
-    return location.pathname === path;
+    if (path === "/") {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
   };
 
   const navigation = [
-    { name: "Home", href: "/", icon: Globe },
-    { name: "Services", href: "/#services", icon: ShoppingCart },
-    { name: "About", href: "/#about", icon: FileText },
-    { name: "Contact", href: "/#contact", icon: User },
+    { name: "Home", href: "/", icon: Home },
+    { name: "Services", href: "/#features", icon: ShoppingCart },
+    { name: "About", href: "/#about", icon: Info },
+    { name: "Contact", href: "/#contact", icon: Mail },
   ];
 
   return (
@@ -278,19 +311,19 @@ export default function Navbar() {
               to="/"
               className="flex items-center space-x-2 font-bold text-xl text-gray-900 hover:text-blue-600 transition-colors"
             >
-              <Building2 className="h-8 w-8 text-blue-600" />
-              <span>GoFormed</span>
+              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+              <span className="text-lg sm:text-xl">GoFormed</span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                <Link
+                <button
                   key={item.name}
-                  to={item.href}
+                  onClick={() => handleNavigation(item.href)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive(item.href)
                       ? "text-blue-600 bg-blue-50"
@@ -299,27 +332,29 @@ export default function Navbar() {
                 >
                   <Icon className="w-4 h-4" />
                   {item.name}
-                </Link>
+                </button>
               );
             })}
           </div>
 
           {/* Right Side - Auth & Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {user ? (
               <>
                 {/* Notifications Bell */}
-                <NotificationBell userId={user.id} />
+                <div className="hidden sm:block">
+                  <NotificationBell userId={user.id} />
+                </div>
 
                 {/* Dashboard Button */}
                 <Button
                   asChild
                   variant="outline"
                   size="sm"
-                  className="hidden sm:flex"
+                  className="hidden sm:flex text-xs sm:text-sm"
                 >
                   <Link to="/dashboard">
-                    <Building2 className="w-4 h-4 mr-2" />
+                    <Building2 className="w-4 h-4 mr-1 sm:mr-2" />
                     Dashboard
                   </Link>
                 </Button>
@@ -333,14 +368,14 @@ export default function Navbar() {
                 />
               </>
             ) : (
-              <div className="flex items-center gap-3">
-                <Button asChild variant="ghost" size="sm">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Button asChild variant="ghost" size="sm" className="text-sm">
                   <Link to="/login">Sign In</Link>
                 </Button>
                 <Button
                   asChild
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-sm px-3 sm:px-4"
                 >
                   <Link to="/register">Get Started</Link>
                 </Button>
@@ -351,7 +386,7 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden"
+              className="md:hidden p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
@@ -370,17 +405,16 @@ export default function Navbar() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-gray-200 bg-white"
+              className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur"
             >
               <div className="px-2 pt-2 pb-3 space-y-1">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link
+                    <button
                       key={item.name}
-                      to={item.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      onClick={() => handleNavigation(item.href)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors ${
                         isActive(item.href)
                           ? "text-blue-600 bg-blue-50"
                           : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -388,20 +422,65 @@ export default function Navbar() {
                     >
                       <Icon className="w-5 h-5" />
                       {item.name}
-                    </Link>
+                    </button>
                   );
                 })}
 
+                {/* Mobile menu without admin access */}
                 {user && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                  <div className="pt-4 border-t border-gray-200 space-y-1">
+                    {/* Mobile Notifications */}
+                    <div className="px-3 py-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        Notifications
+                      </span>
+                      <NotificationBell userId={user.id} />
+                    </div>
+
+                    {/* Mobile Dashboard Link */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard");
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
                     >
                       <Building2 className="w-5 h-5" />
                       Dashboard
-                    </Link>
+                    </button>
+
+                    {/* Mobile Sign Out */}
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+
+                {/* Mobile Auth Buttons for non-logged users */}
+                {!user && (
+                  <div className="pt-4 border-t border-gray-200 space-y-3 px-3">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full justify-center"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Link to="/login">Sign In</Link>
+                    </Button>
+                    <Button
+                      asChild
+                      className="w-full justify-center bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Link to="/register">Get Started</Link>
+                    </Button>
                   </div>
                 )}
               </div>
