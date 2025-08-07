@@ -29,12 +29,7 @@ import {
 import {
   Building2,
   User,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  Globe,
-  Briefcase,
+  AlertCircle,
   FileText,
   Download,
   Edit,
@@ -49,6 +44,8 @@ import {
   Eye,
   Ban,
   CheckCheck,
+  Upload,
+  Bug,
 } from "lucide-react";
 
 // Status configuration
@@ -57,33 +54,33 @@ const statusConfig = {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     icon: Clock,
     label: "Pending Payment",
-    description: "Payment is required to proceed",
+    description: "Complete payment to start your company formation",
     progress: 10,
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
     icon: CheckCircle,
     label: "Payment Completed",
-    description: "Payment received, starting review",
+    description: "Payment received, starting review process",
     progress: 25,
   },
   in_review: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
     icon: Clock,
     label: "In Review",
-    description: "Application under review",
+    description: "Our team is reviewing your application",
     progress: 50,
   },
   documents_requested: {
     color: "bg-orange-100 text-orange-800 border-orange-300",
     icon: AlertTriangle,
     label: "Documents Required",
-    description: "Additional documents needed",
+    description: "Additional documents are needed to proceed",
     progress: 35,
   },
   processing: {
     color: "bg-purple-100 text-purple-800 border-purple-300",
-    icon: Clock,
+    icon: Building2,
     label: "Processing",
     description: "Being processed with Companies House",
     progress: 75,
@@ -97,16 +94,16 @@ const statusConfig = {
   },
   rejected: {
     color: "bg-red-100 text-red-800 border-red-300",
-    icon: Ban,
+    icon: AlertCircle,
     label: "Rejected",
-    description: "Application rejected",
+    description: "Application rejected - contact support",
     progress: 0,
   },
   cancelled: {
     color: "bg-gray-100 text-gray-800 border-gray-300",
     icon: X,
     label: "Cancelled",
-    description: "Request cancelled",
+    description: "This request has been cancelled",
     progress: 0,
   },
 };
@@ -119,27 +116,27 @@ export default function CompanyRequestDetail() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
   const [userProfile, setUserProfile] = useState(null);
-
   const [communications, setCommunications] = useState([]);
-
   const [user, setUser] = useState(null);
 
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
   const [editedStatus, setEditedStatus] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
-  const [newNote, setNewNote] = useState("");
 
   // Communication
   const [showCommunication, setShowCommunication] = useState(false);
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [sendingCommunication, setSendingCommunication] = useState(false);
 
-  const [userEmail, setUserEmail] = useState(null);
   const [activityLogs, setActivityLogs] = useState([]);
+
+  // Debug states
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
     if (requestId) {
@@ -147,6 +144,7 @@ export default function CompanyRequestDetail() {
     }
   }, [requestId]);
 
+  // ✅ COMPLETELY FIXED fetchRequestDetails function - gets documents by user_id
   const fetchRequestDetails = async () => {
     try {
       setLoading(true);
@@ -175,9 +173,11 @@ export default function CompanyRequestDetail() {
       }
 
       setRequest(requestData);
+      setEditedStatus(requestData.status);
+      setAdminNotes(requestData.admin_notes || "");
       console.log("✅ Request data:", requestData);
 
-      // ✅ 3. User profile'ını çek (request'teki user_id ile)
+      // ✅ 3. User profile'ını çek
       if (requestData.user_id) {
         try {
           const { data: profileData, error: profileError } = await supabase
@@ -197,30 +197,135 @@ export default function CompanyRequestDetail() {
         }
       }
 
-      const { data: documentsData, error: documentsError } = await supabase
-        .from("documents")
-        .select(
-          `
-    *,
-    uploader:uploaded_by(
-      id,
-      email
-    )
-  `
-        )
-        .eq("request_id", requestId)
-        .order("created_at", { ascending: false });
+      // ✅ 4. FIXED: Always check storage folder first, ignore database
+      console.log(
+        "🔍 Starting documents fetch - checking storage folder:",
+        `${requestData.user_id}/${requestId}`
+      );
 
-      if (!documentsError) {
-        setDocuments(documentsData || []);
-        console.log("✅ Documents:", documentsData?.length || 0);
-        console.log("📄 Documents data:", documentsData);
-      } else {
-        console.warn("⚠️ Documents error:", documentsError);
-        setDocuments([]);
+      let documentsData = [];
+
+      // ALWAYS check storage first - ignore database completely for now
+      try {
+        const { data: requestStorageFiles, error: storageError } =
+          await supabase.storage
+            .from("documents")
+            .list(`${requestData.user_id}/${requestId}`, {
+              limit: 100,
+              sortBy: { column: "created_at", order: "desc" },
+            });
+
+        if (
+          !storageError &&
+          requestStorageFiles &&
+          requestStorageFiles.length > 0
+        ) {
+          console.log(
+            "✅ Found files in request folder:",
+            requestStorageFiles.length
+          );
+          console.log("📁 Storage files details:", requestStorageFiles);
+
+          // Convert ALL storage files to document format
+          const virtualDocuments = requestStorageFiles
+            .filter((file) => file.name && file.id !== null) // Only actual files, not folders
+            .map((file) => ({
+              id: `storage_${file.name}_${Date.now()}_${Math.random()}`,
+              file_name: file.name,
+              storage_path: `${requestData.user_id}/${requestId}/${file.name}`,
+              document_type: file.metadata?.mimetype || getFileType(file.name),
+              created_at:
+                file.created_at || file.updated_at || new Date().toISOString(),
+              uploaded_by: requestData.user_id,
+              request_id: requestId,
+              source: "storage_direct",
+              file_size: file.metadata?.size || 0,
+            }));
+
+          documentsData = virtualDocuments;
+          console.log(
+            "✅ All storage files converted to documents:",
+            virtualDocuments.length
+          );
+          console.log(
+            "📄 Document list:",
+            virtualDocuments.map((d) => d.file_name)
+          );
+        } else {
+          console.log(
+            "❌ No files found in request storage folder:",
+            storageError?.message
+          );
+        }
+      } catch (err) {
+        console.warn("⚠️ Storage check failed:", err);
       }
 
-      // ✅ 5. Activity logs'ları çek (sadece bu request için)
+      // Fallback: If no files in request folder, check user root
+      if (documentsData.length === 0 && requestData.user_id) {
+        try {
+          console.log(
+            "🔍 Fallback: Checking user root folder:",
+            requestData.user_id
+          );
+          const { data: userRootFiles, error: rootError } =
+            await supabase.storage
+              .from("documents")
+              .list(`${requestData.user_id}`, {
+                limit: 100,
+                sortBy: { column: "created_at", order: "desc" },
+              });
+
+          if (!rootError && userRootFiles && userRootFiles.length > 0) {
+            console.log(
+              "✅ Found files in user root folder:",
+              userRootFiles.length
+            );
+
+            const rootVirtualDocuments = userRootFiles
+              .filter((file) => file.name && file.id !== null)
+              .map((file) => ({
+                id: `storage_root_${file.name}_${Date.now()}_${Math.random()}`,
+                file_name: file.name,
+                storage_path: `${requestData.user_id}/${file.name}`,
+                document_type:
+                  file.metadata?.mimetype || getFileType(file.name),
+                created_at:
+                  file.created_at ||
+                  file.updated_at ||
+                  new Date().toISOString(),
+                uploaded_by: requestData.user_id,
+                request_id: requestId,
+                source: "storage_root",
+                file_size: file.metadata?.size || 0,
+              }));
+
+            documentsData = rootVirtualDocuments;
+            console.log(
+              "✅ User root files converted to documents:",
+              rootVirtualDocuments.length
+            );
+          }
+        } catch (rootErr) {
+          console.warn("⚠️ User root check failed:", rootErr);
+        }
+      }
+
+      console.log("📄 Final documents count:", documentsData.length);
+      if (documentsData.length > 0) {
+        console.log(
+          "📄 Final document list:",
+          documentsData.map((d) => ({
+            name: d.file_name,
+            path: d.storage_path,
+            source: d.source,
+            size: d.file_size,
+          }))
+        );
+      }
+      setDocuments(documentsData || []);
+
+      // ✅ 5. Activity logs
       const { data: activityData, error: activityError } = await supabase
         .from("activity_logs")
         .select("*")
@@ -235,25 +340,17 @@ export default function CompanyRequestDetail() {
         console.warn("⚠️ Activity logs error:", activityError);
       }
 
-      // ✅ 6. Communications'ları çek - FIXED query
-      try {
-        const { data: communicationsData, error: commError } = await supabase
-          .from("order_communications")
-          .select("*")
-          .or(`order_id.eq.${requestId},company_request_id.eq.${requestId}`)
-          .order("created_at", { ascending: false });
+      // ✅ 6. Communications - Skip for now
+      setCommunications([]);
 
-        if (!commError) {
-          setCommunications(communicationsData || []);
-          console.log("✅ Communications:", communicationsData?.length || 0);
-        } else {
-          console.warn("⚠️ Communications error:", commError);
-          setCommunications([]);
-        }
-      } catch (commErr) {
-        console.warn("⚠️ Communications fetch failed:", commErr);
-        setCommunications([]);
-      }
+      // ✅ 7. Set debug info
+      setDebugInfo({
+        requestId,
+        requestUserId: requestData.user_id,
+        currentUserId: user.id,
+        documentsCount: documentsData?.length || 0,
+        lastFetch: new Date().toISOString(),
+      });
     } catch (error) {
       console.error("💥 Error fetching request details:", error);
       setError(error.message);
@@ -261,6 +358,372 @@ export default function CompanyRequestDetail() {
       setLoading(false);
     }
   };
+
+  // ✅ Fixed file upload function that uses correct user ID
+  const uploadFile = async (file, requestId, currentUserId) => {
+    try {
+      console.log("📤 Starting file upload:", {
+        fileName: file.name,
+        fileSize: file.size,
+        requestId,
+        currentUserId,
+        requestOwnerId: request?.user_id,
+      });
+
+      // ✅ Use the request owner's ID for the storage path, not current admin's ID
+      const targetUserId = request?.user_id || currentUserId;
+
+      // Generate unique file path
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const uniqueFileName = `${timestamp}_${cleanFileName}`;
+      const storagePath = `${targetUserId}/${requestId}/${uniqueFileName}`;
+
+      console.log("📂 Using storage path:", storagePath);
+
+      // ✅ 1. Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("❌ Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("✅ File uploaded to storage:", uploadData);
+
+      // ✅ 2. Save file record to database with correct path
+      const { data: documentData, error: documentError } = await supabase
+        .from("documents")
+        .insert([
+          {
+            request_id: requestId,
+            file_name: file.name,
+            storage_path: storagePath, // This now matches the actual storage location
+            document_type: file.type || "application/octet-stream",
+            uploaded_by: currentUserId, // Who uploaded it (admin)
+          },
+        ])
+        .select()
+        .single();
+
+      if (documentError) {
+        console.error("❌ Database insert error:", documentError);
+
+        // Clean up uploaded file if database insert fails
+        try {
+          await supabase.storage.from("documents").remove([storagePath]);
+          console.log("🧹 Cleaned up uploaded file after database error");
+        } catch (cleanupError) {
+          console.error("❌ Cleanup error:", cleanupError);
+        }
+
+        throw documentError;
+      }
+
+      console.log(
+        "✅ Document record created with correct path:",
+        documentData
+      );
+
+      // ✅ 3. Log the activity
+      try {
+        await supabase.from("activity_logs").insert([
+          {
+            request_id: requestId,
+            user_id: currentUserId,
+            action: "document_uploaded",
+            description: `File uploaded by admin: ${file.name}`,
+            metadata: {
+              file_name: file.name,
+              file_size: file.size,
+              file_type: file.type,
+              storage_path: storagePath,
+              uploaded_by_admin: true,
+              target_user_id: targetUserId,
+            },
+          },
+        ]);
+        console.log("✅ Activity logged successfully");
+      } catch (logError) {
+        console.warn("⚠️ Activity log failed:", logError);
+      }
+
+      return {
+        success: true,
+        document: documentData,
+        storagePath: storagePath,
+      };
+    } catch (error) {
+      console.error("💥 File upload failed:", error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  };
+
+  // ✅ File upload handler
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    const uploadResults = [];
+
+    try {
+      for (const file of files) {
+        console.log(`📤 Uploading file: ${file.name}`);
+
+        const result = await uploadFile(file, requestId, user.id);
+        uploadResults.push(result);
+
+        if (result.success) {
+          console.log(`✅ Upload successful: ${file.name}`);
+        } else {
+          console.error(`❌ Upload failed: ${file.name} - ${result.error}`);
+          alert(`Failed to upload ${file.name}: ${result.error}`);
+        }
+      }
+
+      // Refresh the documents list
+      await fetchRequestDetails();
+
+      // Show summary
+      const successful = uploadResults.filter((r) => r.success).length;
+      const failed = uploadResults.filter((r) => !r.success).length;
+
+      if (successful > 0) {
+        alert(`Successfully uploaded ${successful} file(s)`);
+      }
+      if (failed > 0) {
+        alert(`Failed to upload ${failed} file(s)`);
+      }
+    } catch (error) {
+      console.error("💥 Upload process error:", error);
+      alert(`Upload error: ${error.message}`);
+    } finally {
+      setUploading(false);
+      // Clear the file input
+      event.target.value = "";
+    }
+  };
+
+  // ✅ Enhanced debug storage function
+  const debugStorageContents = async () => {
+    try {
+      console.log("🔍 Starting comprehensive storage debug...");
+
+      // 1. Check all available buckets
+      const { data: buckets, error: bucketsError } =
+        await supabase.storage.listBuckets();
+
+      if (bucketsError) {
+        console.error("❌ Could not list buckets:", bucketsError);
+      } else {
+        console.log(
+          "🗂️ Available buckets:",
+          buckets?.map((b) => b.name)
+        );
+      }
+
+      // 2. Try different bucket names - including "documents"
+      const possibleBuckets = ["documents", "company-documents", "files"];
+
+      for (const bucketName of possibleBuckets) {
+        try {
+          console.log(`🔍 Checking bucket: ${bucketName}`);
+
+          const { data: rootFiles, error: rootError } = await supabase.storage
+            .from(bucketName)
+            .list("", { limit: 100 });
+
+          if (!rootError && rootFiles) {
+            console.log(
+              `✅ Bucket ${bucketName} accessible:`,
+              rootFiles.length,
+              "items"
+            );
+            console.log(`📁 ${bucketName} contents:`, rootFiles);
+
+            // Check user folders
+            if (request?.user_id) {
+              const { data: userFiles, error: userError } =
+                await supabase.storage
+                  .from(bucketName)
+                  .list(`${request.user_id}`, { limit: 100 });
+
+              if (!userError && userFiles) {
+                console.log(
+                  `📁 Request owner folder in ${bucketName}:`,
+                  userFiles.length,
+                  "items"
+                );
+
+                // Check specific request folder
+                const { data: requestFiles, error: requestError } =
+                  await supabase.storage
+                    .from(bucketName)
+                    .list(`${request.user_id}/${requestId}`, { limit: 100 });
+
+                if (!requestError && requestFiles) {
+                  console.log(
+                    `📁 Request folder in ${bucketName}:`,
+                    requestFiles.length,
+                    "items"
+                  );
+                  console.log(`📄 Request files:`, requestFiles);
+                }
+              }
+            }
+
+            // Also check current admin user folder
+            if (user?.id && user.id !== request?.user_id) {
+              const { data: adminFiles, error: adminError } =
+                await supabase.storage
+                  .from(bucketName)
+                  .list(`${user.id}`, { limit: 100 });
+
+              if (!adminError && adminFiles) {
+                console.log(
+                  `📁 Admin folder in ${bucketName}:`,
+                  adminFiles.length,
+                  "items"
+                );
+              }
+            }
+          } else {
+            console.log(`❌ Bucket ${bucketName} error:`, rootError?.message);
+          }
+        } catch (err) {
+          console.log(`❌ Bucket ${bucketName} exception:`, err.message);
+        }
+      }
+
+      // 3. Check document paths from database
+      if (documents.length > 0) {
+        console.log("🔍 Checking database document paths...");
+        for (const doc of documents) {
+          console.log(`📄 Document: ${doc.file_name}`);
+          console.log(`   Path: ${doc.storage_path}`);
+          console.log(`   Type: ${doc.document_type}`);
+          console.log(`   Created: ${doc.created_at}`);
+
+          // Try to verify each file exists
+          try {
+            const { data: fileExists, error: existsError } =
+              await supabase.storage
+                .from("company-documents")
+                .list(doc.storage_path.split("/").slice(0, -1).join("/"), {
+                  search: doc.file_name,
+                });
+
+            if (!existsError && fileExists?.length > 0) {
+              console.log(`   ✅ File exists in storage`);
+            } else {
+              console.log(
+                `   ❌ File not found in storage:`,
+                existsError?.message
+              );
+            }
+          } catch (err) {
+            console.log(`   ❌ Error checking file:`, err.message);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("💥 Debug storage error:", error);
+    }
+  };
+
+  // ✅ Manual debug function for browser console
+  if (typeof window !== "undefined") {
+    window.debugCompanyDocuments = async () => {
+      console.log("🧪 Manual debug started...");
+
+      const requestUserId =
+        request?.user_id || "28efa979-c0a0-414e-a0ba-b7fd7ce82dea";
+      const currentRequestId =
+        requestId || "e2ecec0a-5fc7-4f1b-b962-acdba728c122";
+
+      console.log("🔍 Checking documents bucket structure...");
+      console.log(`👤 User ID: ${requestUserId}`);
+      console.log(`📝 Request ID: ${currentRequestId}`);
+
+      // Check documents bucket root
+      const { data: bucketFiles, error: bucketError } = await supabase.storage
+        .from("documents")
+        .list("", { limit: 20 });
+
+      console.log("📁 Documents bucket root:", {
+        data: bucketFiles,
+        error: bucketError,
+      });
+
+      // Check specific user folder
+      console.log(`🔍 Checking user folder: ${requestUserId}`);
+      const { data: userFiles, error: userError } = await supabase.storage
+        .from("documents")
+        .list(requestUserId, { limit: 100 });
+
+      console.log(`📁 User ${requestUserId} folder:`, {
+        data: userFiles,
+        error: userError,
+      });
+
+      // Check specific request folder: userId/requestId/
+      console.log(
+        `🔍 Checking request folder: ${requestUserId}/${currentRequestId}`
+      );
+      const { data: requestFiles, error: requestError } = await supabase.storage
+        .from("documents")
+        .list(`${requestUserId}/${currentRequestId}`, { limit: 100 });
+
+      console.log(`📁 Request folder ${requestUserId}/${currentRequestId}:`, {
+        data: requestFiles,
+        error: requestError,
+      });
+
+      if (requestFiles && requestFiles.length > 0) {
+        console.log(
+          "🎯 FILES FOUND IN REQUEST FOLDER:",
+          requestFiles.map((f) => ({
+            name: f.name,
+            size: f.metadata?.size,
+            type: f.metadata?.mimetype,
+            created: f.created_at,
+            isFolder: f.id === null,
+            fullPath: `documents/${requestUserId}/${currentRequestId}/${f.name}`,
+          }))
+        );
+      } else {
+        console.log("❌ No files found in request folder");
+      }
+
+      // Check database records
+      const { data: dbDocs, error: dbError } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("request_id", currentRequestId);
+
+      console.log("🗄️ Database documents:", { data: dbDocs, error: dbError });
+
+      return {
+        bucketRoot: { data: bucketFiles, error: bucketError },
+        userFolder: { data: userFiles, error: userError },
+        requestFolder: { data: requestFiles, error: requestError },
+        database: { data: dbDocs, error: dbError },
+        paths: {
+          userPath: `documents/${requestUserId}`,
+          requestPath: `documents/${requestUserId}/${currentRequestId}`,
+        },
+      };
+    };
+  }
 
   // Update request status and notes
   const handleUpdate = async () => {
@@ -288,19 +751,6 @@ export default function CompanyRequestDetail() {
       setRequest((prev) => ({ ...prev, ...updates }));
       setIsEditing(false);
 
-      // Log admin activity
-      await supabase.rpc("log_admin_activity", {
-        p_admin_id: (await supabase.auth.getUser()).data.user?.id,
-        p_action: "company_request_updated",
-        p_target_type: "company_request",
-        p_target_id: requestId,
-        p_details: {
-          old_status: request?.status,
-          new_status: editedStatus,
-          admin_notes: adminNotes,
-        },
-      });
-
       alert("Request updated successfully!");
     } catch (err) {
       console.error("Error updating request:", err);
@@ -319,22 +769,10 @@ export default function CompanyRequestDetail() {
 
     try {
       setSendingCommunication(true);
-
-      const { data: userData } = await supabase.auth.getUser();
-      const adminId = userData.user?.id;
-
-      const { error } = await supabase.from("order_communications").insert({
-        order_id: requestId,
-        sender_type: "admin",
-        sender_id: adminId,
-        message: communicationMessage.trim(),
-      });
-
-      if (error) throw error;
-
+      // This would need a proper communication system
+      alert("Communication feature not implemented yet");
       setCommunicationMessage("");
       setShowCommunication(false);
-      alert("Message sent to user successfully!");
     } catch (err) {
       console.error("Error sending communication:", err);
       alert(`Failed to send message: ${err.message}`);
@@ -343,26 +781,119 @@ export default function CompanyRequestDetail() {
     }
   };
 
-  // Download document
+  // ✅ Helper function to get file type from extension
+  const getFileType = (fileName) => {
+    if (!fileName) return "application/octet-stream";
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    const typeMap = {
+      pdf: "application/pdf",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      txt: "text/plain",
+      csv: "text/csv",
+      zip: "application/zip",
+      rar: "application/x-rar-compressed",
+    };
+    return typeMap[ext] || "application/octet-stream";
+  };
+
+  // ✅ Download function for userId/requestId/filename structure
   const handleDownloadDocument = async (document) => {
     try {
-      const { data, error } = await supabase.storage
+      console.log("📥 Starting document download:", {
+        fileName: document.file_name,
+        source: document.source,
+        requestUserId: request?.user_id,
+        requestId: requestId,
+      });
+
+      let downloadPath;
+
+      // Determine correct path based on source
+      if (document.source === "storage_direct") {
+        // File is in userId/requestId/ folder
+        downloadPath = `${request.user_id}/${requestId}/${document.file_name}`;
+      } else if (document.source === "storage_root") {
+        // File is in userId/ root folder
+        downloadPath = `${request.user_id}/${document.file_name}`;
+      } else if (document.storage_path) {
+        // Use stored path from database
+        downloadPath = document.storage_path;
+      } else {
+        // Default: try userId/requestId/ first
+        downloadPath = `${request.user_id}/${requestId}/${document.file_name}`;
+      }
+
+      console.log("🔍 Trying to download from path:", downloadPath);
+
+      let { data, error } = await supabase.storage
         .from("documents")
-        .download(document.storage_path);
+        .download(downloadPath);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Download error:", error);
 
+        // Try alternative path if first attempt fails
+        const altPath =
+          document.source === "storage_direct"
+            ? `${request.user_id}/${document.file_name}`
+            : `${request.user_id}/${requestId}/${document.file_name}`;
+
+        console.log("🔍 Trying alternative path:", altPath);
+
+        const { data: altData, error: altError } = await supabase.storage
+          .from("documents")
+          .download(altPath);
+
+        if (altError) {
+          throw new Error(`File not found at: ${downloadPath} or ${altPath}`);
+        }
+
+        if (altData) {
+          data = altData;
+          downloadPath = altPath;
+          console.log("✅ Alternative path successful");
+        }
+      }
+
+      if (!data) {
+        throw new Error("No data received from storage");
+      }
+
+      // Create download
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
       a.download = document.file_name;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      console.log("✅ Download successful from path:", downloadPath);
     } catch (error) {
-      console.error("Download error:", error);
-      alert(`Download failed: ${error.message}`);
+      console.error("💥 Download failed:", error);
+
+      // Show debug info in console
+      console.log("🔍 Debug info:");
+      console.log("- File name:", document.file_name);
+      console.log(
+        "- Request path:",
+        `${request.user_id}/${requestId}/${document.file_name}`
+      );
+      console.log("- Root path:", `${request.user_id}/${document.file_name}`);
+      console.log("- User ID:", request.user_id);
+      console.log("- Request ID:", requestId);
+      console.log("- Bucket: documents");
+
+      alert(
+        `Download failed: ${error.message}\n\nTried paths:\n• documents/${request.user_id}/${requestId}/${document.file_name}\n• documents/${request.user_id}/${document.file_name}`
+      );
     }
   };
 
@@ -433,6 +964,19 @@ export default function CompanyRequestDetail() {
             {isEditing ? "Cancel Edit" : "Edit Request"}
           </Button>
 
+          {/* Debug button for development */}
+          {import.meta.env.DEV && (
+            <Button
+              onClick={debugStorageContents}
+              variant="outline"
+              size="sm"
+              className="text-purple-600 border-purple-200"
+            >
+              <Bug className="mr-2 h-3 w-3" />
+              Debug
+            </Button>
+          )}
+
           <Dialog open={showCommunication} onOpenChange={setShowCommunication}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -484,118 +1028,133 @@ export default function CompanyRequestDetail() {
         </div>
       </div>
 
-      {/* Status and Progress */}
-      {/* Personal Details Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Personal Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {(() => {
-            // ✅ FIXED: Safe data extraction
-            const userDetails =
-              request?.user_details?.personalDetails ||
-              request?.user_details ||
-              {};
-            const profileData = userProfile || {};
-
-            console.log("🔍 User details debug:", {
-              userDetails,
-              profileData,
-              fullUserDetails: request?.user_details,
-            });
-
-            const fullName =
-              profileData.full_name ||
-              userDetails.fullName ||
-              (userDetails.firstName && userDetails.lastName
-                ? `${userDetails.firstName} ${userDetails.lastName}`
-                : "") ||
-              "Not provided";
-
-            const email =
-              userDetails.contactEmail ||
-              userDetails.email ||
-              userEmail ||
-              user?.email ||
-              "Not provided";
-
-            const phone =
-              userDetails.phoneNumber || userDetails.phone || "Not provided";
-
-            const country =
-              userDetails.country || userDetails.nationality || "Not provided";
-
-            const address =
-              userDetails.address || userDetails.homeAddress || "Not provided";
-
-            return (
-              <>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">
-                    Full Name
-                  </Label>
-                  <p className="text-gray-900">{fullName}</p>
+      {/* Status Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <StatusIcon className="h-5 w-5" />
+              Current Status: {status.label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Progress</span>
+                  <span>{status.progress}%</span>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">
-                    Email
-                  </Label>
-                  <p className="text-gray-900">{email}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">
-                    Phone
-                  </Label>
-                  <p className="text-gray-900">{phone}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">
-                    Country
-                  </Label>
-                  <p className="text-gray-900">{country}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">
-                    Address
-                  </Label>
-                  <p className="text-gray-900 whitespace-pre-line">{address}</p>
-                </div>
+                <Progress value={status.progress} className="h-2" />
+              </div>
+              <p className="text-gray-600">{status.description}</p>
 
-                {/* ✅ Debug info (sadece development'ta görünür) */}
-                {import.meta.env.DEV && (
-                  <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Debug Info
-                    </Label>
-                    <pre className="text-xs text-gray-600 mt-2 overflow-auto max-h-32">
-                      {JSON.stringify(
-                        {
-                          userDetails,
-                          profileData,
-                          userEmail,
-                          calculatedValues: {
-                            fullName,
-                            email,
-                            phone,
-                            country,
-                            address,
-                          },
-                        },
-                        null,
-                        2
-                      )}
-                    </pre>
+              {/* Status Update Section for Admins */}
+              {isEditing && (
+                <div className="border-t pt-4 space-y-4">
+                  <div>
+                    <Label htmlFor="status-select">Update Status</Label>
+                    <Select
+                      value={editedStatus}
+                      onValueChange={setEditedStatus}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusConfig).map(([key, config]) => (
+                          <SelectItem key={key} value={key}>
+                            <div className="flex items-center gap-2">
+                              <config.icon className="h-4 w-4" />
+                              {config.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </>
-            );
-          })()}
-        </CardContent>
-      </Card>
+
+                  <div>
+                    <Label htmlFor="admin-notes">Admin Notes</Label>
+                    <Textarea
+                      id="admin-notes"
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="Add notes about this request..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleUpdate}
+                      disabled={updating}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {updating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditedStatus(request.status);
+                        setAdminNotes(request.admin_notes || "");
+                      }}
+                      variant="outline"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Info */}
+              {request.payment_data && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Payment Information
+                  </h4>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-medium">Order ID:</span>{" "}
+                        {request.payment_data.order_id}
+                      </div>
+                      <div>
+                        <span className="font-medium">Amount:</span>{" "}
+                        {request.payment_data.currency}{" "}
+                        {request.payment_data.total_price}
+                      </div>
+                      {request.payment_data.paid_at && (
+                        <div className="col-span-2">
+                          <span className="font-medium">Paid At:</span>{" "}
+                          {new Date(
+                            request.payment_data.paid_at
+                          ).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Company Details */}
@@ -653,32 +1212,10 @@ export default function CompanyRequestDetail() {
                 </p>
               </div>
             )}
-
-            {request.payment_data && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Payment Info
-                </Label>
-                <div className="bg-gray-50 p-3 rounded text-sm">
-                  <p>
-                    <strong>Order ID:</strong> {request.payment_data.order_id}
-                  </p>
-                  <p>
-                    <strong>Amount:</strong> {request.payment_data.currency}{" "}
-                    {request.payment_data.total_price}
-                  </p>
-                  {request.payment_data.paid_at && (
-                    <p>
-                      <strong>Paid At:</strong>{" "}
-                      {new Date(request.payment_data.paid_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
+        {/* Personal Details */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -687,7 +1224,6 @@ export default function CompanyRequestDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* ✅ FIXED: Multiple data sources for user info */}
             {(() => {
               const userDetails =
                 request.user_details?.personalDetails ||
@@ -695,22 +1231,16 @@ export default function CompanyRequestDetail() {
                 {};
               const profileData = userProfile || {};
 
-              console.log("🔍 User details debug:", {
-                userDetails,
-                profileData,
-                fullUserDetails: request.user_details,
-              });
-
               const fullName =
                 profileData.full_name ||
                 userDetails.fullName ||
-                userDetails.firstName + " " + userDetails.lastName ||
-                "Not provided";
+                (userDetails.firstName && userDetails.lastName
+                  ? `${userDetails.firstName} ${userDetails.lastName}`
+                  : "Not provided");
 
               const email =
                 userDetails.contactEmail ||
                 userDetails.email ||
-                userEmail ||
                 user?.email ||
                 "Not provided";
 
@@ -761,22 +1291,6 @@ export default function CompanyRequestDetail() {
                       {address}
                     </p>
                   </div>
-
-                  {/* ✅ Debug info (remove in production) */}
-                  {import.meta.env.DEV && (
-                    <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Debug Info
-                      </Label>
-                      <pre className="text-xs text-gray-600 mt-2 overflow-auto">
-                        {JSON.stringify(
-                          { userDetails, profileData, userEmail },
-                          null,
-                          2
-                        )}
-                      </pre>
-                    </div>
-                  )}
                 </>
               );
             })()}
@@ -787,16 +1301,50 @@ export default function CompanyRequestDetail() {
       {/* Documents */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Uploaded Documents ({documents.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Uploaded Documents ({documents.length})
+            </CardTitle>
+            <div className="flex gap-2">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+              />
+              <Button
+                onClick={() => document.getElementById("file-upload")?.click()}
+                disabled={uploading}
+                size="sm"
+                variant="outline"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Files
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {documents.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              No documents uploaded yet
-            </p>
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No documents uploaded yet</p>
+              <p className="text-sm text-gray-400">
+                Users can upload documents, or you can upload them here
+              </p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {documents.map((document) => (
@@ -811,13 +1359,11 @@ export default function CompanyRequestDetail() {
                         {document.file_name}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {document.document_type} •
-                        {document.file_size
-                          ? ` ${(document.file_size / 1024 / 1024).toFixed(
-                              2
-                            )} MB • `
-                          : " "}
+                        {document.document_type || "Unknown type"} •{" "}
                         {new Date(document.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Path: {document.storage_path}
                       </p>
                     </div>
                   </div>
@@ -856,7 +1402,7 @@ export default function CompanyRequestDetail() {
         </Card>
       )}
 
-      {/* Action History */}
+      {/* Request Timeline */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1018,6 +1564,33 @@ export default function CompanyRequestDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Debug Info (Development only) */}
+      {import.meta.env.DEV && debugInfo && (
+        <Card className="border-purple-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-purple-700">
+              <Bug className="h-5 w-5" />
+              Debug Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-purple-50 rounded-lg p-4">
+              <pre className="text-xs text-purple-800 overflow-auto">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+              <div className="mt-4 space-y-2 text-sm">
+                <p>
+                  <strong>Browser Console Commands:</strong>
+                </p>
+                <code className="block bg-white p-2 rounded text-purple-600">
+                  debugCompanyDocuments() // Check documents in console
+                </code>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
