@@ -1,4 +1,3 @@
-// src/pages/DashboardPage.jsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link, useNavigate } from "react-router-dom";
@@ -190,7 +189,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
 };
 
 // ✅ PRODUCTION READY: Company Request Card with real data
-const CompanyRequestCard = ({ request, onViewDetails }) => {
+const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
   const status = statusConfig[request.status] || statusConfig.pending_payment;
   const StatusIcon = status.icon;
   const [deleting, setDeleting] = useState(false);
@@ -379,10 +378,29 @@ export default function DashboardPage() {
         setCompanyRequests(companies);
         setServiceOrders(services);
 
-        // ✅ PRODUCTION READY: Calculate real stats
+        // ✅ UPDATED & CORRECTED: Calculate real stats including only paid amounts
+        const paidCompanyRequests = companies.filter(
+          (req) =>
+            req.payment_data?.financial_status === "paid" ||
+            [
+              "payment_completed",
+              "in_review",
+              "processing",
+              "completed",
+            ].includes(req.status)
+        );
+
+        const paidServiceOrders = services.filter(
+          (order) => order.status === "completed" // Assuming service orders are paid on completion
+        );
+
         const totalSpent = [
-          ...companies.map((req) => parseFloat(req.package_price || 0)),
-          ...services.map((order) => parseFloat(order.price_amount || 0)),
+          ...paidCompanyRequests.map((req) =>
+            parseFloat(req.payment_data?.total_price || req.package_price || 0)
+          ),
+          ...paidServiceOrders.map((order) =>
+            parseFloat(order.price_amount || 0)
+          ),
         ].reduce((sum, amount) => sum + amount, 0);
 
         const totalOrders = companies.length + services.length;

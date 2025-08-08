@@ -1,4 +1,3 @@
-// src/pages/RequestDetailsPage.jsx - UPDATED WITH BETTER STYLING AND FLEXIBLE PAYMENT/DOCS
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -52,7 +51,7 @@ const statusConfig = {
       "Wait for review confirmation",
     ],
     showPaymentButton: true,
-    allowDocumentUpload: false, // ✅ No docs until payment
+    allowDocumentUpload: true,
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800",
@@ -66,7 +65,7 @@ const statusConfig = {
       "Wait for document verification",
     ],
     showPaymentButton: false,
-    allowDocumentUpload: true, // ✅ Can upload docs
+    allowDocumentUpload: true,
   },
   documents_requested: {
     color: "bg-orange-100 text-orange-800",
@@ -80,7 +79,7 @@ const statusConfig = {
       "Wait for verification",
     ],
     showPaymentButton: false,
-    allowDocumentUpload: true, // ✅ Can upload docs
+    allowDocumentUpload: true,
   },
   in_review: {
     color: "bg-blue-100 text-blue-800",
@@ -94,7 +93,7 @@ const statusConfig = {
       "You will be contacted if additional info is needed",
     ],
     showPaymentButton: false,
-    allowDocumentUpload: true, // ✅ Can still upload additional docs if needed
+    allowDocumentUpload: true,
   },
   processing: {
     color: "bg-purple-100 text-purple-800",
@@ -108,7 +107,7 @@ const statusConfig = {
       "You'll receive confirmation once completed",
     ],
     showPaymentButton: false,
-    allowDocumentUpload: false, // ✅ No more docs needed
+    allowDocumentUpload: false,
   },
   completed: {
     color: "bg-green-100 text-green-800",
@@ -122,7 +121,7 @@ const statusConfig = {
       "Consider additional services",
     ],
     showPaymentButton: false,
-    allowDocumentUpload: false, // ✅ Process complete
+    allowDocumentUpload: false,
   },
   rejected: {
     color: "bg-red-100 text-red-800",
@@ -910,165 +909,144 @@ export default function RequestDetailsPage() {
         </motion.div>
       </div>
 
-      {/* ✅ ENHANCED: Document Upload Section - Always available after payment OR if explicitly allowed */}
-      {(status.allowDocumentUpload || status.showPaymentButton) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Document Upload
-                {!status.allowDocumentUpload && status.showPaymentButton && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    Available after payment
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {request.status === "completed" ? (
-                <div className="text-center py-6">
-                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <p className="text-gray-600">
-                    Your company formation is complete. No additional documents
-                    required.
-                  </p>
+      {/* ✅ ENHANCED: Document Upload Section - Always available */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Document Upload
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {request.status === "completed" ||
+            request.status === "processing" ? (
+              <div className="text-center py-6">
+                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <p className="text-gray-600">
+                  This process is finalized. No additional documents are
+                  required at this stage.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Required Documents
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(documentTypes).map(([type, config]) => {
+                      const hasDocument = documents.some(
+                        (doc) => doc.document_type === type
+                      );
+                      return (
+                        <div
+                          key={type}
+                          className={`p-3 border rounded-lg ${
+                            hasDocument
+                              ? "bg-green-50 border-green-200"
+                              : "bg-gray-50 border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {config.icon}
+                            <span className="font-medium text-sm">
+                              {config.label}
+                            </span>
+                            {config.required && (
+                              <Badge variant="outline" className="text-xs">
+                                Required
+                              </Badge>
+                            )}
+                            {hasDocument && (
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {config.description}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : !status.allowDocumentUpload && status.showPaymentButton ? (
-                <div className="text-center py-6">
-                  <CreditCard className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">
-                    Complete payment first to unlock document upload
-                    functionality.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Once payment is processed, you'll be able to upload required
-                    documents here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Required Documents
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(documentTypes).map(([type, config]) => {
-                        const hasDocument = documents.some(
-                          (doc) => doc.document_type === type
-                        );
-                        return (
-                          <div
-                            key={type}
-                            className={`p-3 border rounded-lg ${
-                              hasDocument
-                                ? "bg-green-50 border-green-200"
-                                : "bg-gray-50 border-gray-200"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              {config.icon}
-                              <span className="font-medium text-sm">
-                                {config.label}
-                              </span>
-                              {config.required && (
-                                <Badge variant="outline" className="text-xs">
-                                  Required
-                                </Badge>
-                              )}
-                              {hasDocument && (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-600">
-                              {config.description}
+                <div className="border-t pt-6">
+                  <h4 className="font-semibold text-gray-900 mb-4">
+                    Upload New Document
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="document-type">Document Type</Label>
+                      <select
+                        id="document-type"
+                        value={documentType}
+                        onChange={(e) => setDocumentType(e.target.value)}
+                        className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                      >
+                        {Object.entries(documentTypes).map(([type, config]) => (
+                          <option key={type} value={type}>
+                            {config.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="file-upload">Select File</Label>
+                      <Input
+                        id="file-upload"
+                        type="file"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Accepted formats: PDF, JPG, PNG, DOC, DOCX. Maximum
+                        size: 10MB
+                      </p>
+                    </div>
+                    {selectedFile && (
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-900">
+                              {selectedFile.name}
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                             </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="border-t pt-6">
-                    <h4 className="font-semibold text-gray-900 mb-4">
-                      Upload New Document
-                    </h4>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="document-type">Document Type</Label>
-                        <select
-                          id="document-type"
-                          value={documentType}
-                          onChange={(e) => setDocumentType(e.target.value)}
-                          className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-                        >
-                          {Object.entries(documentTypes).map(
-                            ([type, config]) => (
-                              <option key={type} value={type}>
-                                {config.label}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="file-upload">Select File</Label>
-                        <Input
-                          id="file-upload"
-                          type="file"
-                          onChange={handleFileChange}
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          className="mt-1"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Accepted formats: PDF, JPG, PNG, DOC, DOCX. Maximum
-                          size: 10MB
-                        </p>
-                      </div>
-                      {selectedFile && (
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-blue-900">
-                                {selectedFile.name}
-                              </p>
-                              <p className="text-xs text-blue-700">
-                                {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
-                                MB
-                              </p>
-                            </div>
-                            <Button
-                              onClick={handleUpload}
-                              disabled={uploading}
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700"
-                            >
-                              {uploading ? (
-                                <>
-                                  <FaSpinner className="animate-spin mr-2 h-4 w-4" />
-                                  Uploading...
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload
-                                </>
-                              )}
-                            </Button>
-                          </div>
+                          <Button
+                            onClick={handleUpload}
+                            disabled={uploading}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {uploading ? (
+                              <>
+                                <FaSpinner className="animate-spin mr-2 h-4 w-4" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload
+                              </>
+                            )}
+                          </Button>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Uploaded Documents */}
       {documents.length > 0 && (
