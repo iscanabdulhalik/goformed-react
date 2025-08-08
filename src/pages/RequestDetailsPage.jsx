@@ -1,4 +1,4 @@
-// src/pages/RequestDetailsPage.jsx - UPDATED WITH PAYMENT INTEGRATION
+// src/pages/RequestDetailsPage.jsx - UPDATED WITH BETTER STYLING AND FLEXIBLE PAYMENT/DOCS
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabase";
@@ -38,7 +38,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-// Status configuration
+// ✅ UPDATED: Enhanced status configuration with better logic
 const statusConfig = {
   pending_payment: {
     color: "bg-yellow-100 text-yellow-800",
@@ -52,12 +52,13 @@ const statusConfig = {
       "Wait for review confirmation",
     ],
     showPaymentButton: true,
+    allowDocumentUpload: false, // ✅ No docs until payment
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800",
     icon: FaCheckCircle,
     label: "Payment Completed",
-    description: "Payment received successfully. Starting review process.",
+    description: "Payment received successfully. Documents may be required.",
     progress: 25,
     nextSteps: [
       "Upload identity documents",
@@ -65,6 +66,21 @@ const statusConfig = {
       "Wait for document verification",
     ],
     showPaymentButton: false,
+    allowDocumentUpload: true, // ✅ Can upload docs
+  },
+  documents_requested: {
+    color: "bg-orange-100 text-orange-800",
+    icon: FaExclamationTriangle,
+    label: "Documents Required",
+    description: "Please upload the required documents to proceed",
+    progress: 35,
+    nextSteps: [
+      "Check document requirements below",
+      "Upload missing documents",
+      "Wait for verification",
+    ],
+    showPaymentButton: false,
+    allowDocumentUpload: true, // ✅ Can upload docs
   },
   in_review: {
     color: "bg-blue-100 text-blue-800",
@@ -78,19 +94,7 @@ const statusConfig = {
       "You will be contacted if additional info is needed",
     ],
     showPaymentButton: false,
-  },
-  documents_requested: {
-    color: "bg-orange-100 text-orange-800",
-    icon: FaExclamationTriangle,
-    label: "Documents Required",
-    description: "Additional documents are needed to proceed",
-    progress: 35,
-    nextSteps: [
-      "Check document requirements below",
-      "Upload missing documents",
-      "Wait for verification",
-    ],
-    showPaymentButton: false,
+    allowDocumentUpload: true, // ✅ Can still upload additional docs if needed
   },
   processing: {
     color: "bg-purple-100 text-purple-800",
@@ -104,6 +108,7 @@ const statusConfig = {
       "You'll receive confirmation once completed",
     ],
     showPaymentButton: false,
+    allowDocumentUpload: false, // ✅ No more docs needed
   },
   completed: {
     color: "bg-green-100 text-green-800",
@@ -117,6 +122,7 @@ const statusConfig = {
       "Consider additional services",
     ],
     showPaymentButton: false,
+    allowDocumentUpload: false, // ✅ Process complete
   },
   rejected: {
     color: "bg-red-100 text-red-800",
@@ -130,6 +136,7 @@ const statusConfig = {
       "Consider resubmitting with corrections",
     ],
     showPaymentButton: false,
+    allowDocumentUpload: false,
   },
   cancelled: {
     color: "bg-gray-100 text-gray-800",
@@ -139,6 +146,7 @@ const statusConfig = {
     progress: 0,
     nextSteps: [],
     showPaymentButton: false,
+    allowDocumentUpload: false,
   },
 };
 
@@ -304,7 +312,7 @@ export default function RequestDetailsPage() {
     return () => supabase.removeChannel(channel);
   }, [requestId, navigate]);
 
-  // Corrected handlePayment function for RequestDetailsPage.jsx
+  // ✅ ENHANCED: Payment handler that updates status after payment
   const handlePayment = async () => {
     if (!request || !user) {
       alert("Request or user information not available");
@@ -314,11 +322,6 @@ export default function RequestDetailsPage() {
     try {
       setPaying(true);
       console.log("🚀 Starting payment process...");
-      console.log("Request:", {
-        id: request.id,
-        company_name: request.company_name,
-        package_name: request.package_name,
-      });
 
       // Get package info from lib/packages.jsx
       let packageInfo;
@@ -344,11 +347,6 @@ export default function RequestDetailsPage() {
       }
 
       console.log("🛒 Creating checkout session...");
-      console.log("Payload:", {
-        variantId: packageInfo.variantId,
-        productId: packageInfo.shopifyProductId,
-        requestId: request.id,
-      });
 
       // Create checkout session
       const { data, error } = await supabase.functions.invoke(
@@ -364,25 +362,22 @@ export default function RequestDetailsPage() {
 
       console.log("📡 Function response:", { data, error });
 
-      // Check for function invocation error
+      // Check for errors
       if (error) {
         console.error("❌ Function invocation error:", error);
         throw new Error(`Function error: ${error.message}`);
       }
 
-      // Check if data exists
       if (!data) {
         console.error("❌ No data received from function");
         throw new Error("No response data from checkout function");
       }
 
-      // Check for function-level errors
       if (data.error) {
         console.error("❌ Function returned error:", data.error);
         throw new Error(`Checkout error: ${data.error}`);
       }
 
-      // ✅ FIXED: Don't check for data.success, directly check for checkoutUrl
       if (!data.checkoutUrl) {
         console.error("❌ No checkout URL in response:", data);
         throw new Error("Checkout URL not provided by payment service");
@@ -479,6 +474,7 @@ export default function RequestDetailsPage() {
           upsert: false,
         });
       if (uploadError) throw uploadError;
+
       await supabase.from("documents").insert({
         request_id: requestId,
         user_id: user.id,
@@ -489,8 +485,24 @@ export default function RequestDetailsPage() {
         document_type: documentType,
         uploaded_by: user.id,
       });
+
       setSelectedFile(null);
       document.getElementById("file-upload").value = "";
+
+      // ✅ AUTO-UPDATE STATUS: If this is first document upload after payment, update status
+      if (request.status === "payment_completed" && documents.length === 0) {
+        try {
+          await supabase
+            .from("company_requests")
+            .update({ status: "documents_requested" })
+            .eq("id", requestId);
+
+          setRequest((prev) => ({ ...prev, status: "documents_requested" }));
+        } catch (statusError) {
+          console.error("Could not update status:", statusError);
+        }
+      }
+
       alert("Document uploaded successfully!");
     } catch (error) {
       alert(`Upload failed: ${error.message}`);
@@ -592,17 +604,17 @@ export default function RequestDetailsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+      {/* ✅ UPDATED: Better styled header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-xl md:text-2xl font-medium text-gray-900 mb-2">
             {request.company_name}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm text-gray-600">
             Request ID: {request.id.slice(0, 8)} • Created{" "}
             {new Date(request.created_at).toLocaleDateString()}
           </p>
@@ -661,7 +673,7 @@ export default function RequestDetailsPage() {
                 </div>
               )}
 
-              {/* Payment Button */}
+              {/* ✅ ENHANCED: Payment Section - Always accessible if not paid */}
               {status.showPaymentButton && request.package_price && (
                 <div className="border-t pt-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -898,8 +910,8 @@ export default function RequestDetailsPage() {
         </motion.div>
       </div>
 
-      {/* Document Upload Section */}
-      {request.status !== "pending_payment" && (
+      {/* ✅ ENHANCED: Document Upload Section - Always available after payment OR if explicitly allowed */}
+      {(status.allowDocumentUpload || status.showPaymentButton) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -910,6 +922,11 @@ export default function RequestDetailsPage() {
               <CardTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5" />
                 Document Upload
+                {!status.allowDocumentUpload && status.showPaymentButton && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    Available after payment
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -919,6 +936,18 @@ export default function RequestDetailsPage() {
                   <p className="text-gray-600">
                     Your company formation is complete. No additional documents
                     required.
+                  </p>
+                </div>
+              ) : !status.allowDocumentUpload && status.showPaymentButton ? (
+                <div className="text-center py-6">
+                  <CreditCard className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">
+                    Complete payment first to unlock document upload
+                    functionality.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Once payment is processed, you'll be able to upload required
+                    documents here.
                   </p>
                 </div>
               ) : (
@@ -1109,16 +1138,17 @@ export default function RequestDetailsPage() {
                         >
                           <Download className="h-4 w-4" />
                         </Button>
-                        {request.status !== "completed" && (
-                          <Button
-                            onClick={() => handleDeleteDocument(document.id)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        {request.status !== "completed" &&
+                          status.allowDocumentUpload && (
+                            <Button
+                              onClick={() => handleDeleteDocument(document.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                       </div>
                     </div>
                   );

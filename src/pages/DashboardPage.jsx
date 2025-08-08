@@ -35,6 +35,8 @@ import {
   Heart,
   Shield,
   MapPin,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 // ✅ PRODUCTION READY: Real status configurations
@@ -80,6 +82,15 @@ const statusConfig = {
     label: "Rejected",
     description: "Application rejected - contact support",
     progress: 0,
+    canDelete: true,
+  },
+  cancelled: {
+    color: "bg-gray-100 text-gray-800 border-gray-300",
+    icon: AlertTriangle,
+    label: "Cancelled",
+    description: "Request cancelled",
+    progress: 0,
+    canDelete: true, // ✅ Ekle
   },
 };
 
@@ -182,6 +193,28 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
 const CompanyRequestCard = ({ request, onViewDetails }) => {
   const status = statusConfig[request.status] || statusConfig.pending_payment;
   const StatusIcon = status.icon;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+
+    if (
+      !confirm(
+        `Are you sure you want to delete "${request.company_name}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await onDelete(request.id);
+    } catch (error) {
+      alert("Failed to delete request. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -219,6 +252,21 @@ const CompanyRequestCard = ({ request, onViewDetails }) => {
                 {new Date(request.created_at).toLocaleDateString()}
               </p>
             </div>
+            {status.canDelete && (
+              <Button
+                onClick={handleDelete}
+                disabled={deleting}
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
         </CardHeader>
 
@@ -474,6 +522,42 @@ export default function DashboardPage() {
     navigate(`/dashboard/request/${request.id}`);
   };
 
+  const handleDeleteRequest = async (requestId) => {
+    try {
+      const { error } = await supabase
+        .from("company_requests")
+        .delete()
+        .eq("id", requestId)
+        .eq("user_id", user.id); // Security: only delete own requests
+
+      if (error) throw error;
+
+      // Update local state
+      setCompanyRequests((prev) => prev.filter((req) => req.id !== requestId));
+
+      // Update stats
+      setStats((prev) => ({
+        ...prev,
+        totalOrders: prev.totalOrders - 1,
+      }));
+
+      // Log activity
+      try {
+        await supabase.rpc("log_activity", {
+          p_user_id: user.id,
+          p_action: "company_request_deleted",
+          p_description: "User deleted a company request",
+          p_metadata: { request_id: requestId },
+        });
+      } catch (logError) {
+        console.error("Activity logging failed:", logError);
+      }
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      throw error;
+    }
+  };
+
   const tabs = [
     {
       value: "overview",
@@ -522,7 +606,6 @@ export default function DashboardPage() {
             initial="hidden"
             animate="visible"
           >
-            {/* ✅ PRODUCTION READY: Enhanced Stats Cards with real data */}
             <motion.div
               variants={itemVariants}
               className="grid grid-cols-1 md:grid-cols-4 gap-4"
@@ -937,6 +1020,7 @@ export default function DashboardPage() {
                           key={request.id}
                           request={request}
                           onViewDetails={handleViewDetails}
+                          onDelete={handleDeleteRequest}
                         />
                       ))}
                     </div>
@@ -1051,7 +1135,7 @@ export default function DashboardPage() {
                 <span>All Systems Operational</span>
               </div>
             </div>
-            <div className="mt-4 sm:mt-0 text-sm text-gray-500">
+            <div className="mt-4 sm:mt-0 text-xs text-gray-500 font-normal">
               Welcome back, {user?.email?.split("@")[0]} 👋
             </div>
           </div>

@@ -447,7 +447,7 @@ const INDIVIDUAL_SERVICES = {
 const SERVICE_BUNDLES = [
   {
     id: "starter-bundle",
-    title: "🟩 Starter Bundle",
+    title: "Starter Bundle",
     subtitle: "For users who need the essentials to launch",
     price: 99.0,
     originalPrice: 185.0,
@@ -473,7 +473,7 @@ const SERVICE_BUNDLES = [
   },
   {
     id: "pro-bundle",
-    title: "🟦 Pro Bundle",
+    title: "Pro Bundle",
     subtitle: "For users who want branding + compliance done right",
     price: 199.0,
     originalPrice: 354.0,
@@ -505,7 +505,7 @@ const SERVICE_BUNDLES = [
   },
   {
     id: "all-in-one-bundle",
-    title: "🟧 All-In-One Bundle",
+    title: "All-In-One Bundle",
     subtitle: "Complete launch + compliance + scaling package",
     price: 349.0,
     originalPrice: 584.0,
@@ -898,7 +898,7 @@ export default function MarketplacePage() {
         >
           <div className="flex items-center justify-center gap-3 mb-4">
             <Building2 className="w-8 h-8 text-blue-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Marketplace</h1>
+            <h1 className="text-xl font-medium text-gray-900">Marketplace</h1>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-6">
             Expand your business with our additional services. From VAT
@@ -995,7 +995,7 @@ export default function MarketplacePage() {
               <FaLaptop className="w-4 h-4" />
               Email Us
             </Button>
-            <Button
+            {/* <Button
               className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 px-6 py-3"
               onClick={() =>
                 window.open("https://calendly.com/goformed", "_blank")
@@ -1003,7 +1003,7 @@ export default function MarketplacePage() {
             >
               <FaShoppingCart className="w-4 h-4" />
               Schedule a Call
-            </Button>
+            </Button> */}
           </div>
         </motion.div>
 

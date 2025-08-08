@@ -6,7 +6,7 @@ export const ukPackages = [
     variantId: "gid://shopify/ProductVariant/46490494861450",
     oldPrice: "£449",
     price: "£149",
-    feeText: "+ £50 Companies House fee included",
+    feeText: "",
     features: [
       "UK Company Formation",
       "Payoneer UK Business Account",
@@ -23,7 +23,7 @@ export const ukPackages = [
     variantId: "gid://shopify/ProductVariant/46491584004234",
     oldPrice: "£599",
     price: "£249",
-    feeText: "+ £50 Companies House fee included",
+    feeText: "",
     features: [
       "Everything in Entrepreneur",
       "VAT Registration",
@@ -43,7 +43,7 @@ export const globalPackages = [
     variantId: "gid://shopify/ProductVariant/46491584921738",
     oldPrice: "£549",
     price: "£199",
-    feeText: "+ £50 Companies House fee included",
+    feeText: "",
     features: [
       "Everything in Entrepreneur",
       "Extra ID verification support",
@@ -59,7 +59,7 @@ export const globalPackages = [
     variantId: "gid://shopify/ProductVariant/46491586822282",
     oldPrice: "£649",
     price: "£249",
-    feeText: "+ £50 Companies House fee included",
+    feeText: "",
     features: [
       "Everything in Global Starter",
       "VAT & PAYE Registration",
