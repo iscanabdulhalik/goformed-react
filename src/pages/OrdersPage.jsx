@@ -114,13 +114,13 @@ const serviceStatusConfig = {
     description: "Order confirmed and assigned",
     priority: 2,
   },
-  in_progress: {
-    color: "bg-purple-100 text-purple-800 border-purple-300",
-    icon: Loader2,
-    label: "In Progress",
-    description: "Work in progress",
-    priority: 3,
-  },
+  // in_progress: {
+  //   color: "bg-purple-100 text-purple-800 border-purple-300",
+  //   icon: Loader2,
+  //   label: "In Progress",
+  //   description: "Work in progress",
+  //   priority: 3,
+  // },
   completed: {
     color: "bg-green-100 text-green-800 border-green-300",
     icon: CheckCircle,
@@ -146,9 +146,7 @@ const serviceStatusConfig = {
 
 // Enhanced Company Request Card Component
 const CompanyRequestCard = ({ request, onViewDetails }) => {
-  const status =
-    companyStatusConfig[request.status] || companyStatusConfig.pending_payment;
-  const StatusIcon = status.icon;
+  // ✅ REMOVED: Status configuration completely removed
 
   return (
     <motion.div
@@ -158,13 +156,6 @@ const CompanyRequestCard = ({ request, onViewDetails }) => {
       className="group"
     >
       <Card className="h-full hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500 relative overflow-hidden">
-        {/* Priority indicator */}
-        {status.priority <= 2 && (
-          <div className="absolute top-2 right-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-          </div>
-        )}
-
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3 flex-1">
@@ -185,33 +176,19 @@ const CompanyRequestCard = ({ request, onViewDetails }) => {
                 )}
               </div>
             </div>
+
+            <div className="text-right">
+              {/* ✅ REMOVED: Status badge completely */}
+              <span className="text-xs text-gray-500">
+                {new Date(request.created_at).toLocaleDateString("en-GB")}
+              </span>
+            </div>
           </div>
         </CardHeader>
 
         <CardContent className="pt-0">
           <div className="space-y-4">
-            {/* Status Badge */}
-            <div className="flex items-center justify-between">
-              <Badge className={`${status.color} border text-xs px-3 py-1`}>
-                <StatusIcon className="mr-1 h-3 w-3" />
-                {status.label}
-              </Badge>
-              <span className="text-xs text-gray-500">
-                {new Date(request.created_at).toLocaleDateString("en-GB")}
-              </span>
-            </div>
-
-            {/* Progress Bar */}
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-gray-600">Progress</span>
-                <span className="font-medium">{status.priority * 20}%</span>
-              </div>
-              <Progress value={status.priority * 20} className="h-2" />
-            </div>
-
-            {/* Description */}
-            <p className="text-sm text-gray-600">{status.description}</p>
+            {/* ✅ REMOVED: Status Badge, Progress Bar, and Description */}
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2">
@@ -223,11 +200,6 @@ const CompanyRequestCard = ({ request, onViewDetails }) => {
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </Button>
-              {request.status === "completed" && (
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             {/* Request ID */}
@@ -623,10 +595,25 @@ export default function OrdersPage() {
   ).length;
   const totalCompleted = completedCompany + completedService;
   const pendingOrders = totalOrders - totalCompleted;
-  const totalSpent = [
-    ...companyRequests.map((req) => parseFloat(req.package_price || 0)),
-    ...serviceOrders.map((order) => parseFloat(order.price_amount || 0)),
-  ].reduce((sum, amount) => sum + amount, 0);
+  const totalSpentFromCompanies = companyRequests
+    .filter(
+      (req) =>
+        req.payment_data?.financial_status === "paid" ||
+        (req.payment_data?.is_test_order === true &&
+          req.payment_data?.total_price)
+    )
+    .reduce((sum, req) => {
+      const paidAmount = req.payment_data?.total_price
+        ? parseFloat(req.payment_data.total_price)
+        : 0;
+      return sum + paidAmount;
+    }, 0);
+
+  const totalSpentFromServices = serviceOrders
+    .filter((order) => order.status === "completed")
+    .reduce((sum, order) => sum + parseFloat(order.price_amount || 0), 0);
+
+  const totalSpent = totalSpentFromCompanies + totalSpentFromServices;
 
   return (
     <div className="space-y-8">
@@ -684,20 +671,20 @@ export default function OrdersPage() {
           color="bg-gradient-to-br from-green-500 to-green-600"
           description="Successfully finished"
         />
-        <StatsCard
+        {/* <StatsCard
           title="In Progress"
           value={pendingOrders}
           icon={Clock}
           color="bg-gradient-to-br from-orange-500 to-orange-600"
           description="Currently processing"
-        />
-        <StatsCard
+        /> */}
+        {/* <StatsCard
           title="Total Investment"
           value={`£${totalSpent.toFixed(0)}`}
           icon={DollarSign}
           color="bg-gradient-to-br from-purple-500 to-purple-600"
           description="Business spending"
-        />
+        /> */}
       </motion.div>
 
       {/* Filters and Search */}

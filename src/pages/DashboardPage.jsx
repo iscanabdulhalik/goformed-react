@@ -44,21 +44,21 @@ const statusConfig = {
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     icon: Clock,
     label: "Pending Payment",
-    description: "Complete payment to start your company formation",
+    description: "Payment required to proceed",
     progress: 10,
   },
   payment_completed: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
     icon: CheckCircle,
     label: "Payment Completed",
-    description: "Payment received, starting review process",
+    description: "Payment received successfully",
     progress: 25,
   },
   in_review: {
     color: "bg-blue-100 text-blue-800 border-blue-300",
     icon: Clock,
     label: "In Review",
-    description: "Our team is reviewing your application",
+    description: "Application under review",
     progress: 50,
   },
   processing: {
@@ -79,7 +79,7 @@ const statusConfig = {
     color: "bg-red-100 text-red-800 border-red-300",
     icon: AlertCircle,
     label: "Rejected",
-    description: "Application rejected - contact support",
+    description: "Application rejected",
     progress: 0,
     canDelete: true,
   },
@@ -89,99 +89,202 @@ const statusConfig = {
     label: "Cancelled",
     description: "Request cancelled",
     progress: 0,
-    canDelete: true, // ✅ Ekle
+    canDelete: true,
   },
 };
 
-// Package Card Component
+// Updated PackageCard Component with balanced, clean design
 const PackageCard = ({ packageData, onOrder, isLoading }) => {
+  const isPopular = packageData.badge === "Popular";
+  const isPremium =
+    packageData.badge === "Premium" || packageData.badge === "Elite";
+
   return (
     <motion.div
-      whileHover={{ y: -5, scale: 1.02 }}
-      transition={{ duration: 0.3 }}
+      whileHover={{ y: -4, scale: 1.01 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className="h-full"
     >
       <Card
-        className={`h-full flex flex-col transition-all duration-300 hover:shadow-xl relative overflow-hidden ${
-          packageData.badge === "Popular" ||
-          packageData.badge === "Premium" ||
-          packageData.badge === "Elite"
-            ? "border-2 border-blue-500 shadow-lg"
-            : "border hover:border-gray-300"
+        className={`h-full flex flex-col transition-all duration-300 relative overflow-hidden ${
+          isPopular || isPremium
+            ? "border-2 border-blue-200 shadow-lg bg-gradient-to-br from-white to-blue-50/30"
+            : "border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg bg-white"
         }`}
       >
-        {/* Gradient background */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+        {/* Top accent line */}
+        <div
+          className={`absolute top-0 left-0 w-full h-1 ${
+            isPopular || isPremium
+              ? "bg-gradient-to-r from-blue-500 to-purple-500"
+              : "bg-gray-300"
+          }`}
+        />
 
         {/* Badge */}
         {packageData.badge && (
           <div className="absolute -top-3 right-4 z-10">
-            <Badge
-              className={`${packageData.badgeClass} text-white px-3 py-1 text-xs font-bold shadow-lg`}
+            {/* <Badge
+              className={`${packageData.badgeClass} text-white px-3 py-1 text-xs font-semibold shadow-md rounded-full`}
             >
-              {packageData.badge}
-            </Badge>
+              <div className="flex items-center gap-1">
+                {packageData.badge === "Popular" && <Star className="h-3 w-3" />}
+                {(packageData.badge === "Premium" || packageData.badge === "Elite") && <Crown className="h-3 w-3" />}
+                {packageData.badge}
+              </div>
+            </Badge> */}
           </div>
         )}
 
         <CardHeader className="pb-4 pt-6">
           <div className="text-center">
-            <CardTitle className="text-xl font-bold text-gray-900 mb-2">
+            {/* Package Icon */}
+            <div
+              className={`w-12 h-12 mx-auto mb-3 rounded-lg flex items-center justify-center ${
+                isPopular || isPremium
+                  ? "bg-gradient-to-br from-blue-500 to-purple-600"
+                  : "bg-gray-100"
+              }`}
+            >
+              <Building2
+                className={`h-6 w-6 ${
+                  isPopular || isPremium ? "text-white" : "text-gray-600"
+                }`}
+              />
+            </div>
+
+            <CardTitle className="text-xl font-bold text-gray-900 mb-3">
               {packageData.name}
             </CardTitle>
 
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-lg text-gray-400 line-through">
-                {packageData.oldPrice}
-              </span>
-              <span className="text-3xl font-bold text-blue-600">
-                {packageData.price}
-              </span>
+            {/* Price section */}
+            <div className="mb-4">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-base text-gray-400 line-through">
+                  {packageData.oldPrice}
+                </span>
+                <span
+                  className={`text-3xl font-bold ${
+                    isPopular || isPremium ? "text-blue-600" : "text-gray-900"
+                  }`}
+                >
+                  {packageData.price}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500">{packageData.feeText}</p>
             </div>
 
-            <p className="text-xs text-gray-500">{packageData.feeText}</p>
+            {/* Save amount */}
+            {packageData.oldPrice && (
+              <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                <TrendingUp className="h-3 w-3" />
+                Save £
+                {parseInt(packageData.oldPrice.replace(/[£,]/g, "")) -
+                  parseInt(packageData.price.replace(/[£,]/g, ""))}
+              </div>
+            )}
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 flex flex-col">
-          <ul className="space-y-3 text-sm text-gray-600 flex-1 mb-6">
-            {packageData.features.map((feature, index) => (
-              <motion.li
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-start gap-3"
-              >
-                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>{feature}</span>
-              </motion.li>
-            ))}
-          </ul>
+        <CardContent className="flex-1 flex flex-col px-6 pb-6">
+          {/* Features list */}
+          <div className="flex-1 mb-6">
+            <h4 className="font-medium text-gray-800 mb-3 text-sm">
+              What's Included:
+            </h4>
+            <ul className="space-y-2">
+              {packageData.features.map((feature, index) => (
+                <li
+                  key={index}
+                  className="flex items-start gap-2 text-sm text-gray-600"
+                >
+                  <div className="p-0.5 bg-green-500 rounded-full flex-shrink-0 mt-1">
+                    <Check className="h-2.5 w-2.5 text-white" />
+                  </div>
+                  <span className="leading-relaxed">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-          <Button
-            onClick={() => onOrder(packageData)}
-            disabled={isLoading}
-            className={`w-full font-semibold transition-all duration-300 ${
-              packageData.badge === "Popular" ||
-              packageData.badge === "Premium" ||
-              packageData.badge === "Elite"
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl"
-                : "bg-gray-900 hover:bg-gray-800 text-white"
-            }`}
+          {/* CTA Button with balanced design */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="space-y-3"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Choose This Package
-              </>
-            )}
-          </Button>
+            <Button
+              onClick={() => onOrder(packageData)}
+              disabled={isLoading}
+              className={`w-full h-12 font-semibold text-base transition-all duration-300 relative overflow-hidden group ${
+                isPopular || isPremium
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl border-0"
+                  : "bg-gray-900 hover:bg-gray-800 text-white shadow-md hover:shadow-lg border-0"
+              } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
+            >
+              {/* Subtle shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+
+              <div className="relative z-10 flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin h-4 w-4" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>Choose This Package</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
+                  </>
+                )}
+              </div>
+            </Button>
+
+            {/* Secondary buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-sm font-medium hover:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Add learn more functionality
+                }}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                Details
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-sm font-medium hover:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Add compare functionality
+                }}
+              >
+                <Target className="h-3 w-3 mr-1" />
+                Compare
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Trust indicators */}
+          <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              <span>Secure</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Zap className="h-3 w-3" />
+              <span>24-48h</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="h-3 w-3" />
+              <span>Support</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -190,8 +293,9 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
 
 // ✅ PRODUCTION READY: Company Request Card with real data
 const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
-  const status = statusConfig[request.status] || statusConfig.pending_payment;
-  const StatusIcon = status.icon;
+  // Remove status config - no longer needed
+  // const status = statusConfig[request.status] || statusConfig.pending_payment;
+  // const StatusIcon = status.icon;
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async (e) => {
@@ -243,15 +347,15 @@ const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
             </div>
 
             <div className="text-right">
-              <Badge className={`${status.color} border text-xs`}>
-                <StatusIcon className="mr-1 h-3 w-3" />
-                {status.label}
-              </Badge>
-              <p className="text-xs text-gray-500 mt-1">
+              {/* ✅ REMOVED: Status badge completely removed */}
+              <p className="text-xs text-gray-500">
                 {new Date(request.created_at).toLocaleDateString()}
               </p>
             </div>
-            {status.canDelete && (
+
+            {/* Delete button for cancelled/rejected only */}
+            {(request.status === "cancelled" ||
+              request.status === "rejected") && (
               <Button
                 onClick={handleDelete}
                 disabled={deleting}
@@ -270,16 +374,7 @@ const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
         </CardHeader>
 
         <CardContent className="pt-0">
-          <p className="text-sm text-gray-600 mb-3">{status.description}</p>
-
-          <div className="mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Progress</span>
-              <span>{status.progress}%</span>
-            </div>
-            <Progress value={status.progress} className="h-2" />
-          </div>
-
+          {/* ✅ REMOVED: Status description and progress bar */}
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span>ID: {request.id.slice(0, 8)}</span>
@@ -343,6 +438,7 @@ export default function DashboardPage() {
   };
 
   // ✅ PRODUCTION READY: Fetch real user data
+
   useEffect(() => {
     if (!user) return;
 
@@ -378,48 +474,28 @@ export default function DashboardPage() {
         setCompanyRequests(companies);
         setServiceOrders(services);
 
-        // ✅ UPDATED & CORRECTED: Calculate real stats including only paid amounts
-        const paidCompanyRequests = companies.filter(
-          (req) =>
-            req.payment_data?.financial_status === "paid" ||
-            [
-              "payment_completed",
-              "in_review",
-              "processing",
-              "completed",
-            ].includes(req.status)
-        );
-
-        const paidServiceOrders = services.filter(
-          (order) => order.status === "completed" // Assuming service orders are paid on completion
-        );
-
-        const totalSpent = [
-          ...paidCompanyRequests.map((req) =>
-            parseFloat(req.payment_data?.total_price || req.package_price || 0)
-          ),
-          ...paidServiceOrders.map((order) =>
-            parseFloat(order.price_amount || 0)
-          ),
-        ].reduce((sum, amount) => sum + amount, 0);
-
+        // ✅ SIMPLIFIED: Basic stats calculation (no payment tracking)
         const totalOrders = companies.length + services.length;
-
         const completedOrders = [
           ...companies.filter((req) => req.status === "completed"),
           ...services.filter((order) => order.status === "completed"),
         ].length;
-
         const pendingOrders = totalOrders - completedOrders;
 
         setStats({
-          totalSpent,
+          totalSpent: 0, // Disabled - always 0
           pendingOrders,
           completedOrders,
           totalOrders,
         });
 
-        // ✅ FIXED: Removed .catch() which was causing the error
+        console.log("📊 Simplified stats:", {
+          totalOrders,
+          completedOrders,
+          pendingOrders,
+        });
+
+        // Log activity (optional)
         try {
           await supabase.rpc("log_activity", {
             p_user_id: user.id,
@@ -427,12 +503,10 @@ export default function DashboardPage() {
             p_description: "User viewed dashboard",
             p_metadata: {
               total_orders: totalOrders,
-              total_spent: totalSpent,
             },
           });
         } catch (logError) {
           console.error("Error logging activity:", logError);
-          // Fail silently if activity logging fails
         }
       } catch (err) {
         console.error("Error fetching user data:", err);
@@ -443,7 +517,8 @@ export default function DashboardPage() {
 
     fetchUserData();
 
-    // ✅ PRODUCTION READY: Real-time subscriptions for live updates
+    // ✅ DISABLED: Real-time subscriptions temporarily disabled
+    /*
     const companyChannel = supabase
       .channel("user_company_requests")
       .on(
@@ -455,7 +530,22 @@ export default function DashboardPage() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
+          console.log("🔄 Real-time company update received:", payload);
+
           if (payload.eventType === "UPDATE") {
+            const isPaymentUpdate =
+              payload.new.payment_data && !payload.old?.payment_data;
+            const isStatusUpdate = payload.new.status !== payload.old?.status;
+
+            if (isPaymentUpdate || isStatusUpdate) {
+              console.log(
+                "💰 Payment or status update detected, forcing full refresh..."
+              );
+              setTimeout(() => {
+                fetchUserData();
+              }, 2000);
+            }
+
             setCompanyRequests((current) =>
               current.map((req) =>
                 req.id === payload.new.id ? payload.new : req
@@ -466,7 +556,9 @@ export default function DashboardPage() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Company subscription status:", status);
+      });
 
     const serviceChannel = supabase
       .channel("user_service_orders")
@@ -495,6 +587,12 @@ export default function DashboardPage() {
     return () => {
       supabase.removeChannel(companyChannel);
       supabase.removeChannel(serviceChannel);
+    };
+    */
+
+    // ✅ FIXED: No cleanup needed when real-time is disabled
+    return () => {
+      console.log("🧹 Dashboard cleanup completed");
     };
   }, [user]);
 
@@ -647,24 +745,24 @@ export default function DashboardPage() {
                   textColor: "text-green-600",
                   description: "Successfully completed",
                 },
-                {
-                  title: "In Progress",
-                  value: stats.pendingOrders,
-                  icon: Clock,
-                  color: "yellow",
-                  bgColor: "bg-yellow-100",
-                  textColor: "text-yellow-600",
-                  description: "Currently processing",
-                },
-                {
-                  title: "Total Invested",
-                  value: `£${stats.totalSpent.toFixed(0)}`,
-                  icon: DollarSign,
-                  color: "purple",
-                  bgColor: "bg-purple-100",
-                  textColor: "text-purple-600",
-                  description: "Your business investment",
-                },
+                // {
+                //   title: "In Progress",
+                //   value: stats.pendingOrders,
+                //   icon: Clock,
+                //   color: "yellow",
+                //   bgColor: "bg-yellow-100",
+                //   textColor: "text-yellow-600",
+                //   description: "Currently processing",
+                // },
+                // {
+                //   title: "Total Invested",
+                //   value: `£${stats.totalSpent.toFixed(0)}`,
+                //   icon: DollarSign,
+                //   color: "purple",
+                //   bgColor: "bg-purple-100",
+                //   textColor: "text-purple-600",
+                //   description: "Your business investment",
+                // },
               ].map((stat, index) => (
                 <motion.div
                   key={stat.title}
@@ -838,15 +936,6 @@ export default function DashboardPage() {
                                         ).toLocaleDateString()}
                                       </p>
                                     </div>
-                                    <Badge
-                                      className={
-                                        statusConfig[request.status]?.color ||
-                                        statusConfig.pending_payment.color
-                                      }
-                                    >
-                                      {statusConfig[request.status]?.label ||
-                                        "Pending"}
-                                    </Badge>
                                   </div>
                                 )
                               )}
@@ -886,22 +975,88 @@ export default function DashboardPage() {
                     </Card>
                   </div>
                 </CustomTabContent>
-
                 {/* Packages Tab */}
                 <CustomTabContent value="packages" activeValue={activeTab}>
-                  <div className="space-y-6">
+                  <div className="space-y-8">
+                    {/* Hero Section */}
+                    <motion.div
+                      className="text-center relative"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl blur-3xl -z-10" />
+                      <div className="relative bg-white/50 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.2, type: "spring" }}
+                          className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg"
+                        >
+                          <Building2 className="h-10 w-10 text-white" />
+                        </motion.div>
+
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
+                          Start Your UK Company Today
+                        </h1>
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                          Join thousands of entrepreneurs who chose our expert
+                          service to launch their business dreams.
+                          <span className="font-semibold text-blue-600">
+                            {" "}
+                            Fast, secure, and fully compliant.
+                          </span>
+                        </p>
+
+                        {/* Stats */}
+                        <div className="flex items-center justify-center gap-8 mt-6 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-gray-600">
+                              2,000+ Companies Formed
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                            <span className="text-gray-600">
+                              4.9/5 Customer Rating
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-blue-500" />
+                            <span className="text-gray-600">
+                              24-48 Hour Setup
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+
                     {/* Package Type Selector */}
-                    <div className="flex justify-center">
-                      <div className="inline-flex rounded-xl border p-1 bg-gray-100">
+                    <motion.div
+                      className="flex justify-center"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <div className="inline-flex rounded-2xl border-2 border-gray-200 p-2 bg-white shadow-lg backdrop-blur-sm">
                         <Button
                           variant={
                             selectedPackageType === "uk" ? "default" : "ghost"
                           }
                           onClick={() => setSelectedPackageType("uk")}
-                          className="rounded-lg font-semibold"
+                          className={`rounded-xl font-semibold px-6 py-3 transition-all duration-300 ${
+                            selectedPackageType === "uk"
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
                         >
                           <MapPin className="mr-2 h-4 w-4" />
                           UK Residents
+                          {selectedPackageType === "uk" && (
+                            <Badge className="ml-2 bg-white/20 text-white border-white/30">
+                              Popular
+                            </Badge>
+                          )}
                         </Button>
                         <Button
                           variant={
@@ -910,82 +1065,154 @@ export default function DashboardPage() {
                               : "ghost"
                           }
                           onClick={() => setSelectedPackageType("global")}
-                          className="rounded-lg font-semibold"
+                          className={`rounded-xl font-semibold px-6 py-3 transition-all duration-300 ${
+                            selectedPackageType === "global"
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
                         >
                           <Globe className="mr-2 h-4 w-4" />
                           Non-UK Residents
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
 
                     {/* Package Description */}
-                    <div className="text-center max-w-2xl mx-auto">
-                      <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                        Choose Your Perfect Package
-                      </h2>
-                      <p className="text-gray-600">
-                        {selectedPackageType === "uk"
-                          ? "Special packages designed for UK residents with local support and competitive pricing."
-                          : "Comprehensive packages for international entrepreneurs looking to establish their UK presence."}
-                      </p>
-                    </div>
+                    <motion.div
+                      className="text-center max-w-3xl mx-auto"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div
+                        className={`p-6 rounded-2xl border-2 transition-all duration-500 ${
+                          selectedPackageType === "uk"
+                            ? "bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200"
+                            : "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200"
+                        }`}
+                      >
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">
+                          {selectedPackageType === "uk"
+                            ? "🇬🇧 Exclusive UK Resident Packages"
+                            : "🌍 International Entrepreneur Packages"}
+                        </h2>
+                        <p className="text-gray-700 leading-relaxed">
+                          {selectedPackageType === "uk"
+                            ? "Take advantage of special pricing and local support services designed specifically for UK residents. Includes priority processing and dedicated UK-based customer service."
+                            : "Comprehensive formation packages for international entrepreneurs. Includes additional documentation support, compliance assistance, and guidance for non-UK residents establishing their UK presence."}
+                        </p>
 
-                    {/* Package Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                      {packagesToShow.map((packageData) => (
-                        <PackageCard
-                          key={packageData.name}
-                          packageData={packageData}
-                          onOrder={handlePackageOrder}
-                          isLoading={orderLoading}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Additional Features */}
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 max-w-4xl mx-auto">
-                      <h3 className="text-lg font-bold text-center text-gray-900 mb-4">
-                        What's Included in Every Package
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                          <Shield className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <h4 className="font-semibold text-sm">
-                              Secure & Legal
-                            </h4>
-                            <p className="text-xs text-gray-600">
-                              Fully compliant with UK regulations
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                          <Zap className="h-5 w-5 text-green-600" />
-                          <div>
-                            <h4 className="font-semibold text-sm">
-                              Fast Setup
-                            </h4>
-                            <p className="text-xs text-gray-600">
-                              Company formed in 24-48 hours
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg">
-                          <Heart className="h-5 w-5 text-red-600" />
-                          <div>
-                            <h4 className="font-semibold text-sm">
-                              Lifetime Support
-                            </h4>
-                            <p className="text-xs text-gray-600">
-                              Ongoing assistance included
-                            </p>
-                          </div>
+                        {/* Special offer badge */}
+                        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
+                          <Sparkles className="h-4 w-4 text-yellow-500" />
+                          <span className="text-sm font-semibold text-gray-800">
+                            Limited Time: Save up to £200 on all packages
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
+
+                    {/* Package Cards */}
+                    <motion.div
+                      className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      {packagesToShow.map((packageData, index) => (
+                        <motion.div
+                          key={packageData.name}
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.6 + index * 0.1 }}
+                        >
+                          <PackageCard
+                            packageData={packageData}
+                            onOrder={handlePackageOrder}
+                            isLoading={orderLoading}
+                          />
+                        </motion.div>
+                      ))}
+                    </motion.div>
+
+                    {/* Trust Section */}
+                    <motion.div
+                      className="bg-gradient-to-br from-gray-50 via-white to-blue-50 rounded-3xl p-8 max-w-5xl mx-auto border border-gray-200 shadow-lg"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.8 }}
+                    >
+                      <div className="text-center mb-8">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                          Why Choose Our Service?
+                        </h3>
+                        <p className="text-gray-600">
+                          Join the thousands of successful entrepreneurs who
+                          trusted us with their business formation
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[
+                          {
+                            icon: Shield,
+                            title: "100% Secure & Compliant",
+                            description:
+                              "Fully regulated service with Companies House compliance",
+                            color: "blue",
+                          },
+                          {
+                            icon: Zap,
+                            title: "Lightning Fast Setup",
+                            description:
+                              "Company formed and ready in just 24-48 hours",
+                            color: "green",
+                          },
+                          {
+                            icon: Users,
+                            title: "Expert Support Team",
+                            description:
+                              "Dedicated specialists available throughout the process",
+                            color: "purple",
+                          },
+                        ].map((feature, index) => (
+                          <motion.div
+                            key={feature.title}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            transition={{ duration: 0.3 }}
+                            className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg border border-gray-100"
+                          >
+                            <div
+                              className={`w-14 h-14 bg-gradient-to-br from-${feature.color}-500 to-${feature.color}-600 rounded-xl flex items-center justify-center mb-4 shadow-lg`}
+                            >
+                              <feature.icon className="h-7 w-7 text-white" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 mb-2">
+                              {feature.title}
+                            </h4>
+                            <p className="text-gray-600 text-sm leading-relaxed">
+                              {feature.description}
+                            </p>
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {/* Money back guarantee */}
+                      {/* <div className="mt-8 text-center p-4 bg-green-50 rounded-xl border border-green-200">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <Award className="h-5 w-5 text-green-600" />
+                          <span className="font-bold text-green-800">
+                            100% Money-Back Guarantee
+                          </span>
+                        </div>
+                        <p className="text-green-700 text-sm">
+                          If we can't form your company for any reason, we'll
+                          refund every penny. No questions asked.
+                        </p>
+                      </div> */}
+                    </motion.div>
                   </div>
                 </CustomTabContent>
-
                 {/* Companies Tab */}
                 <CustomTabContent value="companies" activeValue={activeTab}>
                   {companyRequests.length === 0 ? (
@@ -1044,7 +1271,6 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </CustomTabContent>
-
                 {/* Services Tab */}
                 <CustomTabContent value="services" activeValue={activeTab}>
                   {serviceOrders.length === 0 ? (
