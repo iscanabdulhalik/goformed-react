@@ -94,10 +94,62 @@ const statusConfig = {
 };
 
 // Updated PackageCard Component with balanced, clean design
-const PackageCard = ({ packageData, onOrder, isLoading }) => {
+const PackageCard = ({
+  packageData,
+  onOrder,
+  isLoading,
+  existingRequests = [],
+}) => {
   const isPopular = packageData.badge === "Popular";
   const isPremium =
     packageData.badge === "Premium" || packageData.badge === "Elite";
+
+  // ✅ ENHANCED: Check if user already has a paid request for this package
+  const hasPaidRequestForPackage = existingRequests.some((request) => {
+    const samePackage = request.package_name === packageData.name;
+    const isPaymentComplete = !!(
+      request.payment_data &&
+      request.payment_data.order_id &&
+      (request.payment_data.financial_status === "paid" ||
+        request.payment_data.financial_status === "partially_paid" ||
+        request.payment_data.is_test_order === true)
+    );
+    const hasCompletedStatus = [
+      "payment_completed",
+      "in_review",
+      "processing",
+      "completed",
+    ].includes(request.status);
+
+    return samePackage && (isPaymentComplete || hasCompletedStatus);
+  });
+
+  // ✅ ENHANCED: Check if user has pending request for this package
+  const hasPendingRequestForPackage = existingRequests.some((request) => {
+    const samePackage = request.package_name === packageData.name;
+    const isPending = ["pending_payment", "in_review", "processing"].includes(
+      request.status
+    );
+    return samePackage && isPending;
+  });
+
+  const handleOrder = () => {
+    if (hasPaidRequestForPackage) {
+      alert(
+        `You already have a paid request for ${packageData.name}. Please check your existing requests.`
+      );
+      return;
+    }
+
+    if (hasPendingRequestForPackage) {
+      const confirmProceed = confirm(
+        `You have a pending request for ${packageData.name}. Are you sure you want to create another one?`
+      );
+      if (!confirmProceed) return;
+    }
+
+    onOrder(packageData);
+  };
 
   return (
     <motion.div
@@ -110,29 +162,26 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
           isPopular || isPremium
             ? "border-2 border-blue-200 shadow-lg bg-gradient-to-br from-white to-blue-50/30"
             : "border border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg bg-white"
-        }`}
+        } ${hasPaidRequestForPackage ? "opacity-60" : ""}`}
       >
         {/* Top accent line */}
         <div
           className={`absolute top-0 left-0 w-full h-1 ${
-            isPopular || isPremium
+            hasPaidRequestForPackage
+              ? "bg-green-500"
+              : isPopular || isPremium
               ? "bg-gradient-to-r from-blue-500 to-purple-500"
               : "bg-gray-300"
           }`}
         />
 
-        {/* Badge */}
-        {packageData.badge && (
+        {/* Status badge */}
+        {hasPaidRequestForPackage && (
           <div className="absolute -top-3 right-4 z-10">
-            {/* <Badge
-              className={`${packageData.badgeClass} text-white px-3 py-1 text-xs font-semibold shadow-md rounded-full`}
-            >
-              <div className="flex items-center gap-1">
-                {packageData.badge === "Popular" && <Star className="h-3 w-3" />}
-                {(packageData.badge === "Premium" || packageData.badge === "Elite") && <Crown className="h-3 w-3" />}
-                {packageData.badge}
-              </div>
-            </Badge> */}
+            <Badge className="bg-green-600 text-white px-3 py-1 text-xs font-semibold shadow-md rounded-full">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Purchased
+            </Badge>
           </div>
         )}
 
@@ -141,16 +190,22 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
             {/* Package Icon */}
             <div
               className={`w-12 h-12 mx-auto mb-3 rounded-lg flex items-center justify-center ${
-                isPopular || isPremium
+                hasPaidRequestForPackage
+                  ? "bg-green-100"
+                  : isPopular || isPremium
                   ? "bg-gradient-to-br from-blue-500 to-purple-600"
                   : "bg-gray-100"
               }`}
             >
-              <Building2
-                className={`h-6 w-6 ${
-                  isPopular || isPremium ? "text-white" : "text-gray-600"
-                }`}
-              />
+              {hasPaidRequestForPackage ? (
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              ) : (
+                <Building2
+                  className={`h-6 w-6 ${
+                    isPopular || isPremium ? "text-white" : "text-gray-600"
+                  }`}
+                />
+              )}
             </div>
 
             <CardTitle className="text-xl font-bold text-gray-900 mb-3">
@@ -165,7 +220,11 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
                 </span>
                 <span
                   className={`text-3xl font-bold ${
-                    isPopular || isPremium ? "text-blue-600" : "text-gray-900"
+                    hasPaidRequestForPackage
+                      ? "text-green-600"
+                      : isPopular || isPremium
+                      ? "text-blue-600"
+                      : "text-gray-900"
                   }`}
                 >
                   {packageData.price}
@@ -175,7 +234,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
             </div>
 
             {/* Save amount */}
-            {packageData.oldPrice && (
+            {packageData.oldPrice && !hasPaidRequestForPackage && (
               <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                 <TrendingUp className="h-3 w-3" />
                 Save £
@@ -207,39 +266,46 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
             </ul>
           </div>
 
-          {/* CTA Button with balanced design */}
+          {/* CTA Button with protection */}
           <motion.div
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
+            whileHover={{ scale: hasPaidRequestForPackage ? 1 : 1.01 }}
+            whileTap={{ scale: hasPaidRequestForPackage ? 1 : 0.99 }}
             className="space-y-3"
           >
-            <Button
-              onClick={() => onOrder(packageData)}
-              disabled={isLoading}
-              className={`w-full h-12 font-semibold text-base transition-all duration-300 relative overflow-hidden group ${
-                isPopular || isPremium
-                  ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl border-0"
-                  : "bg-gray-900 hover:bg-gray-800 text-white shadow-md hover:shadow-lg border-0"
-              } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
-            >
-              {/* Subtle shine effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-
-              <div className="relative z-10 flex items-center justify-center gap-2">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Choose This Package</span>
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
-                  </>
-                )}
+            {hasPaidRequestForPackage ? (
+              <div className="w-full h-12 flex items-center justify-center bg-green-100 text-green-800 rounded-lg border border-green-200">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                <span className="font-semibold">Already Purchased</span>
               </div>
-            </Button>
+            ) : (
+              <Button
+                onClick={handleOrder}
+                disabled={isLoading}
+                className={`w-full h-12 font-semibold text-base transition-all duration-300 relative overflow-hidden group ${
+                  isPopular || isPremium
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl border-0"
+                    : "bg-gray-900 hover:bg-gray-800 text-white shadow-md hover:shadow-lg border-0"
+                } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
+              >
+                {/* Subtle shine effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+
+                <div className="relative z-10 flex items-center justify-center gap-2">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin h-4 w-4" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4" />
+                      <span>Choose This Package</span>
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
+                    </>
+                  )}
+                </div>
+              </Button>
+            )}
 
             {/* Secondary buttons */}
             <div className="flex gap-2">
@@ -255,7 +321,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
                 <FileText className="h-3 w-3 mr-1" />
                 Details
               </Button>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className="flex-1 text-sm font-medium hover:bg-gray-50 transition-colors"
@@ -266,7 +332,7 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
               >
                 <Target className="h-3 w-3 mr-1" />
                 Compare
-              </Button>
+              </Button> */}
             </div>
           </motion.div>
 
@@ -291,15 +357,46 @@ const PackageCard = ({ packageData, onOrder, isLoading }) => {
   );
 };
 
-// ✅ PRODUCTION READY: Company Request Card with real data
 const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
-  // Remove status config - no longer needed
-  // const status = statusConfig[request.status] || statusConfig.pending_payment;
-  // const StatusIcon = status.icon;
   const [deleting, setDeleting] = useState(false);
+
+  // ✅ ENHANCED: Payment validation
+  const isPaymentComplete = (requestData) => {
+    if (!requestData) return false;
+
+    // Check payment data
+    const hasValidPayment = !!(
+      requestData.payment_data &&
+      requestData.payment_data.order_id &&
+      requestData.payment_data.total_price &&
+      parseFloat(requestData.payment_data.total_price) > 0 &&
+      (requestData.payment_data.financial_status === "paid" ||
+        requestData.payment_data.financial_status === "partially_paid" ||
+        requestData.payment_data.is_test_order === true)
+    );
+
+    // Check status
+    const completedStatuses = [
+      "payment_completed",
+      "in_review",
+      "processing",
+      "completed",
+    ];
+    const hasCompletedStatus = completedStatuses.includes(requestData.status);
+
+    return hasValidPayment || hasCompletedStatus;
+  };
 
   const handleDelete = async (e) => {
     e.stopPropagation();
+
+    // ✅ ENHANCED: Prevent deletion if payment is complete
+    if (isPaymentComplete(request)) {
+      alert(
+        "Cannot delete a request that has payment completed. Please contact support if needed."
+      );
+      return;
+    }
 
     if (
       !confirm(
@@ -319,6 +416,8 @@ const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
     }
   };
 
+  const paymentComplete = isPaymentComplete(request);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -326,68 +425,124 @@ const CompanyRequestCard = ({ request, onViewDetails, onDelete }) => {
       whileHover={{ scale: 1.01 }}
       className="group"
     >
-      <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
+      <Card
+        className={`hover:shadow-lg transition-all duration-300 border-l-4 ${
+          paymentComplete
+            ? "border-l-green-500 bg-green-50/30"
+            : "border-l-blue-500"
+        }`}
+      >
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Building2 className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center gap-3 flex-1">
+              <div
+                className={`p-3 rounded-xl ${
+                  paymentComplete ? "bg-green-100" : "bg-blue-100"
+                }`}
+              >
+                <Building2
+                  className={`h-6 w-6 ${
+                    paymentComplete ? "text-green-600" : "text-blue-600"
+                  }`}
+                />
               </div>
-              <div>
-                <CardTitle className="text-base font-bold text-gray-900 mb-1">
+              <div className="flex-1">
+                <CardTitle className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">
                   {request.company_name}
                 </CardTitle>
-                <p className="text-sm text-gray-600">{request.package_name}</p>
+                <p className="text-sm text-gray-600 mb-1">
+                  {request.package_name}
+                </p>
                 {request.package_price && (
-                  <p className="text-xs text-gray-500">
+                  <p
+                    className={`text-sm font-semibold ${
+                      paymentComplete ? "text-green-600" : "text-blue-600"
+                    }`}
+                  >
                     £{parseFloat(request.package_price).toFixed(2)}
+                    {paymentComplete && (
+                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        PAID
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
             </div>
 
             <div className="text-right">
-              {/* ✅ REMOVED: Status badge completely removed */}
-              <p className="text-xs text-gray-500">
-                {new Date(request.created_at).toLocaleDateString()}
-              </p>
+              {paymentComplete && (
+                <div className="mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-500 inline" />
+                </div>
+              )}
+              <span className="text-xs text-gray-500">
+                {new Date(request.created_at).toLocaleDateString("en-GB")}
+              </span>
             </div>
 
-            {/* Delete button for cancelled/rejected only */}
-            {(request.status === "cancelled" ||
-              request.status === "rejected") && (
-              <Button
-                onClick={handleDelete}
-                disabled={deleting}
-                variant="ghost"
-                size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                {deleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </Button>
-            )}
+            {/* Delete button - only for unpaid cancelled/rejected */}
+            {!paymentComplete &&
+              (request.status === "cancelled" ||
+                request.status === "rejected") && (
+                <Button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {deleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
           </div>
         </CardHeader>
 
         <CardContent className="pt-0">
-          {/* ✅ REMOVED: Status description and progress bar */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
-              <span>ID: {request.id.slice(0, 8)}</span>
-            </div>
+          <div className="space-y-4">
+            {/* Payment status indicator */}
+            {paymentComplete && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">
+                    Payment completed successfully
+                  </span>
+                </div>
+                {request.payment_data?.order_name && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Order: {request.payment_data.order_name}
+                  </p>
+                )}
+              </div>
+            )}
 
-            <Button
-              onClick={() => onViewDetails(request)}
-              variant="outline"
-              size="sm"
-            >
-              <FileText className="mr-2 h-3 w-3" />
-              View Details
-            </Button>
+            {/* Action Buttons */}
+            {/* <div className="flex gap-2 pt-2">
+              <Button
+                onClick={() => onViewDetails(request)}
+                className={`flex-1 text-white ${
+                  paymentComplete
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+                size="sm"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+            </div> */}
+
+            {/* Request ID */}
+            <div className="pt-2 border-t">
+              <p className="text-xs text-gray-400">
+                Request ID: {request.id.slice(0, 8).toUpperCase()}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -596,17 +751,64 @@ export default function DashboardPage() {
     };
   }, [user]);
 
-  // ✅ FIXED: Handle package order with proper error handling
   const handlePackageOrder = async (packageData) => {
     if (!user) {
       navigate("/login");
       return;
     }
 
+    // ✅ ENHANCED: Check for existing paid requests
+    const existingPaidRequest = companyRequests.find((request) => {
+      const samePackage = request.package_name === packageData.name;
+      const isPaymentComplete = !!(
+        request.payment_data &&
+        request.payment_data.order_id &&
+        (request.payment_data.financial_status === "paid" ||
+          request.payment_data.financial_status === "partially_paid" ||
+          request.payment_data.is_test_order === true)
+      );
+      const hasCompletedStatus = [
+        "payment_completed",
+        "in_review",
+        "processing",
+        "completed",
+      ].includes(request.status);
+
+      return samePackage && (isPaymentComplete || hasCompletedStatus);
+    });
+
+    if (existingPaidRequest) {
+      alert(
+        `You already have a paid request for ${packageData.name}. Please check your existing company requests.`
+      );
+      return;
+    }
+
+    // ✅ ENHANCED: Check for pending requests
+    const existingPendingRequest = companyRequests.find((request) => {
+      const samePackage = request.package_name === packageData.name;
+      const isPending = ["pending_payment", "in_review", "processing"].includes(
+        request.status
+      );
+      return samePackage && isPending;
+    });
+
+    if (existingPendingRequest) {
+      const confirmProceed = confirm(
+        `You have a pending request for ${
+          packageData.name
+        } (ID: ${existingPendingRequest.id.slice(
+          0,
+          8
+        )}). Are you sure you want to create another one?`
+      );
+      if (!confirmProceed) return;
+    }
+
     setOrderLoading(true);
 
     try {
-      // ✅ FIXED: Removed .catch() chain and used try/catch instead
+      // Log activity
       try {
         await supabase.rpc("log_activity", {
           p_user_id: user.id,
@@ -615,6 +817,7 @@ export default function DashboardPage() {
           p_metadata: {
             package_name: packageData.name,
             package_price: packageData.price,
+            existing_requests: companyRequests.length,
           },
         });
       } catch (logError) {
@@ -640,6 +843,38 @@ export default function DashboardPage() {
 
   const handleDeleteRequest = async (requestId) => {
     try {
+      // Get the request to check payment status
+      const requestToDelete = companyRequests.find(
+        (req) => req.id === requestId
+      );
+
+      if (!requestToDelete) {
+        throw new Error("Request not found");
+      }
+
+      // ✅ ENHANCED: Prevent deletion if payment is complete
+      const isPaymentComplete = !!(
+        requestToDelete.payment_data &&
+        requestToDelete.payment_data.order_id &&
+        (requestToDelete.payment_data.financial_status === "paid" ||
+          requestToDelete.payment_data.financial_status === "partially_paid" ||
+          requestToDelete.payment_data.is_test_order === true)
+      );
+
+      const hasCompletedStatus = [
+        "payment_completed",
+        "in_review",
+        "processing",
+        "completed",
+      ].includes(requestToDelete.status);
+
+      if (isPaymentComplete || hasCompletedStatus) {
+        alert(
+          "Cannot delete a request that has payment completed or is being processed. Please contact support if you need assistance."
+        );
+        return;
+      }
+
       const { error } = await supabase
         .from("company_requests")
         .delete()
@@ -663,7 +898,11 @@ export default function DashboardPage() {
           p_user_id: user.id,
           p_action: "company_request_deleted",
           p_description: "User deleted a company request",
-          p_metadata: { request_id: requestId },
+          p_metadata: {
+            request_id: requestId,
+            company_name: requestToDelete.company_name,
+            package_name: requestToDelete.package_name,
+          },
         });
       } catch (logError) {
         console.error("Activity logging failed:", logError);
@@ -674,6 +913,35 @@ export default function DashboardPage() {
     }
   };
 
+  const renderPackageCards = () => {
+    const packagesToShow =
+      selectedPackageType === "uk" ? ukPackages : globalPackages;
+
+    return (
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+      >
+        {packagesToShow.map((packageData, index) => (
+          <motion.div
+            key={packageData.name}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 + index * 0.1 }}
+          >
+            <PackageCard
+              packageData={packageData}
+              onOrder={handlePackageOrder}
+              isLoading={orderLoading}
+              existingRequests={companyRequests} // ✅ Pass existing requests
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+    );
+  };
   const tabs = [
     {
       value: "overview",
@@ -745,15 +1013,15 @@ export default function DashboardPage() {
                   textColor: "text-green-600",
                   description: "Successfully completed",
                 },
-                // {
-                //   title: "In Progress",
-                //   value: stats.pendingOrders,
-                //   icon: Clock,
-                //   color: "yellow",
-                //   bgColor: "bg-yellow-100",
-                //   textColor: "text-yellow-600",
-                //   description: "Currently processing",
-                // },
+                {
+                  title: "In Progress",
+                  value: stats.pendingOrders,
+                  icon: Clock,
+                  color: "yellow",
+                  bgColor: "bg-yellow-100",
+                  textColor: "text-yellow-600",
+                  description: "Currently processing",
+                },
                 // {
                 //   title: "Total Invested",
                 //   value: `£${stats.totalSpent.toFixed(0)}`,
@@ -894,7 +1162,7 @@ export default function DashboardPage() {
                       <CardContent>
                         <div className="space-y-4">
                           {[
-                            ...companyRequests.slice(0, 4), // ✅ FIXED: Show last 4 companies instead of 2
+                            ...companyRequests.slice(0, 4),
                             ...serviceOrders.slice(0, 1),
                           ].length === 0 ? (
                             <div className="text-center py-8">
@@ -913,32 +1181,28 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <>
-                              {companyRequests.slice(0, 4).map(
-                                (
-                                  request // ✅ FIXED: Show last 4 companies
-                                ) => (
-                                  <div
-                                    key={request.id}
-                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                    onClick={() => handleViewDetails(request)}
-                                  >
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                      <Building2 className="h-4 w-4 text-blue-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="font-medium text-sm text-gray-900">
-                                        {request.company_name}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        {request.package_name} •{" "}
-                                        {new Date(
-                                          request.created_at
-                                        ).toLocaleDateString()}
-                                      </p>
-                                    </div>
+                              {companyRequests.slice(0, 4).map((request) => (
+                                <div
+                                  key={request.id}
+                                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                  onClick={() => handleViewDetails(request)}
+                                >
+                                  <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Building2 className="h-4 w-4 text-blue-600" />
                                   </div>
-                                )
-                              )}
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm text-gray-900">
+                                      {request.company_name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {request.package_name} •{" "}
+                                      {new Date(
+                                        request.created_at
+                                      ).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
 
                               {serviceOrders.slice(0, 1).map((order) => (
                                 <div
@@ -975,6 +1239,7 @@ export default function DashboardPage() {
                     </Card>
                   </div>
                 </CustomTabContent>
+
                 {/* Packages Tab */}
                 <CustomTabContent value="packages" activeValue={activeTab}>
                   <div className="space-y-8">
@@ -1112,28 +1377,8 @@ export default function DashboardPage() {
                       </div>
                     </motion.div>
 
-                    {/* Package Cards */}
-                    <motion.div
-                      className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.5 }}
-                    >
-                      {packagesToShow.map((packageData, index) => (
-                        <motion.div
-                          key={packageData.name}
-                          initial={{ opacity: 0, y: 30 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.6 + index * 0.1 }}
-                        >
-                          <PackageCard
-                            packageData={packageData}
-                            onOrder={handlePackageOrder}
-                            isLoading={orderLoading}
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
+                    {/* ✅ ENHANCED: Package Cards with payment protection */}
+                    {renderPackageCards()}
 
                     {/* Trust Section */}
                     <motion.div
@@ -1196,23 +1441,10 @@ export default function DashboardPage() {
                           </motion.div>
                         ))}
                       </div>
-
-                      {/* Money back guarantee */}
-                      {/* <div className="mt-8 text-center p-4 bg-green-50 rounded-xl border border-green-200">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <Award className="h-5 w-5 text-green-600" />
-                          <span className="font-bold text-green-800">
-                            100% Money-Back Guarantee
-                          </span>
-                        </div>
-                        <p className="text-green-700 text-sm">
-                          If we can't form your company for any reason, we'll
-                          refund every penny. No questions asked.
-                        </p>
-                      </div> */}
                     </motion.div>
                   </div>
                 </CustomTabContent>
+
                 {/* Companies Tab */}
                 <CustomTabContent value="companies" activeValue={activeTab}>
                   {companyRequests.length === 0 ? (
@@ -1271,6 +1503,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </CustomTabContent>
+
                 {/* Services Tab */}
                 <CustomTabContent value="services" activeValue={activeTab}>
                   {serviceOrders.length === 0 ? (

@@ -179,11 +179,7 @@ const BundleCard = ({ bundle, onOrder, isLoading }) => (
     }`}
   >
     {bundle.isPopular && (
-      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-        <Badge className="bg-green-600 text-white px-3 py-1 text-xs font-bold rounded-full">
-          Most Popular
-        </Badge>
-      </div>
+      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10"></div>
     )}
 
     <CardHeader className="text-center pb-4 pt-6">
@@ -403,9 +399,6 @@ export default function MarketplacePage() {
           {/* Popular Services Tab */}
           <TabsContent value="popular">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">
-                ⭐ Most Popular Services
-              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {POPULAR_SERVICES.map((service) => (
                   <ServiceCard

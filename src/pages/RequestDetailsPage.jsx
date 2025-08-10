@@ -39,6 +39,7 @@ import {
   Star,
   Shield,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { usePaymentStatusCheck } from "@/hooks/usePaymentStatusCheck";
 
@@ -70,6 +71,124 @@ const documentTypes = {
   },
 };
 
+// ✅ ENHANCED: More robust payment validation functions
+const validatePaymentData = (paymentData) => {
+  if (!paymentData) return false;
+
+  // Check if payment data exists and has essential fields
+  const hasOrderId = !!(paymentData.order_id || paymentData.order_name);
+  const hasAmount = !!(
+    paymentData.total_price && parseFloat(paymentData.total_price) > 0
+  );
+  const hasPaymentDate = !!(
+    paymentData.paid_at || paymentData.webhook_processed_at
+  );
+
+  // Check payment status
+  const isValidStatus =
+    paymentData.financial_status === "paid" ||
+    paymentData.financial_status === "partially_paid" ||
+    (paymentData.is_test_order === true && hasAmount);
+
+  console.log("🔍 Payment validation details:", {
+    hasOrderId,
+    hasAmount,
+    hasPaymentDate,
+    isValidStatus,
+    financial_status: paymentData.financial_status,
+    is_test_order: paymentData.is_test_order,
+    total_price: paymentData.total_price,
+  });
+
+  return hasOrderId && hasAmount && hasPaymentDate && isValidStatus;
+};
+
+const isPaymentComplete = (request) => {
+  if (!request) return false;
+
+  // Multiple layers of payment validation
+  const hasValidPaymentData = validatePaymentData(request.payment_data);
+
+  // Additional checks for request status
+  const paymentCompletedStatuses = [
+    "payment_completed",
+    "in_review",
+    "processing",
+    "completed",
+  ];
+  const hasPaymentStatus = paymentCompletedStatuses.includes(request.status);
+
+  // Cart data with checkout completion indicator
+  const hasCompletedCheckout = request.cart_data?.checkout_completed === true;
+
+  console.log("💳 Payment completion check:", {
+    hasValidPaymentData,
+    hasPaymentStatus,
+    hasCompletedCheckout,
+    currentStatus: request.status,
+    paymentDataExists: !!request.payment_data,
+  });
+
+  return hasValidPaymentData || hasPaymentStatus || hasCompletedCheckout;
+};
+
+const shouldShowPaymentSection = (request, checkingPayment) => {
+  if (!request) return false;
+
+  // Don't show if payment is already complete
+  if (isPaymentComplete(request)) return false;
+
+  // Don't show if no package price
+  if (!request.package_price || parseFloat(request.package_price) <= 0)
+    return false;
+
+  // Don't show if currently checking payment status
+  if (checkingPayment) return false;
+
+  // Don't show if request is completed or cancelled
+  const nonPaymentStatuses = ["completed", "cancelled", "rejected"];
+  if (nonPaymentStatuses.includes(request.status)) return false;
+
+  console.log("💰 Should show payment section:", true);
+  return true;
+};
+
+// ✅ NEW: Auto-update status when payment is received
+const updateStatusBasedOnPayment = async (request) => {
+  try {
+    if (!request) return;
+
+    // If payment is complete but status is still pending_payment, auto-update to in_review
+    const hasValidPayment = validatePaymentData(request.payment_data);
+    const requiredDocsUploaded = areRequiredDocumentsUploaded();
+
+    if (hasValidPayment && request.status === "pending_payment") {
+      console.log("💳 Payment detected, auto-updating status to in_review...");
+
+      const { error } = await supabase
+        .from("company_requests")
+        .update({
+          status: requiredDocsUploaded ? "in_review" : "payment_completed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      if (error) {
+        console.error("❌ Failed to auto-update status:", error);
+      } else {
+        console.log("✅ Status auto-updated successfully");
+        // Update local state
+        setRequest((prev) => ({
+          ...prev,
+          status: requiredDocsUploaded ? "in_review" : "payment_completed",
+        }));
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error in updateStatusBasedOnPayment:", error);
+  }
+};
+
 export default function RequestDetailsPage() {
   const { id: requestId } = useParams();
   const navigate = useNavigate();
@@ -84,6 +203,8 @@ export default function RequestDetailsPage() {
   const [documentType, setDocumentType] = useState("identity");
   const [user, setUser] = useState(null);
   const [paying, setPaying] = useState(false);
+  const [paymentAttempted, setPaymentAttempted] = useState(false);
+
   const { checkingPayment, paymentStatus, checkPaymentStatus } =
     usePaymentStatusCheck(request, user);
 
@@ -115,6 +236,15 @@ export default function RequestDetailsPage() {
         }
         setRequest(requestData);
 
+        // ✅ ENHANCED: Check if payment was attempted in this session
+        const sessionPaymentKey = `payment_attempted_${requestId}`;
+        const sessionPaymentAttempted =
+          sessionStorage.getItem(sessionPaymentKey);
+        if (sessionPaymentAttempted) {
+          setPaymentAttempted(true);
+          console.log("💳 Payment was attempted in this session");
+        }
+
         // Fetch user profile separately
         try {
           const { data: profileData, error: profileError } = await supabase
@@ -144,7 +274,6 @@ export default function RequestDetailsPage() {
         setDocuments(documentsData || []);
 
         // Fetch communications
-        // ✅ CONDITIONAL: Try multiple sources for communications
         let communicationsData = [];
 
         try {
@@ -171,7 +300,6 @@ export default function RequestDetailsPage() {
           }
 
           // Option 2: Check if there's a company_communications table (future feature)
-          // This will fail gracefully if table doesn't exist
           try {
             const { data: companyCommData, error: companyCommError } =
               await supabase
@@ -202,6 +330,11 @@ export default function RequestDetailsPage() {
         }
 
         setCommunications(communicationsData);
+
+        // ✅ NEW: Auto-update status if payment is detected
+        if (requestData) {
+          await updateStatusBasedOnPayment(requestData);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -224,8 +357,23 @@ export default function RequestDetailsPage() {
           table: "company_requests",
           filter: `id=eq.${requestId}`,
         },
-        (payload) => {
-          setRequest((current) => ({ ...current, ...payload.new }));
+        async (payload) => {
+          console.log("🔄 Real-time update received:", payload.new);
+          const updatedRequest = { ...payload.new };
+          setRequest(updatedRequest);
+
+          // ✅ ENHANCED: Clear payment attempted flag if payment data is received
+          if (payload.new.payment_data && !payload.old?.payment_data) {
+            console.log(
+              "💳 Payment data received, clearing payment attempted flag"
+            );
+            const sessionPaymentKey = `payment_attempted_${requestId}`;
+            sessionStorage.removeItem(sessionPaymentKey);
+            setPaymentAttempted(false);
+
+            // ✅ NEW: Auto-update status when payment is received
+            await updateStatusBasedOnPayment(updatedRequest);
+          }
         }
       )
       .on(
@@ -236,19 +384,31 @@ export default function RequestDetailsPage() {
           table: "documents",
           filter: `request_id=eq.${requestId}`,
         },
-        (payload) => {
-          if (payload.eventType === "INSERT")
+        async (payload) => {
+          if (payload.eventType === "INSERT") {
             setDocuments((current) => [payload.new, ...current]);
-          else if (payload.eventType === "UPDATE")
+
+            // ✅ NEW: Check if this document upload should trigger status update
+            const currentRequest = await supabase
+              .from("company_requests")
+              .select("*")
+              .eq("id", requestId)
+              .single();
+
+            if (currentRequest.data) {
+              await updateStatusBasedOnPayment(currentRequest.data);
+            }
+          } else if (payload.eventType === "UPDATE") {
             setDocuments((current) =>
               current.map((doc) =>
                 doc.id === payload.new.id ? payload.new : doc
               )
             );
-          else if (payload.eventType === "DELETE")
+          } else if (payload.eventType === "DELETE") {
             setDocuments((current) =>
               current.filter((doc) => doc.id !== payload.old.id)
             );
+          }
         }
       )
       .subscribe();
@@ -256,21 +416,38 @@ export default function RequestDetailsPage() {
     return () => supabase.removeChannel(channel);
   }, [requestId, navigate]);
 
-  const shouldShowPaymentSection = () => {
-    // Don't show if already has payment data
-    if (request?.payment_data) return false;
-
-    // Don't show if no package price
-    if (!request?.package_price) return false;
-
-    // Don't show if currently checking payment status
-    if (checkingPayment) return false;
-
-    // Show payment section
-    return true;
+  // ✅ ENHANCED: Document upload requirements check
+  const getRequiredDocuments = () => {
+    return Object.entries(documentTypes).filter(
+      ([type, config]) => config.required
+    );
   };
 
+  const getUploadedRequiredDocuments = () => {
+    const requiredTypes = getRequiredDocuments().map(([type]) => type);
+    return documents.filter((doc) => requiredTypes.includes(doc.document_type));
+  };
+
+  const areRequiredDocumentsUploaded = () => {
+    const requiredTypes = getRequiredDocuments().map(([type]) => type);
+    const uploadedRequiredTypes = getUploadedRequiredDocuments().map(
+      (doc) => doc.document_type
+    );
+    return requiredTypes.every((type) => uploadedRequiredTypes.includes(type));
+  };
+
+  // ✅ ENHANCED: More comprehensive payment section logic
   const getPaymentSectionContent = () => {
+    const paymentComplete = isPaymentComplete(request);
+    const showPaymentSection = shouldShowPaymentSection(
+      request,
+      checkingPayment
+    );
+    const requiredDocsUploaded = areRequiredDocumentsUploaded();
+    const missingDocs = getRequiredDocuments().filter(
+      ([type]) => !documents.some((doc) => doc.document_type === type)
+    );
+
     // If checking payment status
     if (checkingPayment) {
       return (
@@ -300,198 +477,452 @@ export default function RequestDetailsPage() {
       );
     }
 
-    // If has payment data - show success message
-    if (request?.payment_data) {
+    // If payment is complete - show status based on documents and request status
+    if (paymentComplete) {
+      const paymentData = request.payment_data;
+
+      // Check if request is completed
+      if (request.status === "completed") {
+        return (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-green-900 mb-1">
+                    ✅ Company Formation Completed!
+                  </h2>
+                  <p className="text-green-700">
+                    Your company has been successfully formed
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white border border-green-200 rounded-xl p-6">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Building2 className="h-6 w-6 text-green-600" />
+                    <span className="text-xl font-bold text-green-900">
+                      {request.company_name}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    Congratulations! Your company formation process is complete.
+                  </p>
+                  <Badge className="bg-green-100 text-green-800 px-4 py-2">
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Formation Complete
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      // Check if request is in review
+      if (request.status === "in_review" || requiredDocsUploaded) {
+        return (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-purple-50">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <Clock className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-blue-900 mb-1">
+                    📋 Application In Review
+                  </h2>
+                  <p className="text-blue-700">
+                    We're processing your company formation request
+                  </p>
+                </div>
+              </div>
+
+              {paymentData && (
+                <div className="bg-white border border-blue-200 rounded-xl p-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Payment
+                      </p>
+                      <div className="flex items-center justify-center gap-1">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="font-bold text-green-600">
+                          Confirmed
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Documents
+                      </p>
+                      <div className="flex items-center justify-center gap-1">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="font-bold text-green-600">
+                          Received
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        Status
+                      </p>
+                      <div className="flex items-center justify-center gap-1">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        <span className="font-bold text-blue-600">
+                          In Review
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <Star className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-semibold text-blue-900">
+                      What's happening now?
+                    </p>
+                    <p className="text-sm text-blue-800">
+                      Our team is reviewing your application and submitted
+                      documents. You'll receive updates as we progress with your
+                      company formation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 text-center">
+                <Badge className="bg-blue-100 text-blue-800 px-4 py-2">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Estimated processing time: 3-5 business days
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      // Payment complete but documents missing
       return (
-        <Card className="border-0 shadow-lg bg-gradient-to-r from-green-50 to-emerald-50">
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-orange-50 to-yellow-50">
           <CardContent className="p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div className="p-3 bg-orange-100 rounded-full">
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-green-900 mb-1">
-                  🎉 Payment Successful!
+                <h2 className="text-2xl font-bold text-orange-900 mb-1">
+                  📄 Documents Required
                 </h2>
-                <p className="text-green-700">
-                  Your payment has been processed successfully
+                <p className="text-orange-700">
+                  Upload required documents to proceed with review
                 </p>
               </div>
             </div>
 
-            <div className="bg-white border border-green-200 rounded-xl p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="text-center lg:text-left">
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Order ID
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {request.payment_data.order_id}
-                  </p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Amount
-                  </p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {request.payment_data.currency}{" "}
-                    {typeof request.payment_data.total_price === "number"
-                      ? request.payment_data.total_price.toFixed(2)
-                      : parseFloat(
-                          request.payment_data.total_price || 0
-                        ).toFixed(2)}
-                  </p>
-                </div>
-                <div className="text-center lg:text-left">
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Status
-                  </p>
-                  <div className="flex items-center justify-center lg:justify-start gap-1">
-                    <Shield className="h-4 w-4 text-green-600" />
-                    <span className="text-lg font-bold text-green-600">
-                      {request.payment_data.financial_status || "Paid"}
-                    </span>
+            {paymentData && (
+              <div className="bg-white border border-orange-200 rounded-xl p-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Payment Status
+                    </p>
+                    <div className="flex items-center justify-center gap-1">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="font-bold text-green-600">
+                        Confirmed
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Next Step
+                    </p>
+                    <div className="flex items-center justify-center gap-1">
+                      <Upload className="h-4 w-4 text-orange-600" />
+                      <span className="font-bold text-orange-600">
+                        Upload Documents
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-center lg:text-left">
-                  <p className="text-sm font-medium text-gray-600 mb-1">Date</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {new Date(request.payment_data.paid_at).toLocaleDateString(
-                      "en-GB"
-                    )}
-                  </p>
-                </div>
+              </div>
+            )}
+
+            <div className="bg-white border border-orange-200 rounded-xl p-6 mb-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-orange-600" />
+                Missing Required Documents:
+              </h3>
+              <div className="space-y-3">
+                {missingDocs.map(([type, config]) => (
+                  <div
+                    key={type}
+                    className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200"
+                  >
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      {config.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">
+                        {config.label}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {config.description}
+                      </p>
+                    </div>
+                    <Badge variant="destructive" className="text-xs">
+                      Required
+                    </Badge>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <Star className="h-5 w-5 text-blue-600" />
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
                 <div>
-                  <p className="font-semibold text-blue-900">What's next?</p>
-                  <p className="text-sm text-blue-800">
-                    Your company formation is being processed. You can upload
-                    documents below to help speed up the process.
+                  <p className="font-semibold text-orange-900">
+                    Action Required
+                  </p>
+                  <p className="text-sm text-orange-800">
+                    Once you upload all required documents, we'll automatically
+                    move your application to review.
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Manual refresh button */}
-            <div className="mt-4 text-center">
-              <Button
-                onClick={checkPaymentStatus}
-                variant="outline"
-                size="sm"
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                <Loader2 className="mr-2 h-4 w-4" />
-                Refresh Payment Status
-              </Button>
             </div>
           </CardContent>
         </Card>
       );
     }
 
-    // Show payment button
+    // If payment was attempted but not yet confirmed
+    if (paymentAttempted) {
+      return (
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-orange-50 to-yellow-50">
+          <CardContent className="p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-orange-100 rounded-full">
+                <Clock className="h-8 w-8 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-orange-900 mb-1">
+                  ⏳ Payment Processing...
+                </h2>
+                <p className="text-orange-700">
+                  We're checking if your payment has been processed
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-orange-200 rounded-xl p-6 mb-6">
+              <div className="text-center">
+                <p className="text-gray-700 mb-4">
+                  Payment was initiated but we're still waiting for
+                  confirmation. This usually takes a few moments.
+                </p>
+
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-4">
+                  <Clock className="h-4 w-4" />
+                  <span>Please wait while we verify your payment...</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Button
+                onClick={checkPaymentStatus}
+                disabled={checkingPayment}
+                className="w-full bg-orange-600 hover:bg-orange-700"
+              >
+                {checkingPayment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking Payment...
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4" />
+                    Check Payment Status
+                  </>
+                )}
+              </Button>
+
+              <div className="text-center">
+                <p className="text-xs text-gray-500 mb-2">
+                  If you did not complete the payment, you can try again by
+                  refreshing this page
+                </p>
+                {/* <Button
+                  onClick={() => {
+                    const sessionPaymentKey = `payment_attempted_${requestId}`;
+                    sessionStorage.removeItem(sessionPaymentKey);
+                    setPaymentAttempted(false);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                >
+                  Reset Payment Status
+                </Button> */}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Show payment button (only if payment is not complete and hasn't been attempted)
+    if (showPaymentSection) {
+      return (
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-blue-100 rounded-full">
+                <CreditCard className="h-8 w-8 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-blue-900 mb-1">
+                  Complete Your Payment
+                </h2>
+                <p className="text-blue-700">
+                  Secure payment to start your company formation process
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-blue-200 rounded-xl p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">
+                    {request.package_name}
+                  </h3>
+                  <p className="text-gray-600">
+                    Complete company formation package
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-gray-900">
+                    £{parseFloat(request.package_price).toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    + £50 Companies House fee
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Button
+                onClick={handlePayment}
+                disabled={paying}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 text-lg"
+                size="lg"
+              >
+                {paying ? (
+                  <>
+                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                    Processing Payment...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-3 h-6 w-6" />
+                    Pay Securely - £
+                    {parseFloat(request.package_price).toFixed(2)}
+                    <ExternalLink className="ml-3 h-5 w-5" />
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={checkPaymentStatus}
+                variant="outline"
+                className="w-full"
+                disabled={checkingPayment}
+              >
+                {checkingPayment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4" />
+                    Check Payment Status
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <p className="text-center text-xs text-gray-500 mt-3">
+              🔒 Secure payment powered by Shopify • SSL encrypted
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // ✅ ENHANCED: Payment not needed or not available
     return (
-      <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="border-0 shadow-lg bg-gradient-to-r from-gray-50 to-slate-50">
         <CardContent className="p-8">
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <CreditCard className="h-8 w-8 text-blue-600" />
+            <div className="p-3 bg-gray-100 rounded-full">
+              <AlertTriangle className="h-8 w-8 text-gray-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-blue-900 mb-1">
-                Complete Your Payment
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                Payment Not Required
               </h2>
-              <p className="text-blue-700">
-                Secure payment to start your company formation process
+              <p className="text-gray-700">
+                This request doesn't require additional payment
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-blue-200 rounded-xl p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
-                  {request.package_name}
-                </h3>
-                <p className="text-gray-600">
-                  Complete company formation package
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">
-                  £{parseFloat(request.package_price).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-500">
-                  + £50 Companies House fee
-                </p>
-              </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="text-center">
+              <p className="text-gray-600">
+                {request.status === "completed"
+                  ? "Your company formation has been completed successfully."
+                  : "Payment is not available for this request at the moment."}
+              </p>
             </div>
           </div>
-
-          <div className="space-y-4">
-            <Button
-              onClick={handlePayment}
-              disabled={paying}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 text-lg"
-              size="lg"
-            >
-              {paying ? (
-                <>
-                  <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                  Processing Payment...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="mr-3 h-6 w-6" />
-                  Pay Securely - £{parseFloat(request.package_price).toFixed(2)}
-                  <ExternalLink className="ml-3 h-5 w-5" />
-                </>
-              )}
-            </Button>
-
-            <Button
-              onClick={checkPaymentStatus}
-              variant="outline"
-              className="w-full"
-              disabled={checkingPayment}
-            >
-              {checkingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4" />
-                  Check Payment Status
-                </>
-              )}
-            </Button>
-          </div>
-
-          <p className="text-center text-xs text-gray-500 mt-3">
-            🔒 Secure payment powered by Shopify • SSL encrypted
-          </p>
         </CardContent>
       </Card>
     );
   };
 
-  // Payment handler
+  // ✅ ENHANCED: Payment handler with session tracking
   const handlePayment = async () => {
     if (!request || !user) {
       alert("Request or user information not available");
       return;
     }
 
+    // ✅ ENHANCED: Check if payment is already complete before proceeding
+    if (isPaymentComplete(request)) {
+      alert("Payment has already been completed for this request.");
+      return;
+    }
+
     try {
       setPaying(true);
       console.log("🚀 Starting payment process...");
+
+      // ✅ ENHANCED: Mark payment as attempted in session storage
+      const sessionPaymentKey = `payment_attempted_${requestId}`;
+      sessionStorage.setItem(sessionPaymentKey, "true");
+      setPaymentAttempted(true);
 
       let packageInfo;
       try {
@@ -560,6 +991,24 @@ export default function RequestDetailsPage() {
       console.log("✅ Checkout URL received:", data.checkoutUrl);
       console.log("🔗 Redirecting to payment...");
 
+      // ✅ ENHANCED: Update cart data to mark checkout as initiated
+      try {
+        await supabase
+          .from("company_requests")
+          .update({
+            cart_data: {
+              ...request.cart_data,
+              cart_id: data.cartId,
+              checkout_url: data.checkoutUrl,
+              checkout_initiated_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", request.id);
+      } catch (updateError) {
+        console.warn("⚠️ Could not update cart data:", updateError);
+      }
+
       window.location.href = data.checkoutUrl;
     } catch (error) {
       console.error("💥 Payment error details:", {
@@ -570,6 +1019,11 @@ export default function RequestDetailsPage() {
           : null,
         user: user ? { id: user.id, email: user.email } : null,
       });
+
+      // ✅ ENHANCED: Clear payment attempted flag on error
+      const sessionPaymentKey = `payment_attempted_${requestId}`;
+      sessionStorage.removeItem(sessionPaymentKey);
+      setPaymentAttempted(false);
 
       let userMessage = "Payment setup failed. ";
 
@@ -792,7 +1246,7 @@ export default function RequestDetailsPage() {
         </div>
       </motion.div>
 
-      {/* ✅ IMPROVED: Payment Section with better design */}
+      {/* ✅ ENHANCED: Payment Section with improved logic */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
