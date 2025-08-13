@@ -1,4 +1,3 @@
-// src/pages/OrdersPage.jsx - Enhanced with Filtering, Search and Better Layout
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { Link, useNavigate } from "react-router-dom";

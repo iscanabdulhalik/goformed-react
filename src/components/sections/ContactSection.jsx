@@ -1,3 +1,4 @@
+// src/components/sections/ContactSection.jsx - MOBILE-FIRST RESPONSIVE
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -82,7 +83,6 @@ export default function ContactSection() {
       );
 
       if (adminError) {
-        // If admin email fails, it's a critical error.
         console.error("❌ Critical: Admin notification failed:", adminError);
         throw new Error(
           `Failed to send message to our team. Please try again later. Details: ${adminError.message}`
@@ -107,7 +107,6 @@ export default function ContactSection() {
         });
 
       if (replyError) {
-        // This is a non-critical error. The admin has the message, but the user didn't get a confirmation.
         console.warn("⚠️ Customer auto-reply failed:", replyError);
 
         const technicalDebugInfo = `Customer Email Error: ${JSON.stringify(
@@ -117,7 +116,6 @@ export default function ContactSection() {
         )}`;
         let userErrorMessage = `Your message has been sent to our team! However, we couldn't send a confirmation email to ${formData.email}. Please check your spam folder.`;
 
-        // Provide a more specific hint if it's a likely deliverability issue.
         const errorMessageString = (replyError.message || "").toLowerCase();
         if (
           errorMessageString.includes("recipient rejected") ||
@@ -135,9 +133,7 @@ export default function ContactSection() {
         }
 
         setError(userErrorMessage);
-        // Do not set as submitted, so the user sees the warning.
       } else {
-        // Everything was successful!
         console.log("✅ Customer auto-reply sent successfully!");
         setIsSubmitted(true);
         setFormData({ name: "", email: "", subject: "", message: "" });
@@ -205,7 +201,7 @@ export default function ContactSection() {
   return (
     <section
       id="contact"
-      className="w-full py-12 sm:py-16 md:py-24 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-purple-50"
+      className="w-full py-12 sm:py-16 md:py-20 lg:py-24 xl:py-32 bg-gradient-to-br from-blue-50 via-white to-purple-50"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -214,24 +210,25 @@ export default function ContactSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12 sm:mb-16"
+            className="text-center mb-8 sm:mb-12 lg:mb-16"
           >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 lg:mb-6 px-4">
               Get in Touch
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-4">
               Have questions about forming your UK company? We're here to help
               you every step of the way.
             </p>
           </motion.div>
 
-          <div className="grid lg:grid-cols-5 gap-8 lg:gap-12 items-start">
+          <div className="grid lg:grid-cols-5 gap-6 sm:gap-8 lg:gap-12 items-start">
+            {/* Contact Info - Mobile first */}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="lg:col-span-2 space-y-6"
+              className="lg:col-span-2 space-y-4 sm:space-y-6 order-2 lg:order-1"
             >
               {contactInfo.map((item, index) => {
                 const IconComponent =
@@ -243,18 +240,18 @@ export default function ContactSection() {
                   viewport: { once: true },
                   transition: { duration: 0.4, delay: index * 0.1 },
                   className:
-                    "flex items-center gap-4 p-4 sm:p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100",
+                    "flex items-center gap-3 sm:gap-4 p-4 sm:p-6 bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-sm border border-gray-100",
                 };
                 const content = (
                   <>
-                    <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                    <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base mb-1">
                         {item.title}
                       </h4>
-                      <p className="text-gray-600 text-sm sm:text-base">
+                      <p className="text-gray-600 text-xs sm:text-sm lg:text-base break-words">
                         {item.content}
                       </p>
                     </div>
@@ -267,7 +264,7 @@ export default function ContactSection() {
                     href={item.href}
                     {...commonProps}
                     whileHover={{ scale: 1.02, y: -2 }}
-                    className={`${commonProps.className} group`}
+                    className={`${commonProps.className} group cursor-pointer`}
                   >
                     {content}
                   </motion.a>
@@ -275,73 +272,80 @@ export default function ContactSection() {
               })}
             </motion.div>
 
+            {/* Contact Form - Mobile optimized */}
             <motion.div
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="lg:col-span-3"
+              className="lg:col-span-3 order-1 lg:order-2"
             >
-              <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-                <CardHeader className="text-center pb-6">
-                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900">
+              <Card className="shadow-xl sm:shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+                <CardHeader className="text-center pb-4 sm:pb-6 p-4 sm:p-6">
+                  <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
                     Send us a Message
                   </CardTitle>
-                  <CardDescription className="text-base sm:text-lg text-gray-600">
+                  <CardDescription className="text-sm sm:text-base lg:text-lg text-gray-600 mt-2">
                     Fill out the form below and we'll get back to you within 24
                     hours.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
                   {isSubmitted ? (
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="text-center py-8 space-y-4"
+                      className="text-center py-6 sm:py-8 space-y-3 sm:space-y-4"
                     >
-                      <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-900">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                         Message Sent Successfully!
                       </h3>
-                      <p className="text-gray-600">
+                      <p className="text-sm sm:text-base text-gray-600 px-4">
                         Thank you for reaching out. We've sent a confirmation to
                         your email and will be in touch soon.
                       </p>
                       <Button
                         onClick={() => setIsSubmitted(false)}
                         variant="outline"
-                        className="mt-4"
+                        className="mt-3 sm:mt-4"
                       >
                         Send Another Message
                       </Button>
                     </motion.div>
                   ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form
+                      onSubmit={handleSubmit}
+                      className="space-y-4 sm:space-y-6"
+                    >
                       {error && (
                         <motion.div
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="p-4 bg-red-50 border border-red-200 rounded-lg"
+                          className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg"
                         >
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                            <p className="text-sm text-red-800">{error}</p>
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs sm:text-sm text-red-800">
+                              {error}
+                            </p>
                           </div>
                           {debugInfo && (
                             <details className="mt-2">
                               <summary className="text-xs text-red-600 cursor-pointer font-medium">
                                 Show Technical Details
                               </summary>
-                              <pre className="text-xs text-red-700 mt-2 p-2 bg-red-100 rounded whitespace-pre-wrap break-words max-h-40 overflow-auto">
+                              <pre className="text-xs text-red-700 mt-2 p-2 bg-red-100 rounded whitespace-pre-wrap break-words max-h-32 sm:max-h-40 overflow-auto">
                                 {debugInfo}
                               </pre>
                             </details>
                           )}
                         </motion.div>
                       )}
-                      <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div className="space-y-2">
                           <Label
                             htmlFor="name"
@@ -356,7 +360,7 @@ export default function ContactSection() {
                             onChange={handleInputChange}
                             placeholder="John Doe"
                             required
-                            className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className="h-10 sm:h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm sm:text-base"
                           />
                         </div>
                         <div className="space-y-2">
@@ -374,10 +378,11 @@ export default function ContactSection() {
                             onChange={handleInputChange}
                             placeholder="john@example.com"
                             required
-                            className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                            className="h-10 sm:h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm sm:text-base"
                           />
                         </div>
                       </div>
+
                       <div className="space-y-2">
                         <Label
                           htmlFor="subject"
@@ -392,9 +397,10 @@ export default function ContactSection() {
                           onChange={handleInputChange}
                           placeholder="How can we help you?"
                           required
-                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          className="h-10 sm:h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm sm:text-base"
                         />
                       </div>
+
                       <div className="space-y-2">
                         <Label
                           htmlFor="message"
@@ -409,23 +415,24 @@ export default function ContactSection() {
                           onChange={handleInputChange}
                           placeholder="Tell us more..."
                           required
-                          rows={5}
-                          className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                          rows={4}
+                          className="resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm sm:text-base"
                         />
                       </div>
+
                       <Button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60"
+                        className="w-full h-10 sm:h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60 text-sm sm:text-base"
                       >
                         {isSubmitting ? (
                           <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
                             Sending...
                           </>
                         ) : (
                           <>
-                            <Send className="w-5 h-5 mr-2" />
+                            <Send className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                             Send Message
                           </>
                         )}

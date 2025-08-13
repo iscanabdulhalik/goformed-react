@@ -1,5 +1,4 @@
-// src/components/layout/Navbar.jsx - Updated with working section navigation
-
+// src/components/layout/Navbar.jsx - FULLY RESPONSIVE VERSION
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +21,7 @@ import {
   Home,
   Mail,
   Info,
+  Phone,
 } from "lucide-react";
 
 // Profile dropdown menu
@@ -30,23 +30,16 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Get profile photo from Google or use fallback
   const getProfilePhoto = () => {
-    // Check Google profile photo
     if (user?.user_metadata?.avatar_url) {
       return user.user_metadata.avatar_url;
     }
-
-    // Check if user has picture metadata
     if (user?.user_metadata?.picture) {
       return user.user_metadata.picture;
     }
-
-    // Check app metadata for profile photo
     if (user?.app_metadata?.picture) {
       return user.app_metadata.picture;
     }
-
     return null;
   };
 
@@ -70,7 +63,6 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
       .slice(0, 2);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -111,13 +103,11 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
     },
   ];
 
-  // Admin menu removed - no admin access from profile dropdown
-
   return (
     <div className="relative" ref={dropdownRef}>
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex items-center gap-1.5 sm:gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -126,45 +116,40 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
             <img
               src={profilePhoto}
               alt={getDisplayName()}
-              className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white shadow-sm"
               onError={(e) => {
-                // If Google photo fails to load, hide img and show initials
                 e.target.style.display = "none";
                 e.target.nextSibling.style.display = "flex";
               }}
             />
           ) : null}
 
-          {/* Fallback initials avatar */}
           <div
-            className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold ${
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs sm:text-sm font-semibold ${
               profilePhoto ? "hidden" : "flex"
             }`}
           >
             {getInitials()}
           </div>
 
-          {/* Online indicator */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white"></div>
         </div>
 
         <ChevronDown
-          className={`w-4 h-4 text-gray-500 transition-transform ${
+          className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-500 transition-transform hidden sm:block ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </motion.button>
 
-      {/* Dropdown Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 py-2"
+            className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 py-2"
           >
-            {/* User Info */}
             <div className="px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -190,10 +175,10 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">
+                  <p className="font-semibold text-gray-900 truncate text-sm">
                     {getDisplayName()}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate">
                     {user?.email}
                   </p>
                   {isAdmin && (
@@ -205,13 +190,12 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
               </div>
             </div>
 
-            {/* Menu Items */}
             <div className="py-2">
               {menuItems.map((item, index) => (
                 <button
                   key={index}
                   onClick={item.onClick}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-sm"
                 >
                   <item.icon className="w-4 h-4" />
                   <span>{item.label}</span>
@@ -219,14 +203,13 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
               ))}
             </div>
 
-            {/* Sign Out */}
             <div className="border-t border-gray-100 pt-2">
               <button
                 onClick={() => {
                   onSignOut();
                   setIsOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors text-sm"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Sign Out</span>
@@ -243,7 +226,7 @@ const ProfileDropdown = ({ user, profile, onSignOut, isAdmin }) => {
 const scrollToSection = (sectionId) => {
   const element = document.getElementById(sectionId);
   if (element) {
-    const offset = 80; // Height of fixed navbar
+    const offset = 80;
     const elementPosition = element.getBoundingClientRect().top;
     const offsetPosition = elementPosition + window.pageYOffset - offset;
 
@@ -268,17 +251,14 @@ export default function Navbar() {
 
   const handleNavigation = (href) => {
     if (href.startsWith("/#")) {
-      // If we're not on homepage, navigate there first
       if (location.pathname !== "/") {
         navigate("/");
-        // Small delay to ensure page loads before scrolling
         setTimeout(() => {
-          const sectionId = href.substring(2); // Remove "/#"
+          const sectionId = href.substring(2);
           scrollToSection(sectionId);
         }, 100);
       } else {
-        // If already on homepage, just scroll
-        const sectionId = href.substring(2); // Remove "/#"
+        const sectionId = href.substring(2);
         scrollToSection(sectionId);
       }
     } else {
@@ -303,28 +283,28 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-8">
+        <div className="flex h-14 sm:h-16 items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
             <Link
               to="/"
-              className="flex items-center space-x-2 font-bold text-xl text-gray-900 hover:text-blue-600 transition-colors"
+              className="flex items-center space-x-1.5 sm:space-x-2 font-bold text-lg sm:text-xl text-gray-900 hover:text-blue-600 transition-colors"
             >
-              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
-              <span className="text-lg sm:text-xl">GoFormed</span>
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-blue-600 flex-shrink-0" />
+              <span className="text-base sm:text-lg lg:text-xl">GoFormed</span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
+          <div className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.name}
                   onClick={() => handleNavigation(item.href)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive(item.href)
                       ? "text-blue-600 bg-blue-50"
                       : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -338,10 +318,10 @@ export default function Navbar() {
           </div>
 
           {/* Right Side - Auth & Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-4">
             {user ? (
               <>
-                {/* Notifications Bell */}
+                {/* Notifications Bell - Hidden on small screens */}
                 <div className="hidden sm:block">
                   <NotificationBell userId={user.id} />
                 </div>
@@ -351,11 +331,12 @@ export default function Navbar() {
                   asChild
                   variant="outline"
                   size="sm"
-                  className="hidden sm:flex text-xs sm:text-sm"
+                  className="hidden sm:flex text-xs lg:text-sm px-2 lg:px-3"
                 >
                   <Link to="/dashboard">
-                    <Building2 className="w-4 h-4 mr-1 sm:mr-2" />
-                    Dashboard
+                    <Building2 className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2" />
+                    <span className="hidden lg:inline">Dashboard</span>
+                    <span className="lg:hidden">Dash</span>
                   </Link>
                 </Button>
 
@@ -368,16 +349,24 @@ export default function Navbar() {
                 />
               </>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Button asChild variant="ghost" size="sm" className="text-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs sm:text-sm px-2 sm:px-3"
+                >
                   <Link to="/login">Sign In</Link>
                 </Button>
                 <Button
                   asChild
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-sm px-3 sm:px-4"
+                  className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm px-2 sm:px-3"
                 >
-                  <Link to="/register">Get Started</Link>
+                  <Link to="/register">
+                    <span className="hidden sm:inline">Get Started</span>
+                    <span className="sm:hidden">Start</span>
+                  </Link>
                 </Button>
               </div>
             )}
@@ -386,13 +375,13 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden p-2"
+              className="md:hidden p-1.5 h-8 w-8"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
               )}
             </Button>
           </div>
@@ -414,7 +403,7 @@ export default function Navbar() {
                     <button
                       key={item.name}
                       onClick={() => handleNavigation(item.href)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors ${
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium transition-colors ${
                         isActive(item.href)
                           ? "text-blue-600 bg-blue-50"
                           : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -426,7 +415,6 @@ export default function Navbar() {
                   );
                 })}
 
-                {/* Mobile menu without admin access */}
                 {user && (
                   <div className="pt-4 border-t border-gray-200 space-y-1">
                     {/* Mobile Notifications */}
@@ -443,10 +431,34 @@ export default function Navbar() {
                         navigate("/dashboard");
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
                     >
                       <Building2 className="w-5 h-5" />
                       Dashboard
+                    </button>
+
+                    {/* Mobile Orders Link */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/orders");
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      Orders
+                    </button>
+
+                    {/* Mobile Settings Link */}
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard/settings");
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <Settings className="w-5 h-5" />
+                      Settings
                     </button>
 
                     {/* Mobile Sign Out */}
@@ -455,7 +467,7 @@ export default function Navbar() {
                         handleSignOut();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="w-5 h-5" />
                       Sign Out

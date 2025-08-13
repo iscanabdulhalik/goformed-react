@@ -1,4 +1,3 @@
-// src/pages/MarketplacePage.jsx - Optimized & Compact Design
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabase";
 import { motion } from "framer-motion";
